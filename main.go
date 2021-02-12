@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"os/exec"
 	"path"
@@ -47,10 +48,21 @@ func main() {
 	err = os.Mkdir(installPath, 0755)
 	check(err)
 
-	// Set up postgres data folder
+	// Setup Postgres Container
+	setupPostgres(connText, installPath)
+
+	// Setup Quay Container
+	setupQuay(connText, installPath)
+
+}
+
+func setupPostgres(connText context.Context, installPath string) {
+
 	log.Printf("Setting up Postgres service\n")
+
+	// Set up postgres data folder
 	postgresDataPath := path.Join(installPath, "pg-data")
-	err = os.Mkdir(postgresDataPath, 0755)
+	err := os.Mkdir(postgresDataPath, 0755)
 	check(err)
 
 	_, err = exec.Command("setfacl", "-m", "u:26:-wx", postgresDataPath).Output()
@@ -79,7 +91,7 @@ func main() {
 		"POSTGRESQL_MAX_CONNECTIONS": "2000",
 	}
 
-	genMounts, _, _, err := specgen.GenVolumeMounts([]string{"/root/quay-install/pg-data:/var/lib/pgsql/data"})
+	genMounts, _, _, err := specgen.GenVolumeMounts([]string{fmt.Sprintf("%s:/var/lib/pgsql/data", postgresDataPath)})
 	s.Mounts = []specs.Mount{
 		genMounts["/var/lib/pgsql/data"],
 	}
@@ -94,6 +106,61 @@ func main() {
 
 	// Start container and wait for start
 	log.Printf("Starting Postgres container")
+	err = containers.Start(connText, r.ID, nil)
+	check(err)
+	running := define.ContainerStateRunning
+	_, err = containers.Wait(connText, r.ID, &running)
+	check(err)
+}
+
+func setupQuay(connText context.Context, installPath string) {
+
+	log.Printf("Setting up Quay service\n")
+
+	// Set up Quay local storage
+	quayStoragePath := path.Join(installPath, "quay-storage")
+	err := os.Mkdir(quayStoragePath, 0755)
+	check(err)
+
+	// Build Quay Config
+	quayConfigPath := path.Join(installPath, "quay-config")
+	err = os.Mkdir(quayConfigPath, 0755)
+	check(err)
+
+	_, err = exec.Command("setfacl", "-m", "u:1001:-wx", quayStoragePath).Output()
+	check(err)
+
+	// Pull postgres image
+	log.Printf("Pulling Quay image")
+	_, err = images.Pull(connText, quayImage, entities.ImagePullOptions{})
+	check(err)
+
+	// Create postgres container spec
+	s := specgen.NewSpecGenerator(quayImage, false)
+	s.Terminal = true
+	s.PortMappings = []specgen.PortMapping{
+		{
+			HostPort:      8080,
+			ContainerPort: 8080,
+		},
+	}
+
+	genMounts, _, _, err := specgen.GenVolumeMounts([]string{fmt.Sprintf("%s:/conf/stack", quayConfigPath), fmt.Sprintf("%s:/datastorage", quayStoragePath)})
+	s.Mounts = []specs.Mount{
+		genMounts["/conf/stack"],
+		genMounts["/datastorage"],
+	}
+
+	err = s.Validate()
+	check(err)
+
+	// Create container
+	log.Printf("Creating Quay container")
+	r, err := containers.CreateWithSpec(connText, s)
+	check(err)
+
+	// Start container and wait for start
+	log.Printf("Starting Quay container")
 	err = containers.Start(connText, r.ID, nil)
 	check(err)
 	running := define.ContainerStateRunning
