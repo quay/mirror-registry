@@ -1,27 +1,36 @@
 package main
 
 import (
-	"context"
-	"fmt"
 	"io/ioutil"
 	"os"
 	"os/exec"
 	"path"
 
 	"log"
-
-	"github.com/containers/podman/v2/libpod/define"
-	"github.com/containers/podman/v2/pkg/bindings"
-	"github.com/containers/podman/v2/pkg/bindings/containers"
-	"github.com/containers/podman/v2/pkg/bindings/images"
-	"github.com/containers/podman/v2/pkg/domain/entities"
-	"github.com/containers/podman/v2/pkg/specgen"
-	"github.com/opencontainers/runtime-spec/specs-go"
 )
 
 const (
-	quayImage     = "quay.io/projectquay/quay"
-	postgresImage = "docker.io/centos/postgresql-10-centos7:latest"
+	postgresSystemD = `
+[Unit]
+Description=Podman container-brave_noether.service
+Documentation=man:podman-generate-systemd(1)
+Wants=network.target
+After=network-online.target
+
+[Service]
+Environment=PODMAN_SYSTEMD_UNIT=%n
+Restart=always
+ExecStartPre=/bin/rm -f %t/container-brave_noether.pid %t/container-brave_noether.ctr-id
+ExecStart=/usr/bin/podman run --conmon-pidfile %t/container-brave_noether.pid --cidfile %t/container-brave_noether.ctr-id --cgroups=no-conmon -p 5432:5432 -e POSTGRESQL_USER=quay-database -e POSTGRESQL_DATABASE=quay-database -e POSTGRESQL_PASSWORD=quay-database -e POSTGRESQL_ADMIN_PASSWORD=postgres -e POSTGRESQL_SHARED_BUFFERS=256MB -e POSTGRESQL_MAX_CONNECTIONS=2000 -v $HOME/quay-install/pgsql:/var/lib/pgsql/data centos/postgresql-10-centos7@sha256:de1560cb35e5ec643e7b3a772ebaac8e3a7a2a8e8271d9e91ff023539b4dfb33
+ExecStop=/usr/bin/podman stop --ignore --cidfile %t/container-brave_noether.ctr-id -t 10
+ExecStopPost=/usr/bin/podman rm --ignore -f --cidfile %t/container-brave_noether.ctr-id
+PIDFile=%t/container-brave_noether.pid
+KillMode=none
+Type=forking
+
+[Install]
+WantedBy=multi-user.target default.target
+`
 )
 
 func check(err error) {
@@ -34,13 +43,9 @@ func main() {
 
 	log.Printf("Quay All in One Installer\n")
 
-	// Start service
+	// Start service FIXME (just checking for installation)
 	log.Printf("Checking for Podman socket")
 	_, err := exec.Command("systemctl", "start", "podman.socket").Output()
-	check(err)
-
-	// Connect to socket
-	connText, err := bindings.NewConnection(context.Background(), "unix://run/podman/podman.sock")
 	check(err)
 
 	// Build install path and create directory
@@ -49,78 +54,20 @@ func main() {
 	err = os.Mkdir(installPath, 0755)
 	check(err)
 
-	// Setup Postgres Container
-	setupPostgres(connText, installPath)
-
-	// Setup Quay Container
-	setupQuay(connText, installPath)
-
-}
-
-func setupPostgres(connText context.Context, installPath string) {
-
-	log.Printf("Setting up Postgres service\n")
-
-	// Set up postgres data folder
+	// Build postgres directory
 	postgresDataPath := path.Join(installPath, "pg-data")
-	err := os.Mkdir(postgresDataPath, 0755)
+	err = os.Mkdir(postgresDataPath, 0755)
 	check(err)
 
+	// Set permissions
 	_, err = exec.Command("setfacl", "-m", "u:26:-wx", postgresDataPath).Output()
 	check(err)
-
-	// Pull postgres image
-	log.Printf("Pulling Postgres image")
-	_, err = images.Pull(connText, postgresImage, entities.ImagePullOptions{})
+	_, err = exec.Command("chcon", "-Rt", "svirt_sandbox_file_t", postgresDataPath).Output()
 	check(err)
-
-	// Create postgres container spec
-	s := specgen.NewSpecGenerator(postgresImage, false)
-	s.Terminal = true
-	s.PortMappings = []specgen.PortMapping{
-		{
-			HostPort:      5432,
-			ContainerPort: 5432,
-		},
-	}
-	s.Env = map[string]string{
-		"POSTGRESQL_USER":            "user",
-		"POSTGRESQL_PASSWORD":        "password",
-		"POSTGRESQL_ADMIN_PASSWORD":  "password",
-		"POSTGRESQL_DATABASE":        "quay-database",
-		"POSTGRESQL_SHARED_BUFFERS":  "256MB",
-		"POSTGRESQL_MAX_CONNECTIONS": "2000",
-	}
-
-	genMounts, _, _, err := specgen.GenVolumeMounts([]string{fmt.Sprintf("%s:/var/lib/pgsql/data", postgresDataPath)})
-	s.Mounts = []specs.Mount{
-		genMounts["/var/lib/pgsql/data"],
-	}
-
-	err = s.Validate()
-	check(err)
-
-	// Create container
-	log.Printf("Creating Postgres container")
-	r, err := containers.CreateWithSpec(connText, s)
-	check(err)
-
-	// Start container and wait for start
-	log.Printf("Starting Postgres container")
-	err = containers.Start(connText, r.ID, nil)
-	check(err)
-	running := define.ContainerStateRunning
-	_, err = containers.Wait(connText, r.ID, &running)
-	check(err)
-}
-
-func setupQuay(connText context.Context, installPath string) {
 
 	log.Printf("Setting up Quay service\n")
-
-	// Build Quay Config
 	quayConfigPath := path.Join(installPath, "quay-config")
-	err := os.Mkdir(quayConfigPath, 0755)
+	err = os.Mkdir(quayConfigPath, 0755)
 	check(err)
 	configBytes, err := createConfigBytes()
 	check(err)
@@ -133,42 +80,7 @@ func setupQuay(connText context.Context, installPath string) {
 	check(err)
 	_, err = exec.Command("setfacl", "-m", "u:1001:-wx", quayStoragePath).Output()
 	check(err)
-
-	// Pull postgres image
-	log.Printf("Pulling Quay image")
-	_, err = images.Pull(connText, quayImage, entities.ImagePullOptions{})
-	check(err)
-
-	// Create postgres container spec
-	s := specgen.NewSpecGenerator(quayImage, false)
-	s.Terminal = true
-	s.PortMappings = []specgen.PortMapping{
-		{
-			HostPort:      8080,
-			ContainerPort: 8080,
-		},
-	}
-
-	genMounts, _, _, err := specgen.GenVolumeMounts([]string{fmt.Sprintf("%s:/conf/stack", quayConfigPath), fmt.Sprintf("%s:/datastorage", quayStoragePath)})
-	s.Mounts = []specs.Mount{
-		genMounts["/conf/stack"],
-		genMounts["/datastorage"],
-	}
-
-	err = s.Validate()
-	check(err)
-
-	// Create container
-	log.Printf("Creating Quay container")
-	r, err := containers.CreateWithSpec(connText, s)
-	check(err)
-
-	// Start container and wait for start
-	log.Printf("Starting Quay container")
-	err = containers.Start(connText, r.ID, nil)
-	check(err)
-	running := define.ContainerStateRunning
-	_, err = containers.Wait(connText, r.ID, &running)
+	_, err = exec.Command("chcon", "-Rt", "svirt_sandbox_file_t", quayStoragePath).Output()
 	check(err)
 
 }
