@@ -1,37 +1,16 @@
 package main
 
 import (
+	_ "embed"
 	"io/ioutil"
+	"log"
 	"os"
 	"os/exec"
 	"path"
-
-	"log"
 )
 
-const (
-	postgresSystemD = `
-[Unit]
-Description=Podman container-brave_noether.service
-Documentation=man:podman-generate-systemd(1)
-Wants=network.target
-After=network-online.target
-
-[Service]
-Environment=PODMAN_SYSTEMD_UNIT=%n
-Restart=always
-ExecStartPre=/bin/rm -f %t/container-brave_noether.pid %t/container-brave_noether.ctr-id
-ExecStart=/usr/bin/podman run --conmon-pidfile %t/container-brave_noether.pid --cidfile %t/container-brave_noether.ctr-id --cgroups=no-conmon -p 5432:5432 -e POSTGRESQL_USER=quay-database -e POSTGRESQL_DATABASE=quay-database -e POSTGRESQL_PASSWORD=quay-database -e POSTGRESQL_ADMIN_PASSWORD=postgres -e POSTGRESQL_SHARED_BUFFERS=256MB -e POSTGRESQL_MAX_CONNECTIONS=2000 -v $HOME/quay-install/pgsql:/var/lib/pgsql/data centos/postgresql-10-centos7@sha256:de1560cb35e5ec643e7b3a772ebaac8e3a7a2a8e8271d9e91ff023539b4dfb33
-ExecStop=/usr/bin/podman stop --ignore --cidfile %t/container-brave_noether.ctr-id -t 10
-ExecStopPost=/usr/bin/podman rm --ignore -f --cidfile %t/container-brave_noether.ctr-id
-PIDFile=%t/container-brave_noether.pid
-KillMode=none
-Type=forking
-
-[Install]
-WantedBy=multi-user.target default.target
-`
-)
+//go:embed "assets/postgres.service"
+var postgresServiceBytes []byte
 
 func check(err error) {
 	if err != nil {
@@ -44,19 +23,25 @@ func main() {
 	log.Printf("Quay All in One Installer\n")
 
 	// Start service FIXME (just checking for installation)
-	log.Printf("Checking for Podman socket")
-	_, err := exec.Command("systemctl", "start", "podman.socket").Output()
-	check(err)
+	// FIND A WAY TO CHECK FOR PODMAN
 
 	// Build install path and create directory
-	log.Printf("Creating quay-install directory in $HOME\n")
 	installPath := path.Join(os.Getenv("HOME"), "quay-install")
-	err = os.Mkdir(installPath, 0755)
+	log.Printf("Creating quay-install directory at %s\n", installPath)
+	err := os.Mkdir(installPath, 0755)
 	check(err)
+
+	installPostgres(installPath)
+
+}
+
+func installPostgres(installPath string) {
+	log.Printf("Setting up Postgres service\n")
 
 	// Build postgres directory
 	postgresDataPath := path.Join(installPath, "pg-data")
-	err = os.Mkdir(postgresDataPath, 0755)
+	log.Printf("Creating pg-data in %s", postgresDataPath)
+	err := os.Mkdir(postgresDataPath, 0755)
 	check(err)
 
 	// Set permissions
@@ -65,10 +50,28 @@ func main() {
 	_, err = exec.Command("chcon", "-Rt", "svirt_sandbox_file_t", postgresDataPath).Output()
 	check(err)
 
-	log.Printf("Setting up Quay service\n")
-	quayConfigPath := path.Join(installPath, "quay-config")
-	err = os.Mkdir(quayConfigPath, 0755)
+	log.Printf("Setting up quay-postgresql.service")
+	err = ioutil.WriteFile("/etc/systemd/system/quay-postgresql.service", postgresServiceBytes, 0644)
+
+	// Set permissions
+	_, err = exec.Command("systemctl", "daemon-reload").Output()
 	check(err)
+	_, err = exec.Command("systemctl", "start", "quay-postgresql").Output()
+	check(err)
+	_, err = exec.Command("systemctl", "status", "quay-postgresql").Output()
+	check(err)
+
+}
+
+func installQuay(installPath string) {
+	log.Printf("Setting up Quay service\n")
+
+	// Build quay config path
+	quayConfigPath := path.Join(installPath, "quay-config")
+	log.Printf("Creating quay-config directory at %s\n", quayConfigPath)
+	err := os.Mkdir(quayConfigPath, 0755)
+	check(err)
+
 	configBytes, err := createConfigBytes()
 	check(err)
 	err = ioutil.WriteFile(path.Join(quayConfigPath, "config.yaml"), configBytes, 0644)
@@ -76,15 +79,16 @@ func main() {
 
 	// Set up Quay local storage
 	quayStoragePath := path.Join(installPath, "quay-storage")
+	log.Printf("Creating quay-storage directory at %s\n", quayStoragePath)
 	err = os.Mkdir(quayStoragePath, 0755)
 	check(err)
+
 	_, err = exec.Command("setfacl", "-m", "u:1001:-wx", quayStoragePath).Output()
 	check(err)
 	_, err = exec.Command("chcon", "-Rt", "svirt_sandbox_file_t", quayStoragePath).Output()
 	check(err)
 
 }
-
 func createConfigBytes() ([]byte, error) {
 
 	// FIX THIS
