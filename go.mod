@@ -3,17 +3,15 @@ module github.com/jonathankingfc/quay-aioi
 go 1.16
 
 require (
-	github.com/containers/podman/v2 v2.2.1
-	github.com/golang/protobuf v1.4.3 // indirect
-	github.com/google/go-cmp v0.5.4 // indirect
-	github.com/mattn/go-isatty v0.0.8 // indirect
-	github.com/mattn/go-runewidth v0.0.10 // indirect
-	github.com/onsi/ginkgo v1.15.0 // indirect
-	github.com/onsi/gomega v1.10.5 // indirect
-	github.com/opencontainers/runtime-spec v1.0.3-0.20200817204227-f9c09b4ea1df
-	github.com/rivo/uniseg v0.2.0 // indirect
-	github.com/spf13/cobra v1.1.3 // indirect
-	golang.org/x/crypto v0.0.0-20201012173705-84dcc777aaee // indirect
-	google.golang.org/grpc v1.35.0 // indirect
+	github.com/fsnotify/fsnotify v1.4.9 // indirect
+	github.com/kr/text v0.2.0 // indirect
+	github.com/mitchellh/go-homedir v1.1.0
+	github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e // indirect
+	github.com/spf13/cobra v1.1.3
+	github.com/spf13/viper v1.7.0
+	github.com/stretchr/testify v1.6.1 // indirect
+	golang.org/x/sys v0.0.0-20210112080510-489259a85091 // indirect
+	golang.org/x/text v0.3.3 // indirect
+	gopkg.in/check.v1 v1.0.0-20200227125254-8fa46927fb4f // indirect
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b // indirect
 )

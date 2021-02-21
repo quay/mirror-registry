@@ -9,7 +9,7 @@ ExecStartPre=-/usr/bin/podman rm "postgresql-service"
 
 ExecStart=/usr/bin/podman run \
     --name postgresql-service \
-    -v /opt/containers/var/lib/pgsql/data:/var/lib/pgsql/data:Z \
+    -v $HOME/quay-install/pg-data:/var/lib/pgsql/data:Z \
     -e POSTGRESQL_USER=quay \
     -e POSTGRESQL_PASSWORD=quaysecret \
     -e POSTGRESQL_ADMIN_PASSWORD=quayadmin \
