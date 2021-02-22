@@ -14,6 +14,12 @@ import (
 //go:embed "assets/postgres.service"
 var postgresServiceBytes []byte
 
+const (
+	postgresqlSystemdLocation = "/etc/systemd/system/quay-postgresql.service"
+	redisSystemdLocation      = "/etc/systemd/system/quay-redis.service"
+	quaySystemdLocation       = "/etc/systemd/system/quay-app.service"
+)
+
 // var editorPassword string
 // var operatorEndpoint string
 // var readonlyFieldGroups string
@@ -83,7 +89,7 @@ func installPostgres(installPath string) {
 	check(err)
 
 	log.Printf("Setting up quay-postgresql.service")
-	err = ioutil.WriteFile("/etc/systemd/system/quay-postgresql.service", postgresServiceBytes, 0644)
+	err = ioutil.WriteFile(postgresqlSystemdLocation, postgresServiceBytes, 0644)
 
 	// Set permissions
 	_, err = exec.Command("systemctl", "daemon-reload").Output()

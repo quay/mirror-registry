@@ -3,7 +3,9 @@ package cmd
 import (
 	_ "embed"
 	"log"
+	"os"
 	"os/exec"
+	"path"
 
 	"github.com/spf13/cobra"
 )
@@ -39,13 +41,25 @@ func init() {
 func uninstall() {
 
 	log.Printf("Uninstalling")
-
-	_, err := exec.Command("rm", "-rf", "$HOME/quay-install").Output()
-	check(err)
-
 	// Set permissions
+
+	_, err := exec.Command("systemctl", "stop", "quay-postgresql").Output()
+	check(err)
 	_, err = exec.Command("systemctl", "disable", "quay-postgresql").Output()
 	check(err)
+
+	if _, err := os.Stat(postgresqlSystemdLocation); err == nil {
+		err = os.Remove(postgresqlSystemdLocation)
+		check(err)
+	}
+
 	_, err = exec.Command("systemctl", "daemon-reload").Output()
 	check(err)
+	_, err = exec.Command("systemctl", "reset-failed").Output()
+	check(err)
+
+	installPath := path.Join(os.Getenv("HOME"), "quay-install")
+	err = os.RemoveAll(installPath)
+	check(err)
+
 }
