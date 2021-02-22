@@ -1,0 +1,27 @@
+[Unit]
+Description=PostgreSQL Podman Container for Quay
+After=network.target
+
+[Service]
+Type=simple
+TimeoutStartSec=5m
+ExecStartPre=-/usr/bin/podman rm "postgresql-service"
+
+ExecStart=/usr/bin/podman run \
+    --name postgresql-service \
+    -v $HOME/quay-install/pg-data:/var/lib/pgsql/data:Z \
+    -e POSTGRESQL_USER=quay \
+    -e POSTGRESQL_PASSWORD=quaysecret \
+    -e POSTGRESQL_ADMIN_PASSWORD=quayadmin \
+    -e POSTGRESQL_DATABASE=quay \
+    --net host \
+    registry.access.redhat.com/rhscl/postgresql-10-rhel7
+
+ExecReload=-/usr/bin/podman stop "postgresql-service"
+ExecReload=-/usr/bin/podman rm "postgresql-service"
+ExecStop=-/usr/bin/podman stop "postgresql-service"
+Restart=always
+RestartSec=30
+
+[Install]
+WantedBy=multi-user.target
