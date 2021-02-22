@@ -1,0 +1,21 @@
+[Unit]
+Description=Redis Podman Container for Quay
+After=network.target
+
+[Service]
+Type=simple
+TimeoutStartSec=5m
+ExecStartPre=-/usr/bin/podman rm "quay-redis-service"
+
+ExecStart=/usr/bin/podman run \
+    --name quay-redis-service \
+    egistry.redhat.io/rhel8/redis-5:1
+
+ExecReload=-/usr/bin/podman stop "quay-redis-service"
+ExecReload=-/usr/bin/podman rm "quay-redis-service"
+ExecStop=-/usr/bin/podman stop "quay-redis-service"
+Restart=always
+RestartSec=30
+
+[Install]
+WantedBy=multi-user.target

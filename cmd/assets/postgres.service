@@ -5,10 +5,10 @@ After=network.target
 [Service]
 Type=simple
 TimeoutStartSec=5m
-ExecStartPre=-/usr/bin/podman rm "postgresql-service"
+ExecStartPre=-/usr/bin/podman rm "quay-postgresql-service"
 
 ExecStart=/usr/bin/podman run \
-    --name postgresql-service \
+    --name quay-postgresql-service \
     -v $HOME/quay-install/pg-data:/var/lib/pgsql/data:Z \
     -e POSTGRESQL_USER=quay \
     -e POSTGRESQL_PASSWORD=quaysecret \
@@ -17,9 +17,9 @@ ExecStart=/usr/bin/podman run \
     --net host \
     registry.access.redhat.com/rhscl/postgresql-10-rhel7
 
-ExecReload=-/usr/bin/podman stop "postgresql-service"
-ExecReload=-/usr/bin/podman rm "postgresql-service"
-ExecStop=-/usr/bin/podman stop "postgresql-service"
+ExecReload=-/usr/bin/podman stop "quay-postgresql-service"
+ExecReload=-/usr/bin/podman rm "quay-postgresql-service"
+ExecStop=-/usr/bin/podman stop "quay-postgresql-service"
 Restart=always
 RestartSec=30
 

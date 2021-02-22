@@ -1,19 +1,21 @@
 [Unit]
-Description=Quay
-Documentation=man:podman-generate-systemd(1)
-Wants=network.target
-After=network-online.target
+Description=Quay Container
+After=network.target
 
 [Service]
-Environment=PODMAN_SYSTEMD_UNIT=%n
+Type=simple
+TimeoutStartSec=5m
+ExecStartPre=-/usr/bin/podman rm "quay-app-service"
+
+ExecStart=/usr/bin/podman run \
+    --name quay-app-service \
+    
+
+ExecReload=-/usr/bin/podman stop "quay-app-service"
+ExecReload=-/usr/bin/podman rm "quay-app-service"
+ExecStop=-/usr/bin/podman stop "quay-app-service"
 Restart=always
-ExecStartPre=/bin/rm -f %t/container-brave_noether.pid %t/container-brave_noether.ctr-id
-ExecStart=/usr/bin/podman run --conmon-pidfile %t/container-brave_noether.pid --cidfile %t/container-brave_noether.ctr-id --cgroups=no-conmon -p 5432:5432 -e POSTGRESQL_USER=quay-database -e POSTGRESQL_DATABASE=quay-database -e POSTGRESQL_PASSWORD=quay-database -e POSTGRESQL_ADMIN_PASSWORD=postgres -e POSTGRESQL_SHARED_BUFFERS=256MB -e POSTGRESQL_MAX_CONNECTIONS=2000 -v $HOME/quay-install/pgsql:/var/lib/pgsql/data centos/postgresql-10-centos7@sha256:de1560cb35e5ec643e7b3a772ebaac8e3a7a2a8e8271d9e91ff023539b4dfb33
-ExecStop=/usr/bin/podman stop --ignore --cidfile %t/container-brave_noether.ctr-id -t 10
-ExecStopPost=/usr/bin/podman rm --ignore -f --cidfile %t/container-brave_noether.ctr-id
-PIDFile=%t/container-brave_noether.pid
-KillMode=none
-Type=forking
+RestartSec=30
 
 [Install]
-WantedBy=multi-user.target default.target
+WantedBy=multi-user.target

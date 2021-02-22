@@ -1,7 +1,8 @@
 package cmd
 
 import (
-	_ "embed"
+	"bytes"
+	"errors"
 	"io/ioutil"
 	"log"
 	"os"
@@ -11,31 +12,17 @@ import (
 	"github.com/spf13/cobra"
 )
 
-//go:embed "assets/postgres.service"
-var postgresServiceBytes []byte
-
-const (
-	postgresqlSystemdLocation = "/etc/systemd/system/quay-postgresql.service"
-	redisSystemdLocation      = "/etc/systemd/system/quay-redis.service"
-	quaySystemdLocation       = "/etc/systemd/system/quay-app.service"
-)
-
-// var editorPassword string
-// var operatorEndpoint string
-// var readonlyFieldGroups string
-
-// editorCmd represents the validate command
+// installCmd represents the validate command
 var installCmd = &cobra.Command{
 	Use:   "install",
-	Short: "Runs a browser-based editor for your config.yaml",
-
+	Short: "Install Quay and its required dependencies",
 	Run: func(cmd *cobra.Command, args []string) {
 		install()
 	},
 }
 
 func init() {
-	// Add editor command
+	// Add install command
 	rootCmd.AddCommand(installCmd)
 
 	// // Add --config-dir flag
@@ -45,88 +32,65 @@ func init() {
 	// editorCmd.Flags().StringVarP(&editorPassword, "password", "p", "", "The password to enter the editor")
 	// editorCmd.MarkFlagRequired("password")
 
-	// // Add --operator-endpoint flag
-	// editorCmd.Flags().StringVarP(&operatorEndpoint, "operator-endpoint", "e", "", "The endpoint to commit a validated config bundle to")
-
-	// // Add --readonly-fieldgroups flag
-	// editorCmd.Flags().StringVarP(&readonlyFieldGroups, "readonly-fieldgroups", "r", "", "Comma-separated list of fieldgroups that should be treated as read-only")
-}
-
-func check(err error) {
-	if err != nil {
-		log.Fatalf("An error occurred: %s", err.Error())
-	}
 }
 
 func install() {
+	log.Printf("Installing Quay")
 
-	log.Printf("Quay All in One Installer\n")
-	// Start service FIXME (just checking for installation)
-	// FIND A WAY TO CHECK FOR PODMAN
+	var err error
+	var stdOut bytes.Buffer
+	var stdErr bytes.Buffer
+
 	// Build install path and create directory
 	installPath := path.Join(os.Getenv("HOME"), "quay-install")
 	log.Printf("Creating quay-install directory at %s\n", installPath)
-	err := os.Mkdir(installPath, 0755)
+	err = os.Mkdir(installPath, 0755)
 	check(err)
 
-	installPostgres(installPath)
-
-}
-
-func installPostgres(installPath string) {
-	log.Printf("Setting up Postgres service\n")
-
-	// Build postgres directory
+	// Build pg-data directory for postgres and set permissions
 	postgresDataPath := path.Join(installPath, "pg-data")
 	log.Printf("Creating pg-data in %s", postgresDataPath)
-	err := os.Mkdir(postgresDataPath, 0755)
+	err = os.Mkdir(postgresDataPath, 0755)
 	check(err)
-
-	// Set permissions
 	_, err = exec.Command("setfacl", "-m", "u:26:-wx", postgresDataPath).Output()
 	check(err)
 	_, err = exec.Command("chcon", "-Rt", "svirt_sandbox_file_t", postgresDataPath).Output()
 	check(err)
 
-	log.Printf("Setting up quay-postgresql.service")
-	err = ioutil.WriteFile(postgresqlSystemdLocation, postgresServiceBytes, 0644)
-
-	// Set permissions
-	_, err = exec.Command("systemctl", "daemon-reload").Output()
-	check(err)
-	_, err = exec.Command("systemctl", "enable", "quay-postgresql").Output()
-	check(err)
-	_, err = exec.Command("systemctl", "status", "quay-postgresql").Output()
-	check(err)
-
-}
-
-func installQuay(installPath string) {
-	log.Printf("Setting up Quay service\n")
-
-	// Build quay config path
-	quayConfigPath := path.Join(installPath, "quay-config")
-	log.Printf("Creating quay-config directory at %s\n", quayConfigPath)
-	err := os.Mkdir(quayConfigPath, 0755)
-	check(err)
-
-	configBytes, err := createConfigBytes()
-	check(err)
-	err = ioutil.WriteFile(path.Join(quayConfigPath, "config.yaml"), configBytes, 0644)
-	check(err)
-
-	// Set up Quay local storage
+	// Build quay-storage directory for Quay local storage and set permissions
 	quayStoragePath := path.Join(installPath, "quay-storage")
 	log.Printf("Creating quay-storage directory at %s\n", quayStoragePath)
 	err = os.Mkdir(quayStoragePath, 0755)
 	check(err)
-
 	_, err = exec.Command("setfacl", "-m", "u:1001:-wx", quayStoragePath).Output()
 	check(err)
 	_, err = exec.Command("chcon", "-Rt", "svirt_sandbox_file_t", quayStoragePath).Output()
 	check(err)
 
+	// Build quay config path and write out
+	quayConfigPath := path.Join(installPath, "quay-config")
+	log.Printf("Creating quay-config directory at %s\n", quayConfigPath)
+	err = os.Mkdir(quayConfigPath, 0755)
+	check(err)
+	configBytes, err := createConfigBytes()
+	check(err)
+	err = ioutil.WriteFile(path.Join(quayConfigPath, "config.yaml"), configBytes, 0644)
+	check(err)
+
+	// Write systemd files and enable service
+	for _, s := range services {
+		err = ioutil.WriteFile(s.location, s.bytes, 0644)
+		check(err)
+		cmd := exec.Command("sudo", "systemctl", "enable", s.name)
+		cmd.Stderr = &stdErr
+		cmd.Stdout = &stdOut
+		err = cmd.Run()
+		if err != nil {
+			check(errors.New(stdErr.String()))
+		}
+	}
 }
+
 func createConfigBytes() ([]byte, error) {
 
 	// FIX THIS

@@ -1,65 +1,92 @@
 package cmd
 
 import (
-	_ "embed"
+	"bytes"
+	"errors"
 	"log"
 	"os"
 	"os/exec"
 	"path"
+	"strings"
 
 	"github.com/spf13/cobra"
 )
 
-// editorCmd represents the validate command
+// uninstallCmd represents the uninstall command
 var uninstallCmd = &cobra.Command{
 	Use:   "uninstall",
-	Short: "Runs a browser-based editor for your config.yaml",
-
+	Short: "uninstall will remove all Quay dependencies from your host machine",
 	Run: func(cmd *cobra.Command, args []string) {
 		uninstall()
 	},
 }
 
 func init() {
-	// Add editor command
 	rootCmd.AddCommand(uninstallCmd)
-
-	// // Add --config-dir flag
-	// editorCmd.Flags().StringVarP(&configDir, "config-dir", "c", "", "The directory containing your config files")
-
-	// // Add --password flag
-	// editorCmd.Flags().StringVarP(&editorPassword, "password", "p", "", "The password to enter the editor")
-	// editorCmd.MarkFlagRequired("password")
-
-	// // Add --operator-endpoint flag
-	// editorCmd.Flags().StringVarP(&operatorEndpoint, "operator-endpoint", "e", "", "The endpoint to commit a validated config bundle to")
-
-	// // Add --readonly-fieldgroups flag
-	// editorCmd.Flags().StringVarP(&readonlyFieldGroups, "readonly-fieldgroups", "r", "", "Comma-separated list of fieldgroups that should be treated as read-only")
 }
 
 func uninstall() {
+	log.Printf("Uninstalling Quay")
 
-	log.Printf("Uninstalling")
-	// Set permissions
+	var err error
+	var stdOut bytes.Buffer
+	var stdErr bytes.Buffer
 
-	_, err := exec.Command("systemctl", "stop", "quay-postgresql").Output()
-	check(err)
-	_, err = exec.Command("systemctl", "disable", "quay-postgresql").Output()
-	check(err)
-
-	if _, err := os.Stat(postgresqlSystemdLocation); err == nil {
-		err = os.Remove(postgresqlSystemdLocation)
-		check(err)
+	// Delete install directory
+	installPath := path.Join(os.Getenv("HOME"), "quay-install")
+	log.Printf("Searching for Quay install at %s.", installPath)
+	if pathExists(installPath) {
+		log.Printf("Found Quay install. Deleting directory.")
+		check(os.RemoveAll(installPath))
+		log.Printf("Deleted Quay install directory.")
 	}
 
-	_, err = exec.Command("systemctl", "daemon-reload").Output()
-	check(err)
-	_, err = exec.Command("systemctl", "reset-failed").Output()
-	check(err)
+	// Delete all services
+	for _, s := range services {
 
-	installPath := path.Join(os.Getenv("HOME"), "quay-install")
-	err = os.RemoveAll(installPath)
-	check(err)
+		// Delete systemd files
+		log.Printf("Searching for %s service at %s.", s.name, s.location)
+		if pathExists(s.location) {
+			log.Printf("Found %s service. Deleting service file.", s.name)
+			check(os.Remove(s.location))
+		} else {
+			log.Printf("Could not find service file for %s.", s.name)
+		}
+
+		// Stop service
+		cmd := exec.Command("sudo", "systemctl", "stop", s.name)
+		cmd.Stderr = &stdErr
+		cmd.Stdout = &stdOut
+		err = cmd.Run()
+		if err != nil {
+			if strings.Contains(stdErr.String(), "not loaded") {
+				log.Printf("Service %s not loaded.", s.name)
+			} else {
+				check(errors.New(stdErr.String()))
+			}
+		}
+
+		// Disable service
+		cmd = exec.Command("sudo", "systemctl", "disable", s.name)
+		cmd.Stderr = &stdErr
+		cmd.Stdout = &stdOut
+		err = cmd.Run()
+		if err != nil {
+			if strings.Contains(stdErr.String(), "does not exist") {
+				log.Printf("Service %s not enabled.", s.name)
+			} else {
+				check(errors.New(stdErr.String()))
+			}
+		}
+
+		// Reload
+		_, err = exec.Command("sudo", "systemctl", "daemon-reload").Output()
+		check(err)
+		_, err = exec.Command("sudo", "systemctl", "reset-failed").Output()
+		check(err)
+
+	}
+
+	log.Printf("Uninstall was successful.")
 
 }
