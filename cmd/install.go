@@ -80,7 +80,7 @@ func install() {
 	check(err)
 
 	// If SELinux is enabled, set rule
-	cmd := exec.Command("sudo", "setsebool", "-P", "container_manage_cgroup", "on")
+	cmd := exec.Command("sudo", "setsebool", "-P", "container_manage_cgroup", "1")
 	cmd.Stderr = &stdErr
 	cmd.Stdout = &stdOut
 	err = cmd.Run()
@@ -165,6 +165,9 @@ func install() {
 		check(err)
 	}
 
+	// Reload
+	_, err = exec.Command("sudo", "systemctl", "daemon-reexec").Output()
+	check(err)
 	log.Printf("Quay installed successfully")
 }
 

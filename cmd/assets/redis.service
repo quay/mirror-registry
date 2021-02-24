@@ -10,6 +10,7 @@ ExecStartPre=-sudo /usr/bin/podman rm "quay-redis-service"
 ExecStart=sudo /usr/bin/podman run \
     --name quay-redis-service \
     -e REDIS_PASSWORD=password \
+    -p 6379:6379 \
     --net=host \
     docker.io/centos/redis-5-centos8
 

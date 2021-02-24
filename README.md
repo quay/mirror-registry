@@ -32,3 +32,9 @@ quay-installer uninstall
 ```
 
 This command will delete the `~/quay-install` directory and disable all systemd services set up by Quay.
+
+### To Do
+
+- Switch from --net=host to a bridge network (this is safer)
+- Figure out SELinux issues (currently not working with SELinux)
+- Better config generation with secure passwords

@@ -33,7 +33,7 @@ func uninstall() {
 	var stdErr bytes.Buffer
 
 	// Delete install directory
-	installPath := path.Join(os.Getenv("HOME"), "quay-install")
+	installPath := path.Join("/root", "quay-install") // FIXME - find a better way to set this path.
 	log.Printf("Searching for Quay install at %s.", installPath)
 	if pathExists(installPath) {
 		log.Printf("Found Quay install. Deleting directory.")
@@ -41,19 +41,15 @@ func uninstall() {
 		log.Printf("Deleted Quay install directory.")
 	}
 
+	// Reload daemon
+	_, err = exec.Command("sudo", "systemctl", "daemon-reexec").Output()
+	check(err)
+
 	// Delete all services
 	for _, s := range services {
 
-		// Delete systemd files
-		log.Printf("Searching for %s service at %s.", s.name, s.location)
-		if pathExists(s.location) {
-			log.Printf("Found %s service. Deleting service file.", s.name)
-			check(os.Remove(s.location))
-		} else {
-			log.Printf("Could not find service file for %s.", s.name)
-		}
-
 		// Stop service
+		log.Printf("Stopping service %s.", s.name)
 		cmd := exec.Command("sudo", "systemctl", "stop", s.name)
 		cmd.Stderr = &stdErr
 		cmd.Stdout = &stdOut
@@ -64,9 +60,12 @@ func uninstall() {
 			} else {
 				check(errors.New(stdErr.String()))
 			}
+		} else {
+			log.Printf("Stopped service %s.", s.name)
 		}
 
 		// Disable service
+		log.Printf("Disabling service %s.", s.name)
 		cmd = exec.Command("sudo", "systemctl", "disable", s.name)
 		cmd.Stderr = &stdErr
 		cmd.Stdout = &stdOut
@@ -77,6 +76,17 @@ func uninstall() {
 			} else {
 				check(errors.New(stdErr.String()))
 			}
+		} else {
+			log.Printf("Disabled %s disabled.", s.name)
+		}
+
+		// Delete systemd files
+		log.Printf("Searching for %s service at %s.", s.name, s.location)
+		if pathExists(s.location) {
+			log.Printf("Found %s service. Deleting service file.", s.name)
+			check(os.Remove(s.location))
+		} else {
+			log.Printf("Could not find service file for %s.", s.name)
 		}
 
 		// Reload

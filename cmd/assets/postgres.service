@@ -9,11 +9,12 @@ ExecStartPre=-sudo /usr/bin/podman rm "quay-postgresql-service"
 
 ExecStart=sudo /usr/bin/podman run \
     --name quay-postgresql-service \
-    -v %h/quay-install/pg-data:/var/lib/pgsql/data:Z \
+    -v /root/quay-install/pg-data:/var/lib/pgsql/data:Z \
     -e POSTGRESQL_USER=user \
     -e POSTGRESQL_PASSWORD=password \
     -e POSTGRESQL_DATABASE=quay \
     --net=host \
+    -p 5432:5432 \
     docker.io/centos/postgresql-10-centos8
 
 ExecReload=-sudo /usr/bin/podman stop "quay-postgresql-service"
