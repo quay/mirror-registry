@@ -19,19 +19,20 @@ var redisServiceBytes []byte
 
 type service struct {
 	name     string
+	image    string
 	location string
 	bytes    []byte
 }
 
 var services = []service{
 	{
-		"quay-app", "/etc/systemd/system/quay-app.service", quayServiceBytes,
+		"quay-app", "quay.io/projectquay/quay:latest", "/etc/systemd/system/quay-app.service", quayServiceBytes,
 	},
 	{
-		"quay-postgres", "/etc/systemd/system/quay-postgres.service", postgresServiceBytes,
+		"quay-postgres", "docker.io/centos/postgresql-10-centos8", "/etc/systemd/system/quay-postgres.service", postgresServiceBytes,
 	},
 	{
-		"quay-redis", "/etc/systemd/system/quay-redis.service", redisServiceBytes,
+		"quay-redis", "docker.io/centos/redis-5-centos8", "/etc/systemd/system/quay-redis.service", redisServiceBytes,
 	},
 }
 

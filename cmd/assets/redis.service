@@ -5,15 +5,17 @@ After=network.target
 [Service]
 Type=simple
 TimeoutStartSec=5m
-ExecStartPre=-/usr/bin/podman rm "quay-redis-service"
+ExecStartPre=-sudo /usr/bin/podman rm "quay-redis-service"
 
-ExecStart=/usr/bin/podman run \
+ExecStart=sudo /usr/bin/podman run \
     --name quay-redis-service \
-    egistry.redhat.io/rhel8/redis-5:1
+    -e REDIS_PASSWORD=password \
+    --net=host \
+    docker.io/centos/redis-5-centos8
 
-ExecReload=-/usr/bin/podman stop "quay-redis-service"
-ExecReload=-/usr/bin/podman rm "quay-redis-service"
-ExecStop=-/usr/bin/podman stop "quay-redis-service"
+ExecReload=-sudo /usr/bin/podman stop "quay-redis-service"
+ExecReload=-sudo /usr/bin/podman rm "quay-redis-service"
+ExecStop=-sudo /usr/bin/podman stop "quay-redis-service"
 Restart=always
 RestartSec=30
 

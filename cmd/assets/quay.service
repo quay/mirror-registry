@@ -5,15 +5,20 @@ After=network.target
 [Service]
 Type=simple
 TimeoutStartSec=5m
-ExecStartPre=-/usr/bin/podman rm "quay-app-service"
+ExecStartPre=-sudo /usr/bin/podman rm "quay-app-service"
 
-ExecStart=/usr/bin/podman run \
+ExecStart=sudo /usr/bin/podman run \
     --name quay-app-service \
+    -p 80:8080 \
+    -p 443:8443 \
+    -v %h/quay-install/quay-config:/conf/stack \
+    -v %h/quay-install/quay-storage:/datastorage:Z \
+    --net=host \
+    quay.io/projectquay/quay:latest
     
-
-ExecReload=-/usr/bin/podman stop "quay-app-service"
-ExecReload=-/usr/bin/podman rm "quay-app-service"
-ExecStop=-/usr/bin/podman stop "quay-app-service"
+ExecReload=-sudo /usr/bin/podman stop "quay-app-service"
+ExecReload=-sudo /usr/bin/podman rm "quay-app-service"
+ExecStop=-sudo /usr/bin/podman stop "quay-app-service"
 Restart=always
 RestartSec=30
 

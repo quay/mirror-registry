@@ -5,21 +5,20 @@ After=network.target
 [Service]
 Type=simple
 TimeoutStartSec=5m
-ExecStartPre=-/usr/bin/podman rm "quay-postgresql-service"
+ExecStartPre=-sudo /usr/bin/podman rm "quay-postgresql-service"
 
-ExecStart=/usr/bin/podman run \
+ExecStart=sudo /usr/bin/podman run \
     --name quay-postgresql-service \
-    -v $HOME/quay-install/pg-data:/var/lib/pgsql/data:Z \
-    -e POSTGRESQL_USER=quay \
-    -e POSTGRESQL_PASSWORD=quaysecret \
-    -e POSTGRESQL_ADMIN_PASSWORD=quayadmin \
+    -v %h/quay-install/pg-data:/var/lib/pgsql/data:Z \
+    -e POSTGRESQL_USER=user \
+    -e POSTGRESQL_PASSWORD=password \
     -e POSTGRESQL_DATABASE=quay \
-    --net host \
-    registry.access.redhat.com/rhscl/postgresql-10-rhel7
+    --net=host \
+    docker.io/centos/postgresql-10-centos8
 
-ExecReload=-/usr/bin/podman stop "quay-postgresql-service"
-ExecReload=-/usr/bin/podman rm "quay-postgresql-service"
-ExecStop=-/usr/bin/podman stop "quay-postgresql-service"
+ExecReload=-sudo /usr/bin/podman stop "quay-postgresql-service"
+ExecReload=-sudo /usr/bin/podman rm "quay-postgresql-service"
+ExecStop=-sudo /usr/bin/podman stop "quay-postgresql-service"
 Restart=always
 RestartSec=30
 

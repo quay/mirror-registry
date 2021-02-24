@@ -8,9 +8,14 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
 )
+
+// imageArchiveDir is the optional location of the OCI image archive containing required install images
+var imageArchiveDir string
 
 // installCmd represents the validate command
 var installCmd = &cobra.Command{
@@ -22,11 +27,12 @@ var installCmd = &cobra.Command{
 }
 
 func init() {
+
 	// Add install command
 	rootCmd.AddCommand(installCmd)
 
-	// // Add --config-dir flag
-	// editorCmd.Flags().StringVarP(&configDir, "config-dir", "c", "", "The directory containing your config files")
+	// Add --config-dir flag
+	installCmd.Flags().StringVarP(&imageArchiveDir, "image-archive", "i", "", "An archive containing images")
 
 	// // Add --password flag
 	// editorCmd.Flags().StringVarP(&editorPassword, "password", "p", "", "The password to enter the editor")
@@ -54,8 +60,6 @@ func install() {
 	check(err)
 	_, err = exec.Command("setfacl", "-m", "u:26:-wx", postgresDataPath).Output()
 	check(err)
-	_, err = exec.Command("chcon", "-Rt", "svirt_sandbox_file_t", postgresDataPath).Output()
-	check(err)
 
 	// Build quay-storage directory for Quay local storage and set permissions
 	quayStoragePath := path.Join(installPath, "quay-storage")
@@ -63,8 +67,6 @@ func install() {
 	err = os.Mkdir(quayStoragePath, 0755)
 	check(err)
 	_, err = exec.Command("setfacl", "-m", "u:1001:-wx", quayStoragePath).Output()
-	check(err)
-	_, err = exec.Command("chcon", "-Rt", "svirt_sandbox_file_t", quayStoragePath).Output()
 	check(err)
 
 	// Build quay config path and write out
@@ -77,8 +79,62 @@ func install() {
 	err = ioutil.WriteFile(path.Join(quayConfigPath, "config.yaml"), configBytes, 0644)
 	check(err)
 
+	// If SELinux is enabled, set rule
+	cmd := exec.Command("sudo", "setsebool", "-P", "container_manage_cgroup", "on")
+	cmd.Stderr = &stdErr
+	cmd.Stdout = &stdOut
+	err = cmd.Run()
+	if err != nil {
+		if !strings.Contains(stdErr.String(), "command not found") {
+			check(errors.New(stdErr.String()))
+		}
+	}
+
+	// If image archive is set, load images. Otherwise, pull from dockerhub.
+	if imageArchiveDir == "" { // Flag not set
+		// Attempt to autodetect
+		executableDir, err := os.Executable()
+		if err != nil {
+			check(err)
+		}
+		defaultArchive := path.Join(path.Dir(executableDir), "image-archive.tar")
+		if pathExists(defaultArchive) { // Autodetect found archive in same dir as executable
+			log.Printf("Autodetected image archive at %s", defaultArchive)
+			cmd := exec.Command("sudo", "podman", "load", "-i", defaultArchive)
+			cmd.Stderr = os.Stderr
+			cmd.Stdout = os.Stdout
+			err = cmd.Run()
+			if err != nil {
+				check(errors.New(stdErr.String()))
+			}
+		} else { // No archive provided, pulling images automatically
+			log.Printf("Pulling required images")
+			for _, s := range services {
+				cmd := exec.Command("sudo", "podman", "pull", s.image)
+				cmd.Stderr = os.Stderr
+				cmd.Stdout = os.Stdout
+				err = cmd.Run()
+				if err != nil {
+					check(errors.New(stdErr.String()))
+				}
+			}
+		}
+	} else { // Flag was set
+		if pathExists(imageArchiveDir) { // Autodetect found archive in same dir as executable
+			log.Printf("Using specified image archive at %s", imageArchiveDir)
+			cmd := exec.Command("sudo", "podman", "load", "-i", imageArchiveDir)
+			cmd.Stderr = os.Stderr
+			cmd.Stdout = os.Stdout
+			err = cmd.Run()
+			if err != nil {
+				check(errors.New(stdErr.String()))
+			}
+		}
+	}
+
 	// Write systemd files and enable service
 	for _, s := range services {
+		log.Printf("Writing unit file for %s in %s", s.name, s.location)
 		err = ioutil.WriteFile(s.location, s.bytes, 0644)
 		check(err)
 		cmd := exec.Command("sudo", "systemctl", "enable", s.name)
@@ -88,7 +144,28 @@ func install() {
 		if err != nil {
 			check(errors.New(stdErr.String()))
 		}
+		cmd = exec.Command("sudo", "systemctl", "start", s.name)
+		cmd.Stderr = &stdErr
+		cmd.Stdout = &stdOut
+		err = cmd.Run()
+		if err != nil {
+			check(errors.New(stdErr.String()))
+		}
+		log.Printf("Successfully set up %s", s.name)
 	}
+
+	// Install trgm and create user in database
+	time.Sleep(10 * time.Second)
+	log.Printf("Installing pg_trgm in Postgres")
+	cmd = exec.Command("sudo", "podman", "exec", "-it", "quay-postgresql-service", "/bin/bash", "-c", "echo \"CREATE EXTENSION IF NOT EXISTS pg_trgm\" | psql -d quay -U postgres")
+	cmd.Stderr = os.Stderr
+	cmd.Stdout = os.Stdout
+	err = cmd.Run()
+	if err != nil {
+		check(err)
+	}
+
+	log.Printf("Quay installed successfully")
 }
 
 func createConfigBytes() ([]byte, error) {
@@ -111,14 +188,18 @@ func createConfigBytes() ([]byte, error) {
 	configBytes := []byte(`AUTHENTICATION_TYPE: Database
 BUILDLOGS_REDIS:
   host: localhost
-  password: strongpassword
+  password: password
   port: 6379
 DATABASE_SECRET_KEY: "81541057085600720484162638317561463611194901378275494293746615390984668417511"
-DB_URI: postgresql://user:password@localhost/quay-database
+DB_URI: postgresql://user:password@localhost/quay
 DEFAULT_TAG_EXPIRATION: 2w
 DISTRIBUTED_STORAGE_DEFAULT_LOCATIONS: []
 DISTRIBUTED_STORAGE_PREFERENCE:
-  - localstorage
+  - default
+DISTRIBUTED_STORAGE_CONFIG:
+  default:
+    - LocalStorage
+    - storage_path: /datastorage
 ENTERPRISE_LOGO_URL: /static/img/quay-horizontal-color.svg
 FEATURE_ACI_CONVERSION: false
 FEATURE_ANONYMOUS_ACCESS: true
@@ -130,9 +211,6 @@ FEATURE_DIRECT_LOGIN: true
 FEATURE_PARTIAL_USER_AUTOCOMPLETE: true
 FEATURE_REPO_MIRROR: false
 FEATURE_MAILING: false
-MAIL_USERNAME: jonathan
-MAIL_PASSWORD: king
-MAIL_USE_AUTH: true
 FEATURE_REQUIRE_TEAM_INVITE: true
 FEATURE_RESTRICTED_V1_PUSH: true
 FEATURE_SECURITY_NOTIFICATIONS: true
@@ -146,9 +224,6 @@ GITLAB_TRIGGER_KIND: {}
 LOGS_MODEL: database
 LOGS_MODEL_CONFIG: {}
 LOG_ARCHIVE_LOCATION: default
-MAIL_DEFAULT_SENDER: support@quay.io
-MAIL_PORT: 587
-MAIL_USE_TLS: true
 PREFERRED_URL_SCHEME: http
 REGISTRY_TITLE: Red Hat Quay
 REGISTRY_TITLE_SHORT: Red Hat Quay
@@ -159,7 +234,7 @@ SECURITY_SCANNER_ISSUER_NAME: security_scanner
 SERVER_HOSTNAME: quay
 SETUP_COMPLETE: true
 SUPER_USERS:
-  - user
+  - admin
 TAG_EXPIRATION_OPTIONS:
   - 0s
   - 1d
@@ -171,8 +246,8 @@ TESTING: false
 USERFILES_LOCATION: default
 USERFILES_PATH: userfiles/
 USER_EVENTS_REDIS:
-  host: 192.168.250.159
-  password: strongpassword
+  host: localhost
+  password: password
   port: 6379
 USE_CDN: false`)
 
