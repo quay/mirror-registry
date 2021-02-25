@@ -1,13 +1,13 @@
 [Unit]
 Description=PostgreSQL Podman Container for Quay
-After=network.target
+Wants=network.target
+After=network-online.target
 
 [Service]
 Type=simple
 TimeoutStartSec=5m
-ExecStartPre=-sudo /usr/bin/podman rm "quay-postgresql-service"
-
-ExecStart=sudo /usr/bin/podman run \
+ExecStartPre=-/bin/rm -f %t/%n-pid %t/%n-cid
+ExecStart=/usr/bin/podman run \
     --name quay-postgresql-service \
     -v /root/quay-install/pg-data:/var/lib/pgsql/data:Z \
     -e POSTGRESQL_USER=user \
@@ -15,13 +15,18 @@ ExecStart=sudo /usr/bin/podman run \
     -e POSTGRESQL_DATABASE=quay \
     --net=host \
     -p 5432:5432 \
+    --conmon-pidfile %t/%n-pid \
+    --cidfile %t/%n-cid \
+    --cgroups=no-conmon \
+    --replace \
     docker.io/centos/postgresql-10-centos8
 
-ExecReload=-sudo /usr/bin/podman stop "quay-postgresql-service"
-ExecReload=-sudo /usr/bin/podman rm "quay-postgresql-service"
-ExecStop=-sudo /usr/bin/podman stop "quay-postgresql-service"
+ExecStop=/usr/bin/podman stop --ignore --cidfile %t/%n-cid -t 10
+ExecStopPost=/usr/bin/podman rm --ignore -f --cidfile %t/%n-cid
+PIDFile=%t/%n-pid
+KillMode=none
 Restart=always
 RestartSec=30
 
 [Install]
-WantedBy=multi-user.target
+WantedBy=multi-user.target default.target

@@ -3,11 +3,12 @@ package cmd
 import (
 	"bytes"
 	"errors"
-	"log"
 	"os"
 	"os/exec"
 	"path"
 	"strings"
+
+	log "github.com/sirupsen/logrus"
 
 	"github.com/spf13/cobra"
 )
@@ -42,7 +43,7 @@ func uninstall() {
 	}
 
 	// Reload daemon
-	_, err = exec.Command("sudo", "systemctl", "daemon-reexec").Output()
+	_, err = exec.Command("systemctl", "daemon-reexec").Output()
 	check(err)
 
 	// Delete all services
@@ -50,13 +51,13 @@ func uninstall() {
 
 		// Stop service
 		log.Printf("Stopping service %s.", s.name)
-		cmd := exec.Command("sudo", "systemctl", "stop", s.name)
+		cmd := exec.Command("systemctl", "stop", s.name)
 		cmd.Stderr = &stdErr
 		cmd.Stdout = &stdOut
 		err = cmd.Run()
 		if err != nil {
 			if strings.Contains(stdErr.String(), "not loaded") {
-				log.Printf("Service %s not loaded.", s.name)
+				log.Warningf("Service %s not loaded.", s.name)
 			} else {
 				check(errors.New(stdErr.String()))
 			}
@@ -66,13 +67,13 @@ func uninstall() {
 
 		// Disable service
 		log.Printf("Disabling service %s.", s.name)
-		cmd = exec.Command("sudo", "systemctl", "disable", s.name)
+		cmd = exec.Command("systemctl", "disable", s.name)
 		cmd.Stderr = &stdErr
 		cmd.Stdout = &stdOut
 		err = cmd.Run()
 		if err != nil {
 			if strings.Contains(stdErr.String(), "does not exist") {
-				log.Printf("Service %s not enabled.", s.name)
+				log.Warningf("Service %s not enabled.", s.name)
 			} else {
 				check(errors.New(stdErr.String()))
 			}
@@ -86,13 +87,13 @@ func uninstall() {
 			log.Printf("Found %s service. Deleting service file.", s.name)
 			check(os.Remove(s.location))
 		} else {
-			log.Printf("Could not find service file for %s.", s.name)
+			log.Warningf("Could not find service file for %s.", s.name)
 		}
 
 		// Reload
-		_, err = exec.Command("sudo", "systemctl", "daemon-reload").Output()
+		_, err = exec.Command("systemctl", "daemon-reload").Output()
 		check(err)
-		_, err = exec.Command("sudo", "systemctl", "reset-failed").Output()
+		_, err = exec.Command("systemctl", "reset-failed").Output()
 		check(err)
 
 	}

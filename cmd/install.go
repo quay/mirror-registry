@@ -3,14 +3,15 @@ package cmd
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"io/ioutil"
-	"log"
 	"os"
 	"os/exec"
 	"path"
 	"strings"
 	"time"
 
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
 
@@ -80,6 +81,7 @@ func install() {
 	check(err)
 
 	// If SELinux is enabled, set rule
+	log.Infof("Setting SELinux rules.")
 	cmd := exec.Command("sudo", "setsebool", "-P", "container_manage_cgroup", "1")
 	cmd.Stderr = &stdErr
 	cmd.Stdout = &stdOut
@@ -88,6 +90,7 @@ func install() {
 		if !strings.Contains(stdErr.String(), "command not found") {
 			check(errors.New(stdErr.String()))
 		}
+		log.Warnf("SELinux not found. Skipping.")
 	}
 
 	// If image archive is set, load images. Otherwise, pull from dockerhub.
@@ -100,7 +103,7 @@ func install() {
 		defaultArchive := path.Join(path.Dir(executableDir), "image-archive.tar")
 		if pathExists(defaultArchive) { // Autodetect found archive in same dir as executable
 			log.Printf("Autodetected image archive at %s", defaultArchive)
-			cmd := exec.Command("sudo", "podman", "load", "-i", defaultArchive)
+			cmd := exec.Command("podman", "load", "-i", defaultArchive)
 			cmd.Stderr = os.Stderr
 			cmd.Stdout = os.Stdout
 			err = cmd.Run()
@@ -110,19 +113,21 @@ func install() {
 		} else { // No archive provided, pulling images automatically
 			log.Printf("Pulling required images")
 			for _, s := range services {
-				cmd := exec.Command("sudo", "podman", "pull", s.image)
+				cmd := exec.Command("podman", "pull", s.image)
+				fmt.Print("\033[34m")
 				cmd.Stderr = os.Stderr
 				cmd.Stdout = os.Stdout
 				err = cmd.Run()
 				if err != nil {
 					check(errors.New(stdErr.String()))
 				}
+				fmt.Print("\033[0m")
 			}
 		}
 	} else { // Flag was set
 		if pathExists(imageArchiveDir) { // Autodetect found archive in same dir as executable
 			log.Printf("Using specified image archive at %s", imageArchiveDir)
-			cmd := exec.Command("sudo", "podman", "load", "-i", imageArchiveDir)
+			cmd := exec.Command("podman", "load", "-i", imageArchiveDir)
 			cmd.Stderr = os.Stderr
 			cmd.Stdout = os.Stdout
 			err = cmd.Run()
@@ -137,14 +142,14 @@ func install() {
 		log.Printf("Writing unit file for %s in %s", s.name, s.location)
 		err = ioutil.WriteFile(s.location, s.bytes, 0644)
 		check(err)
-		cmd := exec.Command("sudo", "systemctl", "enable", s.name)
+		cmd := exec.Command("systemctl", "enable", s.name)
 		cmd.Stderr = &stdErr
 		cmd.Stdout = &stdOut
 		err = cmd.Run()
 		if err != nil {
 			check(errors.New(stdErr.String()))
 		}
-		cmd = exec.Command("sudo", "systemctl", "start", s.name)
+		cmd = exec.Command("systemctl", "start", s.name)
 		cmd.Stderr = &stdErr
 		cmd.Stdout = &stdOut
 		err = cmd.Run()
@@ -157,7 +162,7 @@ func install() {
 	// Install trgm and create user in database
 	time.Sleep(10 * time.Second)
 	log.Printf("Installing pg_trgm in Postgres")
-	cmd = exec.Command("sudo", "podman", "exec", "-it", "quay-postgresql-service", "/bin/bash", "-c", "echo \"CREATE EXTENSION IF NOT EXISTS pg_trgm\" | psql -d quay -U postgres")
+	cmd = exec.Command("podman", "exec", "-it", "quay-postgresql-service", "/bin/bash", "-c", "echo \"CREATE EXTENSION IF NOT EXISTS pg_trgm\" | psql -d quay -U postgres")
 	cmd.Stderr = os.Stderr
 	cmd.Stdout = os.Stdout
 	err = cmd.Run()
@@ -166,7 +171,7 @@ func install() {
 	}
 
 	// Reload
-	_, err = exec.Command("sudo", "systemctl", "daemon-reexec").Output()
+	_, err = exec.Command("systemctl", "daemon-reexec").Output()
 	check(err)
 	log.Printf("Quay installed successfully")
 }
