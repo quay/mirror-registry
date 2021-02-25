@@ -104,12 +104,14 @@ func install() {
 		if pathExists(defaultArchive) { // Autodetect found archive in same dir as executable
 			log.Printf("Autodetected image archive at %s", defaultArchive)
 			cmd := exec.Command("podman", "load", "-i", defaultArchive)
+			fmt.Print("\033[34m")
 			cmd.Stderr = os.Stderr
 			cmd.Stdout = os.Stdout
 			err = cmd.Run()
 			if err != nil {
 				check(errors.New(stdErr.String()))
 			}
+			fmt.Print("\033[0m")
 		} else { // No archive provided, pulling images automatically
 			log.Printf("Pulling required images")
 			for _, s := range services {
@@ -128,12 +130,14 @@ func install() {
 		if pathExists(imageArchiveDir) { // Autodetect found archive in same dir as executable
 			log.Printf("Using specified image archive at %s", imageArchiveDir)
 			cmd := exec.Command("podman", "load", "-i", imageArchiveDir)
+			fmt.Print("\033[34m")
 			cmd.Stderr = os.Stderr
 			cmd.Stdout = os.Stdout
 			err = cmd.Run()
 			if err != nil {
 				check(errors.New(stdErr.String()))
 			}
+			fmt.Print("\033[0m")
 		}
 	}
 

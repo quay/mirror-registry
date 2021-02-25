@@ -6,26 +6,34 @@ This application will allow user to install Quay and its required components usi
 
 - RHEL 8 machine with Podman installed
 - `sudo` access on desired host (rootless install tbd)
-- `go` version 1.16 (only required if compiling from source)
-
-## Usage
+- make (only if compiling using Makefile)
 
 ### Compile
 
-To compile the installer, run the following commands:
+To compile the quay-installer.tar.gz for distribution, run the following command:
 
 ```
 $ git clone https://github.com/jonathankingfc/quay-aioi.git
 $ cd quay-aioi
-$ go build -o quay-installer main.go
+$ make build-offline-installer # OR make build-online-installer
 ```
+
+This will generate a `quay-installer.tar.gz` which contains this README.md, the `quay-installer` binary, and the `image-archive.tar` (if using offline installer) which contains the images required to set up Quay.
+
+Once generated, you may untar this file on your desired host machine for installation. You may use the following command:
+
+```
+tar -xzvf quay-installer.tar.gz
+```
+
+NOTE - This may take some time.
 
 ### Installation
 
 To install Quay on your desired host machine, run the following command:
 
 ```
-$ sudo ./quay-installer install
+$ sudo ./quay-installer install -v
 ```
 
 This command will make the following changes to your machine
@@ -39,7 +47,7 @@ This command will make the following changes to your machine
 To uninstall Quay, run the following command:
 
 ```
-$ sudo ./quay-installer uninstall
+$ sudo ./quay-installer uninstall -v
 ```
 
 This command will delete the `~/quay-install` directory and disable all systemd services set up by Quay.
