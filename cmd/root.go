@@ -2,6 +2,7 @@ package cmd
 
 import (
 	_ "embed" // embed package is used to embed service files
+	"fmt"
 	"os"
 
 	log "github.com/sirupsen/logrus"
@@ -60,8 +61,7 @@ func init() {
 
 var (
 	rootCmd = &cobra.Command{
-		Use:   "quay-installer",
-		Short: "A generator for Cobra based Applications",
+		Use: "quay-installer",
 		PersistentPreRun: func(cmd *cobra.Command, args []string) {
 			if verbose {
 				log.SetLevel(log.InfoLevel)
@@ -79,5 +79,16 @@ func Execute() error {
 		TimestampFormat: "2006-01-02 15:04:05",
 		FullTimestamp:   true,
 	})
+	fmt.Println(`
+   __   __
+  /  \ /  \     ______   _    _     __   __   __
+ / /\ / /\ \   /  __  \ | |  | |   /  \  \ \ / /
+/ /  / /  \ \  | |  | | | |  | |  / /\ \  \   /
+\ \  \ \  / /  | |__| | | |__| | / ____ \  | |
+ \ \/ \ \/ /   \_  ___/  \____/ /_/    \_\ |_|
+  \__/ \__/      \ \__
+                  \___\ by Red Hat
+ Build, Store, and Distribute your Containers
+	`)
 	return rootCmd.Execute()
 }
