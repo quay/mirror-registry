@@ -1,0 +1,31 @@
+[Unit]
+Description=Quay Container
+Wants=network.target
+After=network-online.target
+
+[Service]
+Type=simple
+TimeoutStartSec=5m
+ExecStartPre=-/bin/rm -f %t/%n-pid %t/%n-cid
+ExecStart=/usr/bin/podman run \
+    --name quay-app-service \
+    -p 80:8080 \
+    -p 443:8443 \
+    -v /root/quay-install/quay-config:/conf/stack:Z \
+    -v /root/quay-install/quay-storage:/datastorage:Z \
+    --net=host \
+    --conmon-pidfile %t/%n-pid \
+    --cidfile %t/%n-cid \
+    --cgroups=no-conmon \
+    --replace \
+    quay.io/projectquay/quay:latest
+    
+ExecStop=-/usr/bin/podman stop --ignore --cidfile %t/%n-cid -t 10
+ExecStopPost=-/usr/bin/podman rm --ignore -f --cidfile %t/%n-cid
+PIDFile=%t/%n-pid
+KillMode=none
+Restart=always
+RestartSec=30
+
+[Install]
+WantedBy=multi-user.target default.target

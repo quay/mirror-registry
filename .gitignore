@@ -1,2 +1,6 @@
 quay-installer
 *.tar.gz
+.terraform
+terraform-key.json
+.terraform.lock.hcl
+terraform.tfstate*

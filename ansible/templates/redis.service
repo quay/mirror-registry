@@ -1,0 +1,29 @@
+[Unit]
+Description=Redis Podman Container for Quay
+Wants=network.target
+After=network-online.target
+
+[Service]
+Type=simple
+TimeoutStartSec=5m
+ExecStartPre=-/bin/rm -f %t/%n-pid %t/%n-cid
+ExecStart=/usr/bin/podman run \
+    --name quay-redis-service \
+    -e REDIS_PASSWORD=password \
+    -p 6379:6379 \
+    --net=host \
+    --conmon-pidfile %t/%n-pid \
+    --cidfile %t/%n-cid \
+    --cgroups=no-conmon \
+    --replace \
+    docker.io/centos/redis-5-centos8
+
+ExecStop=-/usr/bin/podman stop --ignore --cidfile %t/%n-cid -t 10
+ExecStopPost=-/usr/bin/podman rm --ignore -f --cidfile %t/%n-cid
+PIDFile=%t/%n-pid
+KillMode=none
+Restart=always
+RestartSec=30
+
+[Install]
+WantedBy=multi-user.target default.target
