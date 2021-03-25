@@ -3,6 +3,7 @@ package cmd
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"path"
@@ -41,6 +42,18 @@ func uninstall() {
 		check(os.RemoveAll(installPath))
 		log.Printf("Deleted Quay install directory.")
 	}
+
+	// Delete podman pod
+	log.Printf("Deleting pod for Quay containers.")
+	cmd := exec.Command("podman", "pod", "rm", "--force", "quay-pod")
+	fmt.Print("\033[34m")
+	cmd.Stderr = os.Stderr
+	cmd.Stdout = os.Stdout
+	err = cmd.Run()
+	if err != nil {
+		check(errors.New(stdErr.String()))
+	}
+	log.Printf("Deleted pod for Quay containers.")
 
 	// Reload daemon
 	_, err = exec.Command("systemctl", "daemon-reexec").Output()

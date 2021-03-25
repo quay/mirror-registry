@@ -5,14 +5,17 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"net"
 	"os"
 	"os/exec"
 	"path"
 	"strings"
 	"time"
 
+	_ "github.com/lib/pq" // pg driver
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"k8s.io/client-go/util/cert"
 )
 
 // imageArchiveDir is the optional location of the OCI image archive containing required install images
@@ -80,6 +83,14 @@ func install() {
 	err = ioutil.WriteFile(path.Join(quayConfigPath, "config.yaml"), configBytes, 0644)
 	check(err)
 
+	// Create certs and write out
+	sslCert, sslKey, err := cert.GenerateSelfSignedCertKey("quay", []net.IP{net.ParseIP("127.0.0.1")}, []string{"localhost"})
+	check(err)
+	err = ioutil.WriteFile(path.Join(quayConfigPath, "ssl.cert"), sslCert, 0644)
+	check(err)
+	err = ioutil.WriteFile(path.Join(quayConfigPath, "ssl.key"), sslKey, 0644)
+	check(err)
+
 	// If SELinux is enabled, set rule
 	log.Infof("Setting SELinux rules.")
 	cmd := exec.Command("sudo", "setsebool", "-P", "container_manage_cgroup", "1")
@@ -141,6 +152,18 @@ func install() {
 		}
 	}
 
+	// Create podman pod
+	log.Printf("Creating pod for Quay containers.")
+	cmd = exec.Command("podman", "pod", "create", "--name", "quay-pod", "-p", "80:8080", "-p", "443:8443")
+	fmt.Print("\033[34m")
+	cmd.Stderr = os.Stderr
+	cmd.Stdout = os.Stdout
+	err = cmd.Run()
+	if err != nil {
+		check(errors.New(stdErr.String()))
+	}
+	log.Printf("Created pod for Quay containers.")
+
 	// Write systemd files and enable service
 	for _, s := range services {
 		log.Printf("Writing unit file for %s in %s", s.name, s.location)
@@ -164,7 +187,9 @@ func install() {
 	}
 
 	// Install trgm and create user in database
-	time.Sleep(10 * time.Second)
+	// err = waitForDB()
+	time.Sleep(15 * time.Second)
+	check(err)
 	log.Printf("Installing pg_trgm in Postgres")
 	cmd = exec.Command("podman", "exec", "-it", "quay-postgresql-service", "/bin/bash", "-c", "echo \"CREATE EXTENSION IF NOT EXISTS pg_trgm\" | psql -d quay -U postgres")
 	cmd.Stderr = os.Stderr
@@ -236,7 +261,7 @@ GITLAB_TRIGGER_KIND: {}
 LOGS_MODEL: database
 LOGS_MODEL_CONFIG: {}
 LOG_ARCHIVE_LOCATION: default
-PREFERRED_URL_SCHEME: http
+PREFERRED_URL_SCHEME: https
 REGISTRY_TITLE: Red Hat Quay
 REGISTRY_TITLE_SHORT: Red Hat Quay
 REPO_MIRROR_SERVER_HOSTNAME: null
@@ -266,3 +291,30 @@ USE_CDN: false`)
 	return configBytes, nil
 
 }
+
+// func waitForDB() error {
+// 	psqlInfo := "host=localhost port=5432 user=user password=password dbname=quay sslmode=disable"
+// 	db, err := sql.Open("postgres", psqlInfo)
+// 	if err != nil {
+// 		return err
+// 	}
+// 	defer db.Close()
+
+// 	log.Printf("Waiting for database.")
+// 	numRetries := 0
+// 	for true {
+// 		err = db.Ping()
+// 		if err == nil {
+// 			break
+// 		} else {
+// 			numRetries++
+// 			if numRetries == 3 {
+// 				return err
+// 			}
+// 			time.Sleep(10 * time.Second)
+// 		}
+// 	}
+// 	log.Printf("Database connection was successful.")
+// 	return nil
+
+// }
