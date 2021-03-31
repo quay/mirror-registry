@@ -1,0 +1,13 @@
+- name: Install Quay Service
+  hosts: all
+  become: yes
+  tasks:
+    - name: Copy Quay systemd service file
+      template: src=../templates/quay.service dest=/etc/systemd/system/quay-app.service
+
+    - name: Start Quay service
+      systemd:
+        name: quay-app.service
+        enabled: yes
+        daemon_reload: yes
+        state: started
