@@ -3,29 +3,29 @@
   become: yes
   tasks:
     - name: Create necessary directory for Quay local storage
-        ansible.builtin.file:
-          path: /etc/quay-install/quay-storage
-          state: directory
-          recurse: yes
-          owner: root
-          group: root
-          mode: "0755"
+      ansible.builtin.file:
+        path: /etc/quay-install/quay-storage
+        state: directory
+        recurse: yes
+        owner: root
+        group: root
+        mode: "0755"
 
     - name: Create necessary directory for Quay config bundle
-        ansible.builtin.file:
-          path: /etc/quay-install/quay-config
-          state: directory
-          recurse: yes
-          owner: root
-          group: root
-          mode: "0755"
+      ansible.builtin.file:
+        path: /etc/quay-install/quay-config
+        state: directory
+        recurse: yes
+        owner: root
+        group: root
+        mode: "0755"
 
     - name: Set permissions on local storage directory
       ansible.posix.acl:
         path: /etc/quay-install/quay-storage
         entry: u:1001:-wx
         state: present
-    
+
     - name: Copy Quay config.yaml file
       template: src=../templates/config.yaml dest=/etc/quay-install/quay-config
 
@@ -33,7 +33,7 @@
       template: src=../templates/quay.service dest=/etc/systemd/system/quay-app.service
 
     - name: Pull Quay image
-        containers.podman.podman_image:
+      containers.podman.podman_image:
         name: quay.io/projectquay/quay:latest
 
     - name: Start Quay service

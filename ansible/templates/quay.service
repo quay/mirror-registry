@@ -9,8 +9,8 @@ TimeoutStartSec=5m
 ExecStartPre=-/bin/rm -f %t/%n-pid %t/%n-cid
 ExecStart=/usr/bin/podman run \
     --name quay-app-service \
-    -v /root/quay-install/quay-config:/conf/stack:Z \
-    -v /root/quay-install/quay-storage:/datastorage:Z \
+    -v /etc/quay-install/quay-config:/conf/stack:Z \
+    -v /etc/quay-install/quay-storage:/datastorage:Z \
     --pod=quay-pod \
     --conmon-pidfile %t/%n-pid \
     --cidfile %t/%n-cid \

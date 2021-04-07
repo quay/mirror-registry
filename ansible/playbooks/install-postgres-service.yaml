@@ -1,7 +1,6 @@
 - name: Install Postgres Service
   hosts: all
   become: yes
-
   tasks:
     - name: Create necessary directory for Postgres persistent data
       ansible.builtin.file:
@@ -22,7 +21,7 @@
       template: src=../templates/postgres.service dest=/etc/systemd/system/quay-postgres.service
 
     - name: Pull Postgres image
-        containers.podman.podman_image:
+      containers.podman.podman_image:
         name: docker.io/centos/postgresql-10-centos8
 
     - name: Start Postgres service

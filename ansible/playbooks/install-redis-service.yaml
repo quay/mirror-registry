@@ -6,7 +6,7 @@
       template: src=../templates/redis.service dest=/etc/systemd/system/quay-redis.service
 
     - name: Pull Postgres image
-        containers.podman.podman_image:
+      containers.podman.podman_image:
         name: docker.io/centos/redis-5-centos8
 
     - name: Start Redis service

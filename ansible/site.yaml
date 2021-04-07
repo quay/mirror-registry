@@ -1,4 +1,5 @@
 - import_playbook: playbooks/set-selinux-rules.yaml
+- import_playbook: playbooks/create-podman-pod.yaml
 - import_playbook: playbooks/install-postgres-service.yaml
 - import_playbook: playbooks/install-redis-service.yaml
 - import_playbook: playbooks/install-quay-service.yaml
