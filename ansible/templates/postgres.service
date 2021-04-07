@@ -13,8 +13,7 @@ ExecStart=/usr/bin/podman run \
     -e POSTGRESQL_USER=user \
     -e POSTGRESQL_PASSWORD=password \
     -e POSTGRESQL_DATABASE=quay \
-    --net=host \
-    -p 5432:5432 \
+    --pod=quay-pod \
     --conmon-pidfile %t/%n-pid \
     --cidfile %t/%n-cid \
     --cgroups=no-conmon \

@@ -1,0 +1,5 @@
+- name: Set container_manage_cgroup flag on and keep it persistent across reboots
+  ansible.posix.seboolean:
+    name: container_manage_cgroup
+    state: yes
+    persistent: yes
