@@ -1,5 +1,5 @@
 - name: Install Quay Service
-  hosts: all
+  hosts: quay
   become: yes
   tasks:
     - name: Create necessary directory for Quay local storage
@@ -7,18 +7,12 @@
         path: /etc/quay-install/quay-storage
         state: directory
         recurse: yes
-        owner: root
-        group: root
-        mode: "0755"
 
     - name: Create necessary directory for Quay config bundle
       ansible.builtin.file:
         path: /etc/quay-install/quay-config
         state: directory
         recurse: yes
-        owner: root
-        group: root
-        mode: "0755"
 
     - name: Set permissions on local storage directory
       ansible.posix.acl:

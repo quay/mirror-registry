@@ -1,5 +1,5 @@
 - name: Install Postgres Service
-  hosts: all
+  hosts: postgres
   become: yes
   tasks:
     - name: Create necessary directory for Postgres persistent data
@@ -7,9 +7,6 @@
         path: /etc/quay-install/pg-data
         state: directory
         recurse: yes
-        owner: root
-        group: root
-        mode: "0755"
 
     - name: Set permissions on data directory
       ansible.posix.acl:
@@ -30,3 +27,10 @@
         enabled: yes
         daemon_reload: yes
         state: started
+
+    - name: Wait for pg_trgm to be installed
+      command: podman exec -it quay-postgresql-service /bin/bash -c "echo 'CREATE EXTENSION IF NOT EXISTS pg_trgm' | psql -d quay -U postgres"
+      register: result
+      until: result.rc == 0
+      retries: 20
+      delay: 5

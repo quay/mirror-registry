@@ -1,9 +1,0 @@
----
-- name: first-playbook
-  hosts: all
-
-  tasks:
-    - name: Prints two lines of messages, but only if there is an environment value set
-      ansible.builtin.debug:
-        msg:
-          - "Hello World"

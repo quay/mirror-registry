@@ -1,5 +1,5 @@
 - name: Install Redis Service
-  hosts: all
+  hosts: redis
   become: yes
   tasks:
     - name: Copy Redis systemd service file
