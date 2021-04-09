@@ -21,5 +21,13 @@ build-offline-zip:
 	tar -cvzf quay-installer.tar.gz quay-installer README.md image-archive.tar
 	rm -rf quay-installer image-archive.tar
 
+build-image-archive: 
+	sudo podman save \
+	--multi-image-archive \
+	docker.io/centos/postgresql-10-centos8 \
+	quay.io/projectquay/quay:latest \
+	docker.io/centos/redis-5-centos8 \
+	> image-archive.tar
+	
 clean:
 	rm -rf quay-installer* image-archive.tar
