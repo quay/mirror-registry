@@ -6,37 +6,11 @@ import (
 	"os"
 
 	log "github.com/sirupsen/logrus"
-
 	"github.com/spf13/cobra"
 )
 
-//go:embed "assets/quay.service"
-var quayServiceBytes []byte
-
-//go:embed "assets/postgres.service"
-var postgresServiceBytes []byte
-
-//go:embed "assets/redis.service"
-var redisServiceBytes []byte
-
-type service struct {
-	name     string
-	image    string
-	location string
-	bytes    []byte
-}
-
-var services = []service{
-	{
-		"quay-app", "quay.io/projectquay/quay:latest", "/etc/systemd/system/quay-app.service", quayServiceBytes,
-	},
-	{
-		"quay-postgres", "docker.io/centos/postgresql-10-centos8", "/etc/systemd/system/quay-postgres.service", postgresServiceBytes,
-	},
-	{
-		"quay-redis", "docker.io/centos/redis-5-centos8", "/etc/systemd/system/quay-redis.service", redisServiceBytes,
-	},
-}
+//go:embed assets/Dockerfile
+var dockerfile string
 
 func pathExists(path string) bool {
 	_, err := os.Stat(path)
@@ -48,8 +22,15 @@ func pathExists(path string) bool {
 
 func check(err error) {
 	if err != nil {
-		log.Fatalf("An error occurred: %s", err.Error())
+		log.Error("An error occurred: %s", err.Error())
+		cleanup()
+		os.Exit(1)
 	}
+}
+
+func cleanup() {
+	os.RemoveAll("/tmp/ansible")
+	os.RemoveAll("/tmp/quay-ansible")
 }
 
 // verbose is the optional command that will display INFO logs
