@@ -1,0 +1,10 @@
+ARG ANSIBLE_RUNNER_IMAGE=quay.io/ansible/ansible-runner:devel
+ARG PYTHON_BUILDER_IMAGE=quay.io/ansible/python-builder:latest
+
+FROM $ANSIBLE_RUNNER_IMAGE as galaxy
+
+
+FROM $PYTHON_BUILDER_IMAGE as builder
+
+FROM $ANSIBLE_RUNNER_IMAGE
+COPY app /runner

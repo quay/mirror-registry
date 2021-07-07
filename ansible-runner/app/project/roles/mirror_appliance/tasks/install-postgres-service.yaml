@@ -1,0 +1,32 @@
+- name: Create necessary directory for Postgres persistent data
+  ansible.builtin.file:
+    path: /etc/quay-install/pg-data
+    state: directory
+    recurse: yes
+
+- name: Set permissions on data directory
+  ansible.posix.acl:
+    path: /etc/quay-install/pg-data
+    entry: u:26:-wx
+    state: present
+
+- name: Copy Postgres systemd service file
+  template: src=../files/systemd/postgres.service dest=/etc/systemd/system/quay-postgres.service
+
+- name: Pull Postgres image
+  containers.podman.podman_image:
+    name: "{{ postgres_image }}"
+
+- name: Start Postgres service
+  systemd:
+    name: quay-postgres.service
+    enabled: yes
+    daemon_reload: yes
+    state: started
+
+- name: Wait for pg_trgm to be installed
+  command: podman exec -it quay-postgresql-service /bin/bash -c "echo 'CREATE EXTENSION IF NOT EXISTS pg_trgm' | psql -d quay -U postgres"
+  register: result
+  until: result.rc == 0
+  retries: 20
+  delay: 5

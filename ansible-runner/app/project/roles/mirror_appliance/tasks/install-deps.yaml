@@ -1,0 +1,6 @@
+- name: Install packages
+  package:
+    name: "{{ yum_packages }}"
+    state: present
+  when: yum_packages is defined
+  tags: yum

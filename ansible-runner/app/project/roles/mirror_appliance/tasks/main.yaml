@@ -1,0 +1,17 @@
+- name: Set SELinux Rules
+  include_tasks: set-selinux-rules.yaml
+
+- name: Create Podman Pod
+  include_tasks: create-podman-pod.yaml
+
+- name: Autodetect Image Archive
+  include_tasks: autodetect-image-archive.yaml
+
+- name: Install Postgres Service
+  include_tasks: install-postgres-service.yaml
+
+- name: Install Redis Service
+  include_tasks: install-redis-service.yaml
+
+- name: Install Quay Service
+  include_tasks: install-quay-service.yaml

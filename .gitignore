@@ -4,3 +4,4 @@ quay-installer
 terraform-key.json
 .terraform.lock.hcl
 terraform.tfstate*
+ansible/context

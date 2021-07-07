@@ -1,16 +1,13 @@
 package cmd
 
 import (
-	_ "embed" // embed package is used to embed service files
 	"fmt"
 	"os"
+	"os/exec"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
-
-//go:embed assets/Dockerfile
-var dockerfile string
 
 func pathExists(path string) bool {
 	_, err := os.Stat(path)
@@ -23,14 +20,25 @@ func pathExists(path string) bool {
 func check(err error) {
 	if err != nil {
 		log.Error("An error occurred: %s", err.Error())
-		cleanup()
+		if err := uninstallAnsibleRunner(); err != nil {
+			log.Error("An error occurred while cleaning up assets: %s", err.Error())
+		}
 		os.Exit(1)
 	}
 }
 
-func cleanup() {
-	os.RemoveAll("/tmp/ansible")
-	os.RemoveAll("/tmp/quay-ansible")
+func installAnsibleRunner() error {
+	if err := exec.Command("pip", "install", "ansible-runner").Run(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func uninstallAnsibleRunner() error {
+	if err := exec.Command("pip", "uninstall", "ansible-runner").Run(); err != nil {
+		return err
+	}
+	return nil
 }
 
 // verbose is the optional command that will display INFO logs

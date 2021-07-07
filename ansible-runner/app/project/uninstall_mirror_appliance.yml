@@ -1,0 +1,44 @@
+- name: "Uninstall Mirror Appliance"
+  gather_facts: yes
+  become: true
+  hosts: all
+  tags:
+    - quay
+  tasks:
+    - name: Delete Install Directory
+      file:
+        state: absent
+        path: /etc/quay-install/
+
+    - name: Just force systemd to re-execute itself (2.8 and above)
+      ansible.builtin.systemd:
+        daemon_reexec: yes
+
+    - name: Stop Postgres service
+      systemd:
+        name: quay-postgres.service
+        enabled: no
+        daemon_reload: yes
+        state: stopped
+        force: yes
+
+    - name: Stop Redis service
+      systemd:
+        name: quay-redis.service
+        enabled: no
+        daemon_reload: yes
+        state: stopped
+        force: yes
+
+    - name: Stop Quay service
+      systemd:
+        name: quay-app.service
+        enabled: no
+        daemon_reload: yes
+        state: stopped
+        force: yes
+
+    - name: Delete pod
+      containers.podman.podman_pod:
+        name: quay-pod
+        state: absent

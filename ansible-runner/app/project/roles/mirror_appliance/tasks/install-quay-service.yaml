@@ -1,0 +1,81 @@
+- name: Create necessary directory for Quay local storage
+  ansible.builtin.file:
+    path: /etc/quay-install/quay-storage
+    state: directory
+    recurse: yes
+
+- name: Create necessary directory for Quay config bundle
+  ansible.builtin.file:
+    path: /etc/quay-install/quay-config
+    state: directory
+    recurse: yes
+
+- name: Set permissions on local storage directory
+  ansible.posix.acl:
+    path: /etc/quay-install/quay-storage
+    entry: u:1001:-wx
+    state: present
+
+- name: Copy Quay config.yaml file
+  template:
+    src: ../templates/config.yaml.j2
+    dest: /etc/quay-install/quay-config/config.yaml
+
+- name: Create SSL Certs
+  block:
+    - name: install the package, force upgrade
+      pip:
+        name: pip
+        extra_args: --upgrade
+
+    - name: Install bottle python package
+      pip:
+        name: cryptography
+
+    - name: Generate an OpenSSL private key with the default values (4096 bits, RSA)
+      openssl_privatekey:
+        path: /etc/quay-install/quay-config/ssl.key
+        type: RSA
+
+    - name: Generate an OpenSSL Certificate Signing Request
+      openssl_csr:
+        path: /etc/quay-install/quay-config/ssl.csr
+        privatekey_path: /etc/quay-install/quay-config/ssl.key
+        country_name: US
+        organization_name: Quay
+        email_address: "support@projectquay.io"
+        common_name: "{{ inventory_hostname }}"
+        subject_alt_name: "DNS:{{ inventory_hostname }}"
+
+    - name: Generate a Self Signed OpenSSL certificate
+      openssl_certificate:
+        path: /etc/quay-install/quay-config/ssl.cert
+        privatekey_path: /etc/quay-install/quay-config/ssl.key
+        csr_path: /etc/quay-install/quay-config/ssl.csr
+        provider: selfsigned
+
+    - name: Set permissions for key
+      ansible.builtin.file:
+        path: /etc/quay-install/quay-config/ssl.key
+        mode: u=rw,g=r,o=r
+
+    - name: Set permissions for cert
+      ansible.builtin.file:
+        path: /etc/quay-install/quay-config/ssl.cert
+        mode: u=rw,g=r,o=r
+
+- name: Copy Quay systemd service file
+  template:
+    src: ../files/systemd/quay.service
+    dest: /etc/systemd/system/quay-app.service
+
+- name: Pull Quay image
+  containers.podman.podman_image:
+    name: "{{ quay_image }}"
+
+- name: Start Quay service
+  systemd:
+    name: quay-app.service
+    enabled: yes
+    daemon_reload: yes
+    state: started

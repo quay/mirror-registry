@@ -5,6 +5,9 @@ all:
 full-reset: .
 	go build main.go; sudo ./main uninstall -v; sudo ./main install -v
 
+create-ansible-image:
+	sudo ansible-builder build --container-runtime podman --file ansible-runner/execution-environment.yml --context ansible-runner/context
+
 build-online-zip:
 	sudo podman run --rm -v ${PWD}:/usr/src:Z -w /usr/src docker.io/golang:1.16 go build -v -o quay-installer;
 	tar -cvzf quay-installer.tar.gz quay-installer README.md

@@ -1,0 +1,11 @@
+- name: "Install Mirror Appliance"
+  gather_facts: yes
+  become: true
+  hosts: all
+  tags:
+    - quay
+  vars:
+    yum_packages:
+      - podman
+  roles:
+    - mirror_appliance

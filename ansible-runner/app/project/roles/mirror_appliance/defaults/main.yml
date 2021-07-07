@@ -1,0 +1,5 @@
+---
+redis_image: docker.io/centos/redis-5-centos8
+postgres_image: docker.io/centos/postgresql-10-centos8
+quay_image: quay.io/jonathankingfc/quay:first-user
+image_archive_path: "{{playbook_dir }}/files/image-archive.yaml"

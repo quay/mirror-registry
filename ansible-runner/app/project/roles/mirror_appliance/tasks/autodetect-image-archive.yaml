@@ -1,0 +1,7 @@
+- name: Ansible check file exists.
+  stat:
+    path: "{{ image_archive_path }}"
+  register: p
+- name: Image Archive Found. Loading Images.
+  command: "podman load -i {{ image_archive_path }}"
+  when: p.stat.exists

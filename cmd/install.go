@@ -35,40 +35,32 @@ func init() {
 
 	installCmd.Flags().StringVarP(&imageArchiveDir, "image-archive", "i", "", "An archive containing images")
 	installCmd.Flags().StringVarP(&sshKey, "ssh-key", "k", os.Getenv("HOME")+"/.ssh/id_rsa", "The path of your ssh identity key. This defaults to ~/.ssh/id_rsa")
-	installCmd.Flags().StringVarP(&sshKey, "hostname", "h", "localhost", "The hostname you wish to install Quay to. This defaults to localhost")
-
-	installCmd.MarkFlagRequired("hostname")
-
-	// // Add --password flag
-	// editorCmd.Flags().StringVarP(&editorPassword, "password", "p", "", "The password to enter the editor")
-	// editorCmd.MarkFlagRequired("password")
+	installCmd.Flags().StringVarP(&hostname, "hostname", "H", "localhost", "The hostname you wish to install Quay to. This defaults to localhost")
 
 }
 
 func install() {
-	log.Printf("Installing Quay")
 
 	var err error
+	log.Printf("Install has begun")
 
-	log.Printf("Cloning ansible dependencies")
-	cmd := exec.Command("git", "clone", "-b", "stable-2.10", "https://github.com/ansible/ansible.git", "/tmp/ansible")
-	err = cmd.Run()
-	check(err)
-
-	cmd = exec.Command("git", "clone", "-b", "quay_installer_role", "https://github.com/quay/quay-ansible.git", "/tmp/quay-ansible")
-	err = cmd.Run()
+	log.Infof("Installing ansible-runner")
+	err = installAnsibleRunner()
 	check(err)
 
 	log.Printf("Attempting to copy ssh file from %s", sshKey)
-	cmd = exec.Command("ssh-copy-id", "-i", sshKey, "localhost")
+	cmd := exec.Command("ssh-copy-id", "-i", sshKey, "localhost")
 	cmd.Stderr = os.Stderr
 	err = cmd.Run()
 	check(err)
 
-	cmd = exec.Command("bash", "-c", fmt.Sprintf("source /tmp/ansible/hacking/env-setup; ansible-playbook -i localhost, --private-key %s /tmp/quay-ansible/p_install-mirror-appliance.yml -kK", sshKey))
+	cmd = exec.Command("bash", "-c", fmt.Sprintf("podman/tmp/ansible/hacking/env-setup; ansible-playbook -i localhost, --private-key %s /tmp/quay-ansible/p_install-mirror-appliance.yml -kK", sshKey))
 	cmd.Stderr = os.Stderr
 	cmd.Stdout = os.Stdout
 	err = cmd.Run()
+	check(err)
+
+	err = uninstallAnsibleRunner()
 	check(err)
 
 	// // If image archive is set, load images. Otherwise, pull from dockerhub.
