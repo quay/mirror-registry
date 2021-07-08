@@ -1,0 +1,9 @@
+- name: Creating init user at endpoint https://{{ inventory_hostname.split("@")[1] }}/api/v1/user/initialize
+  uri:
+    url: "https://localhost/api/v1/user/initialize"
+    method: POST
+    validate_certs: no
+    return_content: yes
+    body_format: json
+    body: '{ "username": "init", "password": "{{ init_password }}", "access_token": "true" }'
+  register: result

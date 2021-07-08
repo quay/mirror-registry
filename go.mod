@@ -1,9 +1,10 @@
-module github.com/jonathankingfc/quay-aioi
+module github.com/quay/openshift-mirror-registry
 
 go 1.16
 
 require (
 	github.com/lib/pq v1.10.0
+	github.com/sethvargo/go-password v0.2.0 // indirect
 	github.com/sirupsen/logrus v1.8.1
 	github.com/spf13/cobra v1.1.3
 	github.com/stretchr/testify v1.7.0 // indirect

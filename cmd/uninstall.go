@@ -4,45 +4,64 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path"
 
 	log "github.com/sirupsen/logrus"
-
 	"github.com/spf13/cobra"
 )
 
 // uninstallCmd represents the uninstall command
 var uninstallCmd = &cobra.Command{
 	Use:   "uninstall",
-	Short: "uninstall will remove all Quay dependencies from your host machine",
+	Short: "uninstall will remove all Quay dependencies.",
 	Run: func(cmd *cobra.Command, args []string) {
 		uninstall()
 	},
 }
 
 func init() {
+
+	// Add install command
 	rootCmd.AddCommand(uninstallCmd)
+
+	uninstallCmd.Flags().StringVarP(&imageArchiveDir, "image-archive", "i", "", "An archive containing images")
+	uninstallCmd.Flags().StringVarP(&sshKey, "ssh-key", "k", os.Getenv("HOME")+"/.ssh/id_rsa", "The path of your ssh identity key. This defaults to ~/.ssh/id_rsa")
+	uninstallCmd.Flags().StringVarP(&hostname, "hostname", "H", "localhost", "The hostname you wish to install Quay to. This defaults to localhost")
+	uninstallCmd.Flags().StringVarP(&username, "username", "u", os.Getenv("USER"), "The user you wish to ssh into your remote with. This defaults to the current username")
+	uninstallCmd.Flags().StringVarP(&additionalArgs, "additionalArgs", "", "-K", "Additional arguments you would like to append to the ansible-playbook call. Used mostly for development.")
+
 }
 
 func uninstall() {
+
+	var err error
 	log.Printf("Uninstall has begun")
 
-	log.Printf("Installing ansible-runner")
-	err := installAnsibleRunner()
-	check(err)
+	executableDir, err := os.Executable()
+	if err != nil {
+		check(err)
+	}
 
-	log.Printf("Attempting to copy ssh file from %s", sshKey)
-	cmd := exec.Command("ssh-copy-id", "-i", sshKey, "localhost")
-	cmd.Stderr = os.Stderr
+	log.Printf("Loading execution environment from execution-environment.tar")
+	cmd := exec.Command("sudo", "podman", "load", "-i", path.Join(path.Dir(executableDir), "execution-environment.tar"))
+	if verbose {
+		cmd.Stderr = os.Stderr
+		cmd.Stdout = os.Stdout
+	}
 	err = cmd.Run()
 	check(err)
 
-	cmd = exec.Command("bash", "-c", fmt.Sprintf("source /tmp/ansible/hacking/env-setup; ansible-playbook -i localhost, --private-key %s /tmp/quay-ansible/p_uninstall-mirror-appliance.yml -kK", sshKey))
-	cmd.Stderr = os.Stderr
-	cmd.Stdout = os.Stdout
+	log.Printf("Running uninstall playbook. This may take some time. To see playbook output run the installer with -v (verbose) flag.")
+	cmd = exec.Command("bash", "-c", fmt.Sprintf(`sudo podman run --rm --tty --interactive --workdir /runner/project --net host -v %s:/runner/env/ssh_key  --quiet --name ansible_runner_instance quay.io/quay/openshift-mirror-registry-ee ansible-playbook -i %s@%s, --private-key /runner/env/ssh_key uninstall_mirror_appliance.yml %s`, sshKey, username, hostname, additionalArgs))
+	if verbose {
+		cmd.Stderr = os.Stderr
+		cmd.Stdout = os.Stdout
+	}
+	cmd.Stdin = os.Stdin
 	err = cmd.Run()
 	check(err)
 
-	err = uninstallAnsibleRunner()
-	check(err)
+	cleanup()
 
+	log.Printf("Quay uninstalled successfully")
 }

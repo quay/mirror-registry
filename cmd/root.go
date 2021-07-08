@@ -3,7 +3,6 @@ package cmd
 import (
 	"fmt"
 	"os"
-	"os/exec"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -19,26 +18,14 @@ func pathExists(path string) bool {
 
 func check(err error) {
 	if err != nil {
-		log.Error("An error occurred: %s", err.Error())
-		if err := uninstallAnsibleRunner(); err != nil {
-			log.Error("An error occurred while cleaning up assets: %s", err.Error())
-		}
+		log.Errorf("An error occurred: %s", err.Error())
+		cleanup()
 		os.Exit(1)
 	}
 }
 
-func installAnsibleRunner() error {
-	if err := exec.Command("pip", "install", "ansible-runner").Run(); err != nil {
-		return err
-	}
-	return nil
-}
-
-func uninstallAnsibleRunner() error {
-	if err := exec.Command("pip", "uninstall", "ansible-runner").Run(); err != nil {
-		return err
-	}
-	return nil
+func cleanup() {
+	os.RemoveAll("/tmp/app")
 }
 
 // verbose is the optional command that will display INFO logs
@@ -50,7 +37,7 @@ func init() {
 
 var (
 	rootCmd = &cobra.Command{
-		Use: "quay-installer",
+		Use: "openshift-mirror-registry",
 		PersistentPreRun: func(cmd *cobra.Command, args []string) {
 			if verbose {
 				log.SetLevel(log.InfoLevel)

@@ -10,20 +10,20 @@ This application will allow user to install Quay and its required components usi
 
 ### Compile
 
-To compile the quay-installer.tar.gz for distribution, run the following command:
+To compile the openshift-mirror-registry.tar.gz for distribution, run the following command:
 
 ```console
-$ git clone https://github.com/jonathankingfc/quay-aioi.git
-$ cd quay-aioi
+$ git clone https://github.com/quay/openshift-mirror-registry.git
+$ cd openshift-mirror-registry
 $ make build-online-zip # OR make build-offline-zip
 ```
 
-This will generate a `quay-installer.tar.gz` which contains this README.md, the `quay-installer` binary, and the `image-archive.tar` (if using offline installer) which contains the images required to set up Quay.
+This will generate a `openshift-mirror-registry.tar.gz` which contains this README.md, the `openshift-mirror-registry` binary, and the `image-archive.tar` (if using offline installer) which contains the images required to set up Quay.
 
 Once generated, you may untar this file on your desired host machine for installation. You may use the following command:
 
 ```console
-tar -xzvf quay-installer.tar.gz
+tar -xzvf openshift-mirror-registry.tar.gz
 ```
 
 NOTE - With the offline version, this may take some time.
@@ -36,21 +36,41 @@ Add the following line to host machine `/etc/hosts` file:
 127.0.0.1   quay
 ```
 
+In order to run the installation playbooks, you must also set up SSH keys. At the moment, this is required for local installations as well.
+
+To create the required SSH keys, run the following commands.
+
+```console
+$ ssh-keygen
+$ ssh-add
+$ ssh-copy-id <quay hostname>
+```
+
+You must provide your ssh private key to the installer CLI with the --ssh-key flag.
+
 To install Quay on your desired host machine, run the following command:
 
 ```console
-$ sudo ./quay-installer install -v
+$ sudo ./openshift-mirror-registry install -v
+```
+
+The following flags are also available:
+
+```
+--ssh-key   -k  The path of your ssh identity key. This defaults to ~/.ssh/id_rsa
+--hostname  -H  The hostname you wish to install Quay to. This defaults to localhost
+--username   -u  The user you wish to ssh into your remote with. This defaults to $USER
 ```
 
 This command will make the following changes to your machine
 
 - Pulls Quay, Redis, and Postgres containers from quay.io
 - Sets up systemd files on host machine to ensure that container runtimes are persistent
-- Creates `~/quay-install` in `$HOME` which contains install files, local storage, and config bundle. This will generally be in `/root/quay-install`.
+- Creates `/etc/quay-install` contains install files, local storage, and config bundle.
 
 ### Access Quay
 
-- The Quay console will be accessible at `http://quay:8080`
+- The Quay console will be accessible at `https://quay`
 
 - Create a user with a username and password
 
@@ -79,12 +99,7 @@ $ podman pull quay:8080/<username>/busybox:latest --tls-verify=false
 To uninstall Quay, run the following command:
 
 ```console
-$ sudo ./quay-installer uninstall -v
+$ sudo ./openshift-mirror-registry uninstall -v
 ```
 
-This command will delete the `~/quay-install` directory and disable all systemd services set up by Quay.
-
-### To Do
-
-- Switch from --net=host to a bridge network (this is safer)
-- Better config generation with secure passwords
+This command will delete the `/etc/quay-install` directory and disable all systemd services set up by Quay.

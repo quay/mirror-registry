@@ -1,11 +1,14 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
+	"path"
 
 	_ "github.com/lib/pq" // pg driver
+	"github.com/sethvargo/go-password/password"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
@@ -19,10 +22,16 @@ var sshKey string
 // hostname is the hostname of the server you wish to install Quay on
 var hostname string
 
+// username is the name of the user which you wish to SSH into the remote with.
+var username string
+
+// additionalArgs are arguments that you would like to append to the end of the ansible-playbook call (used mostly for development)
+var additionalArgs string
+
 // installCmd represents the validate command
 var installCmd = &cobra.Command{
 	Use:   "install",
-	Short: "Install Quay and its required dependencies",
+	Short: "Install Quay and its required dependencies.",
 	Run: func(cmd *cobra.Command, args []string) {
 		install()
 	},
@@ -36,6 +45,8 @@ func init() {
 	installCmd.Flags().StringVarP(&imageArchiveDir, "image-archive", "i", "", "An archive containing images")
 	installCmd.Flags().StringVarP(&sshKey, "ssh-key", "k", os.Getenv("HOME")+"/.ssh/id_rsa", "The path of your ssh identity key. This defaults to ~/.ssh/id_rsa")
 	installCmd.Flags().StringVarP(&hostname, "hostname", "H", "localhost", "The hostname you wish to install Quay to. This defaults to localhost")
+	installCmd.Flags().StringVarP(&username, "username", "u", os.Getenv("USER"), "The user you wish to ssh into your remote with. This defaults to the current username")
+	installCmd.Flags().StringVarP(&additionalArgs, "additionalArgs", "", "-K", "Additional arguments you would like to append to the ansible-playbook call. Used mostly for development.")
 
 }
 
@@ -44,74 +55,43 @@ func install() {
 	var err error
 	log.Printf("Install has begun")
 
-	log.Infof("Installing ansible-runner")
-	err = installAnsibleRunner()
+	// Check that all files are present
+	executableDir, err := os.Executable()
 	check(err)
+	executionEnvironmentPath := path.Join(path.Dir(executableDir), "execution-environment.tar")
+	if !pathExists(executionEnvironmentPath) {
+		check(errors.New("Could not find execution-environment.tar at " + executionEnvironmentPath))
+	}
+	if !pathExists(sshKey) {
+		check(errors.New("Could not find ssh key at " + sshKey))
+	}
 
-	log.Printf("Attempting to copy ssh file from %s", sshKey)
-	cmd := exec.Command("ssh-copy-id", "-i", sshKey, "localhost")
-	cmd.Stderr = os.Stderr
+	// Load execution environment into podman
+	log.Printf("Loading execution environment from execution-environment.tar")
+	cmd := exec.Command("sudo", "podman", "load", "-i", executionEnvironmentPath)
+	if verbose {
+		cmd.Stderr = os.Stderr
+		cmd.Stdout = os.Stdout
+	}
 	err = cmd.Run()
 	check(err)
 
-	cmd = exec.Command("bash", "-c", fmt.Sprintf("podman/tmp/ansible/hacking/env-setup; ansible-playbook -i localhost, --private-key %s /tmp/quay-ansible/p_install-mirror-appliance.yml -kK", sshKey))
-	cmd.Stderr = os.Stderr
-	cmd.Stdout = os.Stdout
+	// Generate password
+	generatedPassword, err := password.Generate(32, 10, 0, false, false)
+	check(err)
+
+	// Run playbook
+	log.Printf("Running install playbook. This may take some time. To see playbook output run the installer with -v (verbose) flag.")
+	cmd = exec.Command("bash", "-c", fmt.Sprintf(`sudo podman run --rm --tty --interactive --workdir /runner/project --net host -v %s:/runner/env/ssh_key  --quiet --name ansible_runner_instance quay.io/quay/openshift-mirror-registry-ee ansible-playbook -i %s@%s, --private-key /runner/env/ssh_key -e "init_password=%s" install_mirror_appliance.yml %s`, sshKey, username, hostname, generatedPassword, additionalArgs))
+	if verbose {
+		cmd.Stderr = os.Stderr
+		cmd.Stdout = os.Stdout
+	}
+	cmd.Stdin = os.Stdin
 	err = cmd.Run()
 	check(err)
 
-	err = uninstallAnsibleRunner()
-	check(err)
-
-	// // If image archive is set, load images. Otherwise, pull from dockerhub.
-	// if imageArchiveDir == "" { // Flag not set
-	// 	// Attempt to autodetect
-	// 	executableDir, err := os.Executable()
-	// 	if err != nil {
-	// 		check(err)
-	// 	}
-	// 	defaultArchive := path.Join(path.Dir(executableDir), "image-archive.tar")
-	// 	if pathExists(defaultArchive) { // Autodetect found archive in same dir as executable
-	// 		log.Printf("Autodetected image archive at %s", defaultArchive)
-	// 		cmd := exec.Command("podman", "load", "-i", defaultArchive)
-	// 		fmt.Print("\033[34m")
-	// 		cmd.Stderr = os.Stderr
-	// 		cmd.Stdout = os.Stdout
-	// 		err = cmd.Run()
-	// 		if err != nil {
-	// 			check(errors.New(stdErr.String()))
-	// 		}
-	// 		fmt.Print("\033[0m")
-	// 	} else { // No archive provided, pulling images automatically
-	// 		log.Printf("Pulling required images")
-	// 		for _, s := range services {
-	// 			cmd := exec.Command("podman", "pull", s.image)
-	// 			fmt.Print("\033[34m")
-	// 			cmd.Stderr = os.Stderr
-	// 			cmd.Stdout = os.Stdout
-	// 			err = cmd.Run()
-	// 			if err != nil {
-	// 				check(errors.New(stdErr.String()))
-	// 			}
-	// 			fmt.Print("\033[0m")
-	// 		}
-	// 	}
-	// } else { // Flag was set
-	// 	if pathExists(imageArchiveDir) { // Autodetect found archive in same dir as executable
-	// 		log.Printf("Using specified image archive at %s", imageArchiveDir)
-	// 		cmd := exec.Command("podman", "load", "-i", imageArchiveDir)
-	// 		fmt.Print("\033[34m")
-	// 		cmd.Stderr = os.Stderr
-	// 		cmd.Stdout = os.Stdout
-	// 		err = cmd.Run()
-	// 		if err != nil {
-	// 			check(errors.New(stdErr.String()))
-	// 		}
-	// 		fmt.Print("\033[0m")
-	// 	}
-	// }
-
-	// Create podman pod
-
+	cleanup()
 	log.Printf("Quay installed successfully")
+	log.Printf("Quay is available at %s with credentials (init, %s)", "https://"+hostname, generatedPassword)
 }

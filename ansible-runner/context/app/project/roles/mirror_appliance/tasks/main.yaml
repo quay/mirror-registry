@@ -1,3 +1,6 @@
+- name: Install Dependencies
+  include_tasks: install-deps.yaml
+
 - name: Set SELinux Rules
   include_tasks: set-selinux-rules.yaml
 
@@ -15,3 +18,9 @@
 
 - name: Install Quay Service
   include_tasks: install-quay-service.yaml
+
+- name: Wait for Quay
+  include_tasks: wait-for-quay.yaml
+
+- name: Create init user
+  include_tasks: create-init-user.yaml

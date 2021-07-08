@@ -1,4 +1,4 @@
-- name: Create podman pod for shared network namespace
+- name: Starting Pod with ports 80 and 443 exposed
   containers.podman.podman_pod:
     name: quay-pod
     state: started

@@ -23,32 +23,32 @@
 
 - name: Create SSL Certs
   block:
-    - name: install the package, force upgrade
+    - name: Upgrade pip
       pip:
         name: pip
         extra_args: --upgrade
 
-    - name: Install bottle python package
+    - name: Install cryptography python package
       pip:
         name: cryptography
 
     - name: Generate an OpenSSL private key with the default values (4096 bits, RSA)
-      openssl_privatekey:
+      community.crypto.openssl_privatekey:
         path: /etc/quay-install/quay-config/ssl.key
         type: RSA
 
     - name: Generate an OpenSSL Certificate Signing Request
-      openssl_csr:
+      community.crypto.openssl_csr:
         path: /etc/quay-install/quay-config/ssl.csr
         privatekey_path: /etc/quay-install/quay-config/ssl.key
         country_name: US
         organization_name: Quay
         email_address: "support@projectquay.io"
-        common_name: "{{ inventory_hostname }}"
-        subject_alt_name: "DNS:{{ inventory_hostname }}"
+        common_name: '{{ inventory_hostname.split("@")[1] }}'
+        subject_alt_name: 'DNS:{{ inventory_hostname.split("@")[1] }}'
 
     - name: Generate a Self Signed OpenSSL certificate
-      openssl_certificate:
+      community.crypto.openssl_certificate:
         path: /etc/quay-install/quay-config/ssl.cert
         privatekey_path: /etc/quay-install/quay-config/ssl.key
         csr_path: /etc/quay-install/quay-config/ssl.csr
