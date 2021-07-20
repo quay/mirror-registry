@@ -44,7 +44,10 @@ To install Quay on a remote host, run the following command:
 $ ./openshift-mirror-registry install -v --targetHostname some.remote.host.com --targetUsername someuser -k ~/.ssh/my_ssh_key --quayHostname some.remote.host.com
 ```
 
-Behind the scenes, Ansible is using `ssh -i ~/.ssh/my_ssh_key someuser@some.remote.host.com` as the target to run its playbooks.
+NOTE 
+- Behind the scenes, Ansible is using `ssh -i ~/.ssh/my_ssh_key someuser@some.remote.host.com` as the target to run its playbooks.
+- With the offline version, this may take some time.
+- When building the source to generate the `openshift-mirror-registry.tar.gz`, you need to have [ansible builder](https://www.ansible.com/blog/introduction-to-ansible-builder) installed. You can do so by running `sudo pip install ansible-builder` 
 
 ### What does the installer do?
 
@@ -65,6 +68,12 @@ You can then log into the registry using the provided credentials, for example:
 
 ```console
 $ podman login -u init -p <password> --tls-verify=false quay:8443
+```
+Note: If the above command fails, then check if you have enabled `sshd` server. You can use the following commads:
+``` 
+$ sudo systemctl enable sshd
+$ sudo systemctl start sshd
+$ sudo systemctl status sshd
 ```
 
 After logging in, you can run commands such as:
