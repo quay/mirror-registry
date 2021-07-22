@@ -1,7 +1,20 @@
-- name: Ansible check file exists.
-  stat:
-    path: "{{ image_archive_path }}"
+- name: Checking for Image Archive
+  local_action: stat path=/runner/image-archive.tar
   register: p
-- name: Image Archive Found. Loading Images.
-  command: "podman load -i {{ image_archive_path }}"
+
+- name: Create install directory for image-archive.tar dest
+  ansible.builtin.file:
+    path: /etc/quay-install
+    state: directory
+    recurse: yes
+  when: p.stat.exists
+
+- name: Copy Images if /runner/image-archive.tar exists
+  copy:
+    src: /runner/image-archive.tar
+    dest: /etc/quay-install/image-archive.tar
+  when: p.stat.exists
+
+- name: Loading Images if /runner/image-archive.tar exists
+  command: "podman load -i /etc/quay-install/image-archive.tar"
   when: p.stat.exists

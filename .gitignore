@@ -5,6 +5,8 @@ terraform-key.json
 .terraform.lock.hcl
 terraform.tfstate*
 ansible/context
+image-archive.tar
 execution-environment.tar
 quay-aioi
 openshift-mirror-registry*
+local-testing

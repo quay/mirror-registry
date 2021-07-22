@@ -6,7 +6,6 @@ import (
 	"os/exec"
 	"path"
 
-	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
 
@@ -24,10 +23,9 @@ func init() {
 	// Add install command
 	rootCmd.AddCommand(uninstallCmd)
 
-	uninstallCmd.Flags().StringVarP(&imageArchiveDir, "image-archive", "i", "", "An archive containing images")
 	uninstallCmd.Flags().StringVarP(&sshKey, "ssh-key", "k", os.Getenv("HOME")+"/.ssh/id_rsa", "The path of your ssh identity key. This defaults to ~/.ssh/id_rsa")
-	uninstallCmd.Flags().StringVarP(&hostname, "hostname", "H", "localhost", "The hostname you wish to install Quay to. This defaults to localhost")
-	uninstallCmd.Flags().StringVarP(&username, "username", "u", os.Getenv("USER"), "The user you wish to ssh into your remote with. This defaults to the current username")
+	uninstallCmd.Flags().StringVarP(&targetHostname, "targetHostname", "H", "localhost", "The hostname of the target you wish to install Quay to. This defaults to localhost")
+	uninstallCmd.Flags().StringVarP(&targetUsername, "targetUsername", "u", os.Getenv("USER"), "The user you wish to ssh into your remote with. This defaults to the current username")
 	uninstallCmd.Flags().StringVarP(&additionalArgs, "additionalArgs", "", "-K", "Additional arguments you would like to append to the ansible-playbook call. Used mostly for development.")
 
 }
@@ -52,7 +50,7 @@ func uninstall() {
 	check(err)
 
 	log.Printf("Running uninstall playbook. This may take some time. To see playbook output run the installer with -v (verbose) flag.")
-	cmd = exec.Command("bash", "-c", fmt.Sprintf(`sudo podman run --rm --tty --interactive --workdir /runner/project --net host -v %s:/runner/env/ssh_key  --quiet --name ansible_runner_instance quay.io/quay/openshift-mirror-registry-ee ansible-playbook -i %s@%s, --private-key /runner/env/ssh_key uninstall_mirror_appliance.yml %s`, sshKey, username, hostname, additionalArgs))
+	cmd = exec.Command("bash", "-c", fmt.Sprintf(`sudo podman run --rm --tty --interactive --workdir /runner/project --net host -v %s:/runner/env/ssh_key  --quiet --name ansible_runner_instance quay.io/quay/openshift-mirror-registry-ee ansible-playbook -i %s@%s, --private-key /runner/env/ssh_key uninstall_mirror_appliance.yml %s`, sshKey, targetUsername, targetHostname, additionalArgs))
 	if verbose {
 		cmd.Stderr = os.Stderr
 		cmd.Stdout = os.Stdout

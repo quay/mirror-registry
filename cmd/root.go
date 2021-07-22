@@ -3,10 +3,37 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"strings"
 
-	log "github.com/sirupsen/logrus"
+	"github.com/hpcloud/tail"
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
+
+// Create logger
+var log = &logrus.Logger{
+	Out:   os.Stdout,
+	Level: logrus.InfoLevel,
+}
+
+func watchFileAndRun(filePath string) error {
+	t, err := tail.TailFile(filePath, tail.Config{Follow: true})
+	check(err)
+	for line := range t.Lines {
+		if strings.TrimSpace(line.Text) != "" {
+			msg := strings.TrimSpace(strings.Split(line.Text, " - ")[2])
+			status := strings.TrimSpace(strings.Split(line.Text, " - ")[4])
+			if status == "OK" || status == "SKIPPED" {
+				log.Info(status + ": " + msg)
+			} else {
+				log.Error(msg)
+			}
+
+		}
+
+	}
+	return nil
+}
 
 func pathExists(path string) bool {
 	_, err := os.Stat(path)
@@ -40,9 +67,9 @@ var (
 		Use: "openshift-mirror-registry",
 		PersistentPreRun: func(cmd *cobra.Command, args []string) {
 			if verbose {
-				log.SetLevel(log.InfoLevel)
+				log.SetLevel(logrus.DebugLevel)
 			} else {
-				log.SetLevel(log.WarnLevel)
+				log.SetLevel(logrus.InfoLevel)
 			}
 		},
 	}
@@ -50,7 +77,7 @@ var (
 
 // Execute executes the root command.
 func Execute() error {
-	log.SetFormatter(&log.TextFormatter{
+	log.SetFormatter(&logrus.TextFormatter{
 		ForceColors:     true,
 		TimestampFormat: "2006-01-02 15:04:05",
 		FullTimestamp:   true,

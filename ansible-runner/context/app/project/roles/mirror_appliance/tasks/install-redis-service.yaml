@@ -1,5 +1,7 @@
 - name: Copy Redis systemd service file
-  template: src=../files/systemd/redis.service dest=/etc/systemd/system/quay-redis.service
+  template:
+    src: ../templates/redis.service.j2
+    dest: /etc/systemd/system/quay-redis.service
 
 - name: Pull Redis image
   containers.podman.podman_image:

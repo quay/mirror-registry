@@ -1,8 +1,8 @@
 ---
 version: 1
 
-# build_arg_defaults:
-#   EE_BASE_IMAGE: quay.io/aap/ansible-automation-platform-20-ee-minimal-rhel8:latest
+build_arg_defaults:
+  EE_BASE_IMAGE: registry.redhat.io/ansible-automation-platform-20-early-access/ee-minimal-rhel8
 
 dependencies:
   galaxy: requirements.yml

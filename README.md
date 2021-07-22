@@ -23,7 +23,8 @@ This will generate a `openshift-mirror-registry.tar.gz` which contains this READ
 Once generated, you may untar this file on your desired host machine for installation. You may use the following command:
 
 ```console
-tar -xzvf openshift-mirror-registry.tar.gz
+mkdir openshift-mirror-registry
+tar -xzvf openshift-mirror-registry.tar.gz -C openshift-mirror-registry
 ```
 
 NOTE - With the offline version, this may take some time.
@@ -43,7 +44,7 @@ To create the required SSH keys, run the following commands.
 ```console
 $ ssh-keygen
 $ ssh-add
-$ ssh-copy-id <quay hostname>
+$ ssh-copy-id <targetHostname>
 ```
 
 You must provide your ssh private key to the installer CLI with the --ssh-key flag.
@@ -58,8 +59,8 @@ The following flags are also available:
 
 ```
 --ssh-key   -k  The path of your ssh identity key. This defaults to ~/.ssh/id_rsa
---hostname  -H  The hostname you wish to install Quay to. This defaults to localhost
---username   -u  The user you wish to ssh into your remote with. This defaults to $USER
+--targetHostname  -H  The hostname of the target you wish to install Quay to. This defaults to localhost.
+--targetUsername   -u  The user you wish to ssh into your remote with. This defaults to $USER
 ```
 
 This command will make the following changes to your machine
