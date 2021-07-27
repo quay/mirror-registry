@@ -7,9 +7,54 @@ on:
   pull_request:
 
 jobs:
-  remote-online-install:
-    name: "Remote Online Installer"
+  build-install-zip:
+    name: "Build Installer"
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        installer-type: ["online", "offline"]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Set up Go 1.x
+        uses: actions/setup-go@v2
+        with:
+          go-version: ^1.13
+        id: go
+
+      - name: Get dependencies
+        run: |
+          go get -v -t -d ./...
+          if [ -f Gopkg.toml ]; then
+              curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
+              dep ensure
+          fi
+
+      - name: Install ansible builder
+        run: sudo pip install ansible-builder
+
+      - name: Log into podman for registry.redhat.io
+        run: "sudo podman login -u ${{ secrets.REGISTRY_USERNAME }} -p ${{ secrets.REGISTRY_PASSWORD }} registry.redhat.io"
+
+      - name: Build tarfile
+        run: make build-${{ matrix.installer-type }}-zip
+
+      - name: Upload tarfile
+        uses: actions/upload-artifact@v2
+        with:
+          name: openshift-mirror-registry-${{ matrix.installer-type }}-installer
+          path: openshift-mirror-registry.tar.gz
+          retention-days: 1
+
+  test-remote-install:
+    name: "Remote Install"
+    needs: ["build-install-zip"]
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        installer-type: ["online", "offline"]
     env:
       GOOGLE_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
       TF_VAR_SSH_PUBLIC_KEY: ${{ secrets.TF_VAR_SSH_PUBLIC_KEY }}
@@ -27,14 +72,133 @@ jobs:
         env:
           SSH_KEY: ${{ secrets.TF_VAR_SSH_PRIVATE_KEY }}
 
-      - name: Log into podman for registry.redhat.io
-        run: "sudo podman login -u $USER -p $PASS registry.redhat.io"
-        env:
-          USER: ${{ secrets.REGISTRY_USERNAME }}
-          PASS: ${{ secrets.REGISTRY_PASSWORD }}
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v1
+        with:
+          # terraform_version: 0.13.0:
+          cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
+          terraform_wrapper: false
 
-      - name: Install ansible builder
-        run: sudo pip install ansible-builder
+      - name: Terraform Format
+        id: fmt
+        run: terraform fmt -check
+        working-directory: ".github/workflows/remote-${{ matrix.installer-type }}-installer"
+
+      - name: Terraform Init
+        id: init
+        run: terraform init
+        working-directory: ".github/workflows/remote-${{ matrix.installer-type }}-installer"
+
+      - name: Terraform Plan
+        id: plan
+        run: terraform plan
+        working-directory: ".github/workflows/remote-${{ matrix.installer-type }}-installer"
+
+      - name: Terraform Apply
+        run: terraform apply --auto-approve
+        working-directory: ".github/workflows/remote-${{ matrix.installer-type }}-installer"
+
+      - name: Get IP Address
+        run: |
+          export IP=$(terraform output ip-remote-${{ matrix.installer-type }}-install)
+          echo "VM Started on ${IP}"
+        working-directory: ".github/workflows/remote-${{ matrix.installer-type }}-installer"
+
+      - name: Add hostname to /etc/hosts
+        run: echo "$(terraform -chdir=./.github/workflows/remote-${{ matrix.installer-type }}-installer output --raw ip-remote-${{ matrix.installer-type }}-install)  quay" | sudo tee -a /etc/hosts; sudo cat /etc/hosts
+
+      - name: Wait for VM
+        uses: jakejarvis/wait-action@master
+        with:
+          time: "60s"
+
+      - name: Download tarfile
+        uses: actions/download-artifact@v2
+        with:
+          name: openshift-mirror-registry-${{ matrix.installer-type }}-installer
+
+      - name: Extract tarfile
+        run: tar -xf openshift-mirror-registry.tar.gz
+
+      - name: Install Registry
+        run: ./openshift-mirror-registry install -u jonathan -H quay -v --additionalArgs "" --initPassword password -k /home/runner/.ssh/id_rsa
+
+      - name: Install oc
+        uses: redhat-actions/oc-installer@v1
+        with:
+          oc_version: "4.6"
+
+      - name: Create pull secret
+        run: |
+          echo "$PULL_SECRET" > /tmp/pull-secret.json; chmod 777 /tmp/pull-secret.json
+          echo "{\"auths\": {\"quay:8443\": {\"auth\": \"$(echo -n init:password | base64 -w0)\", \"email\":\"init@quay.io\"}}}"  > /tmp/mirror-secret.json; chmod 777 /tmp/mirror-secret.json
+          jq -s '.[0] * .[1]' /tmp/pull-secret.json /tmp/mirror-secret.json > /tmp/merged-secret.json; chmod 777 /tmp/merged-secret.json; cat /tmp/merged-secret.json
+        shell: bash
+        env:
+          PULL_SECRET: ${{ secrets.PULL_SECRET }}
+
+      - name: Mirror OCP Images
+        run: |
+          oc adm release mirror -a ${LOCAL_SECRET_JSON}  \
+          --from=quay.io/${PRODUCT_REPO}/${RELEASE_NAME}:${OCP_RELEASE}-${ARCHITECTURE} \
+          --to=quay:8443/${LOCAL_REPOSITORY} \
+          --to-release-image=quay:8443/${LOCAL_REPOSITORY}:${OCP_RELEASE}-${ARCHITECTURE} \
+          --insecure
+        env:
+          OCP_RELEASE: 4.5.4
+          LOCAL_REPOSITORY: "ocp-install/openshift4"
+          PRODUCT_REPO: "openshift-release-dev"
+          LOCAL_SECRET_JSON: "/tmp/merged-secret.json"
+          RELEASE_NAME: "ocp-release"
+          ARCHITECTURE: "x86_64"
+
+      - name: Uninstall Registry
+        run: ./openshift-mirror-registry uninstall -u jonathan -H quay -v --additionalArgs "" -k /home/runner/.ssh/id_rsa
+
+      - name: Terraform Destroy
+        run: terraform destroy --auto-approve
+        if: always()
+        working-directory: ".github/workflows/remote-${{ matrix.installer-type }}-installer"
+
+  test-local-install:
+    name: "Local Install"
+    needs: ["build-install-zip"]
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        installer-type: ["online", "offline"]
+    env:
+      GOOGLE_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
+      TF_VAR_SSH_PUBLIC_KEY: ${{ secrets.TF_VAR_SSH_PUBLIC_KEY }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Install SSH Key
+        uses: webfactory/ssh-agent@v0.5.2
+        with:
+          ssh-private-key: ${{ secrets.TF_VAR_SSH_PRIVATE_KEY }}
+
+      - name: Write SSH Key
+        run: 'echo "$SSH_KEY" > /home/runner/.ssh/id_rsa'
+        env:
+          SSH_KEY: ${{ secrets.TF_VAR_SSH_PRIVATE_KEY }}
+
+      - name: Write SSH Key
+        run: |
+          mkdir -p ~/.ssh/
+          echo "$SSH_KEY" > ~/.ssh/staging.key
+          chmod 600 ~/.ssh/staging.key
+          cat >>~/.ssh/config <<END
+          Host quay
+            HostName quay
+            User jonathan
+            IdentityFile ~/.ssh/staging.key
+            StrictHostKeyChecking no
+          END
+        env:
+          SSH_KEY: ${{ secrets.TF_VAR_SSH_PRIVATE_KEY }}
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v1
@@ -46,351 +210,80 @@ jobs:
       - name: Terraform Format
         id: fmt
         run: terraform fmt -check
-        working-directory: ".github/workflows/online-installer"
+        working-directory: ".github/workflows/local-${{ matrix.installer-type }}-installer"
 
       - name: Terraform Init
         id: init
         run: terraform init
-        working-directory: ".github/workflows/online-installer"
+        working-directory: ".github/workflows/local-${{ matrix.installer-type }}-installer"
 
       - name: Terraform Plan
         id: plan
         run: terraform plan
-        working-directory: ".github/workflows/online-installer"
+        working-directory: ".github/workflows/local-${{ matrix.installer-type }}-installer"
 
       - name: Terraform Apply
         run: terraform apply --auto-approve
-        working-directory: ".github/workflows/online-installer"
+        working-directory: ".github/workflows/local-${{ matrix.installer-type }}-installer"
 
       - name: Get IP Address
         run: |
-          export IP=$(terraform output ip-online-install)
+          export IP=$(terraform output ip-local-${{ matrix.installer-type }}-install)
           echo "VM Started on ${IP}"
-        working-directory: ".github/workflows/online-installer"
+        working-directory: ".github/workflows/local-${{ matrix.installer-type }}-installer"
 
       - name: Add hostname to /etc/hosts
-        run: echo "$(terraform -chdir=./.github/workflows/online-installer output --raw ip-online-install)  quay" | sudo tee -a /etc/hosts; sudo cat /etc/hosts
+        run: echo "$(terraform -chdir=./.github/workflows/local-${{ matrix.installer-type }}-installer output --raw ip-local-${{ matrix.installer-type }}-install)  quay" | sudo tee -a /etc/hosts; sudo cat /etc/hosts
 
       - name: Wait for VM
         uses: jakejarvis/wait-action@master
         with:
           time: "60s"
 
-      - name: Set up Go 1.x
-        uses: actions/setup-go@v2
+      - name: Download tarfile
+        uses: actions/download-artifact@v2
         with:
-          go-version: ^1.13
-        id: go
+          name: openshift-mirror-registry-${{ matrix.installer-type }}-installer
 
-      - name: Get dependencies
-        run: |
-          go get -v -t -d ./...
-          if [ -f Gopkg.toml ]; then
-              curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
-              dep ensure
-          fi
-
-      - name: Build tarfile
-        run: make build-online-zip
-
-      - name: Extract tarfile
-        run: tar -xf openshift-mirror-registry.tar.gz
+      - name: SSH into PC
+        run: scp openshift-mirror-registry.tar.gz jonathan@quay:~/openshift-mirror-registry.tar.gz
 
       - name: Run binary
-        run: ./openshift-mirror-registry install -u jonathan -H quay -v --additionalArgs "" --initPassword password
+        run: ssh jonathan@quay 'sudo yum -y install podman; sudo setenforce Permissive; tar -xf openshift-mirror-registry.tar.gz; ./openshift-mirror-registry install -v --additionalArgs ""'
 
       - name: Install oc
         uses: redhat-actions/oc-installer@v1
         with:
           oc_version: "4.6"
 
-      - name: Write Pull Secret
-        run: 'echo "$PULL_SECRET" > /tmp/pull-secret.json; chmod 777 /tmp/pull-secret.json'
+      - name: Create pull secret
+        run: |
+          echo "$PULL_SECRET" > /tmp/pull-secret.json; chmod 777 /tmp/pull-secret.json
+          echo "{\"auths\": {\"quay:8443\": {\"auth\": \"$(echo -n init:password | base64 -w0)\", \"email\":\"init@quay.io\"}}}"  > /tmp/mirror-secret.json; chmod 777 /tmp/mirror-secret.json
+          jq -s '.[0] * .[1]' /tmp/pull-secret.json /tmp/mirror-secret.json > /tmp/merged-secret.json; chmod 777 /tmp/merged-secret.json; cat /tmp/merged-secret.json
         shell: bash
         env:
           PULL_SECRET: ${{ secrets.PULL_SECRET }}
-
-      - name: Write mirror pull secret
-        run: 'echo "{\"auths\": {\"quay\": {\"auth\": \"$(echo -n init:password | base64 -w0)\", \"email\":\"init@quay.io\"}}}"  > /tmp/mirror-secret.json; chmod 777 /tmp/mirror-secret.json'
-
-      - name: Merge secrets
-        run: "jq -s '.[0] * .[1]' /tmp/pull-secret.json /tmp/mirror-secret.json > /tmp/merged-secret.json; chmod 777 /tmp/merged-secret.json; cat /tmp/merged-secret.json"
 
       - name: Mirror OCP Images
         run: |
           oc adm release mirror -a ${LOCAL_SECRET_JSON}  \
           --from=quay.io/${PRODUCT_REPO}/${RELEASE_NAME}:${OCP_RELEASE}-${ARCHITECTURE} \
-          --to=quay/${LOCAL_REPOSITORY} \
-          --to-release-image=quay/${LOCAL_REPOSITORY}:${OCP_RELEASE}-${ARCHITECTURE} \
+          --to=quay:8443/${LOCAL_REPOSITORY} \
+          --to-release-image=quay:8443/${LOCAL_REPOSITORY}:${OCP_RELEASE}-${ARCHITECTURE} \
           --insecure
         env:
           OCP_RELEASE: 4.5.4
-          LOCAL_REPOSITORY: "init/openshift4"
+          LOCAL_REPOSITORY: "ocp-install/openshift4"
           PRODUCT_REPO: "openshift-release-dev"
           LOCAL_SECRET_JSON: "/tmp/merged-secret.json"
           RELEASE_NAME: "ocp-release"
           ARCHITECTURE: "x86_64"
 
+      - name: Run binary
+        run: ssh jonathan@quay './openshift-mirror-registry uninstall -v --additionalArgs ""'
+
       - name: Terraform Destroy
         run: terraform destroy --auto-approve
         if: always()
-        working-directory: ".github/workflows/online-installer"
-
-  # remote-online-local-install:
-  #   name: "Remote Online Local Installer"
-  #   runs-on: ubuntu-latest
-  #   env:
-  #     GOOGLE_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
-  #     TF_VAR_SSH_PUBLIC_KEY: ${{ secrets.TF_VAR_SSH_PUBLIC_KEY }}
-  #   steps:
-  #     - name: Checkout
-  #       uses: actions/checkout@v2
-
-  #     - name: Install SSH Key
-  #       uses: webfactory/ssh-agent@v0.5.2
-  #       with:
-  #         ssh-private-key: ${{ secrets.TF_VAR_SSH_PRIVATE_KEY }}
-
-  #     - name: Write SSH Key
-  #       run: |
-  #         mkdir -p ~/.ssh/
-  #         echo "$SSH_KEY" > ~/.ssh/staging.key
-  #         chmod 600 ~/.ssh/staging.key
-  #         cat >>~/.ssh/config <<END
-  #         Host quay
-  #           HostName quay
-  #           User jonathan
-  #           IdentityFile ~/.ssh/staging.key
-  #           StrictHostKeyChecking no
-  #         END
-  #       env:
-  #         SSH_KEY: ${{ secrets.TF_VAR_SSH_PRIVATE_KEY }}
-
-  #     - name: Install ansible builder
-  #       run: sudo pip install ansible-builder
-
-  #     - name: Setup Terraform
-  #       uses: hashicorp/setup-terraform@v1
-  #       with:
-  #         # terraform_version: 0.13.0:
-  #         cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
-  #         terraform_wrapper: false
-
-  #     - name: Terraform Format
-  #       id: fmt
-  #       run: terraform fmt -check
-  #       working-directory: ".github/workflows/online-local-installer"
-
-  #     - name: Terraform Init
-  #       id: init
-  #       run: terraform init
-  #       working-directory: ".github/workflows/online-local-installer"
-
-  #     - name: Terraform Plan
-  #       id: plan
-  #       run: terraform plan
-  #       working-directory: ".github/workflows/online-local-installer"
-
-  #     - name: Terraform Apply
-  #       run: terraform apply --auto-approve
-  #       working-directory: ".github/workflows/online-local-installer"
-
-  #     - name: Get IP Address
-  #       run: |
-  #         export IP=$(terraform output ip-online-local-install)
-  #         echo "VM Started on ${IP}"
-  #       working-directory: ".github/workflows/online-local-installer"
-
-  #     - name: Add hostname to /etc/hosts
-  #       run: echo "$(terraform -chdir=./.github/workflows/online-local-installer output --raw ip-online-local-install)  quay" | sudo tee -a /etc/hosts; sudo cat /etc/hosts
-
-  #     - name: Wait for VM
-  #       uses: jakejarvis/wait-action@master
-  #       with:
-  #         time: "60s"
-
-  #     - name: Set up Go 1.x
-  #       uses: actions/setup-go@v2
-  #       with:
-  #         go-version: ^1.13
-  #       id: go
-
-  #     - name: Get dependencies
-  #       run: |
-  #         go get -v -t -d ./...
-  #         if [ -f Gopkg.toml ]; then
-  #             curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
-  #             dep ensure
-  #         fi
-
-  #     - name: Build tarfile
-  #       run: make build-online-zip
-
-  #     - name: Extract tarfile
-  #       run: tar -xf openshift-mirror-registry.tar.gz
-
-  #     - name: SSH into PC
-  #       run: scp openshift-mirror-registry.tar.gz jonathan@quay:~/openshift-mirror-registry.tar.gz
-
-  #     - name: Run binary
-  #       run: ssh jonathan@quay 'tar -xf openshift-mirror-registry.tar.gz; ./openshift-mirror-registry install -v --additionalArgs ""'
-
-  #     # - name: Install oc
-  #     #   uses: redhat-actions/oc-installer@v1
-  #     #   with:
-  #     #     oc_version: "4.6"
-
-  #     # - name: Write Pull Secret
-  #     #   run: 'echo "$PULL_SECRET" > /home/runner/work/quay-ansible/quay-ansible/pull-secret.json; chmod 777 /home/runner/work/quay-ansible/quay-ansible/pull-secret.json'
-  #     #   shell: bash
-  #     #   env:
-  #     #     PULL_SECRET: ${{ secrets.PULL_SECRET }}
-
-  #     # - name: Write mirror pull secret
-  #     #   run: 'echo "{\"auths\": {\"quay\": {\"auth\": \"$(echo -n init:password | base64 -w0)\", \"email\":\"you@example.com\"}}}"  > /home/runner/work/quay-ansible/quay-ansible/mirror-secret.json; chmod 777 /home/runner/work/quay-ansible/quay-ansible/mirror-secret.json'
-
-  #     # - name: Merge secrets
-  #     #   run: "jq -s '.[0] * .[1]' /home/runner/work/quay-ansible/quay-ansible/pull-secret.json /home/runner/work/quay-ansible/quay-ansible/mirror-secret.json > /home/runner/work/quay-ansible/quay-ansible/merged-secret.json; chmod 777 /home/runner/work/quay-ansible/quay-ansible/merged-secret.json; cat /home/runner/work/quay-ansible/quay-ansible/merged-secret.json"
-
-  #     # - name: Mirror OCP Images
-  #     #   run: |
-  #     #     oc adm release mirror -a ${LOCAL_SECRET_JSON}  \
-  #     #     --from=quay.io/${PRODUCT_REPO}/${RELEASE_NAME}:${OCP_RELEASE}-${ARCHITECTURE} \
-  #     #     --to=quay/${LOCAL_REPOSITORY} \
-  #     #     --to-release-image=quay/${LOCAL_REPOSITORY}:${OCP_RELEASE}-${ARCHITECTURE} \
-  #     #     --insecure
-  #     #   env:
-  #     #     OCP_RELEASE: 4.5.4
-  #     #     LOCAL_REPOSITORY: "init/openshift4"
-  #     #     PRODUCT_REPO: "openshift-release-dev"
-  #     #     LOCAL_SECRET_JSON: "/home/runner/work/quay-ansible/quay-ansible/merged-secret.json"
-  #     #     RELEASE_NAME: "ocp-release"
-  #     #     ARCHITECTURE: "x86_64"
-
-  #     - name: Terraform Destroy
-  #       run: terraform destroy --auto-approve
-  #       if: always()
-  #       working-directory: ".github/workflows/online-local-installer"
-
-  # remote-offline-install:
-  #   name: "Remote Offline Installer"
-  #   runs-on: ubuntu-latest
-  #   env:
-  #     GOOGLE_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
-  #     TF_VAR_SSH_PUBLIC_KEY: ${{ secrets.TF_VAR_SSH_PUBLIC_KEY }}
-  #   steps:
-  #     - name: Checkout
-  #       uses: actions/checkout@v2
-
-  #     - name: Install SSH Key
-  #       uses: webfactory/ssh-agent@v0.5.2
-  #       with:
-  #         ssh-private-key: ${{ secrets.TF_VAR_SSH_PRIVATE_KEY }}
-
-  #     - name: Write SSH Key
-  #       run: 'echo "$SSH_KEY" > /home/runner/.ssh/id_rsa'
-  #       env:
-  #         SSH_KEY: ${{ secrets.TF_VAR_SSH_PRIVATE_KEY }}
-
-  #     - name: Install ansible builder
-  #       run: sudo pip install ansible-builder
-
-  #     - name: Setup Terraform
-  #       uses: hashicorp/setup-terraform@v1
-  #       with:
-  #         # terraform_version: 0.13.0:
-  #         cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
-  #         terraform_wrapper: false
-
-  #     - name: Terraform Format
-  #       id: fmt
-  #       run: terraform fmt -check
-  #       working-directory: ".github/workflows/offline-installer"
-
-  #     - name: Terraform Init
-  #       id: init
-  #       run: terraform init
-  #       working-directory: ".github/workflows/offline-installer"
-
-  #     - name: Terraform Plan
-  #       id: plan
-  #       run: terraform plan
-  #       working-directory: ".github/workflows/offline-installer"
-
-  #     - name: Terraform Apply
-  #       run: terraform apply --auto-approve
-  #       working-directory: ".github/workflows/offline-installer"
-
-  #     - name: Get IP Address
-  #       run: |
-  #         export IP=$(terraform output ip-offline-install)
-  #         echo "VM Started on ${IP}"
-  #       working-directory: ".github/workflows/offline-installer"
-
-  #     - name: Add hostname to /etc/hosts
-  #       run: echo "$(terraform -chdir=./.github/workflows/offline-installer output --raw ip-offline-install)  quay" | sudo tee -a /etc/hosts; sudo cat /etc/hosts
-
-  #     - name: Wait for VM
-  #       uses: jakejarvis/wait-action@master
-  #       with:
-  #         time: "60s"
-
-  #     - name: Set up Go 1.x
-  #       uses: actions/setup-go@v2
-  #       with:
-  #         go-version: ^1.13
-  #       id: go
-
-  #     - name: Get dependencies
-  #       run: |
-  #         go get -v -t -d ./...
-  #         if [ -f Gopkg.toml ]; then
-  #             curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
-  #             dep ensure
-  #         fi
-
-  #     - name: Build tarfile
-  #       run: make build-offline-zip
-
-  #     - name: Extract tarfile
-  #       run: tar -xf openshift-mirror-registry.tar.gz
-
-  #     - name: Run binary
-  #       run: ./openshift-mirror-registry install -u jonathan -H quay -v --additionalArgs ""
-
-  #     # - name: Install oc
-  #     #   uses: redhat-actions/oc-installer@v1
-  #     #   with:
-  #     #     oc_version: "4.6"
-
-  #     # - name: Write Pull Secret
-  #     #   run: 'echo "$PULL_SECRET" > /home/runner/work/quay-ansible/quay-ansible/pull-secret.json; chmod 777 /home/runner/work/quay-ansible/quay-ansible/pull-secret.json'
-  #     #   shell: bash
-  #     #   env:
-  #     #     PULL_SECRET: ${{ secrets.PULL_SECRET }}
-
-  #     # - name: Write mirror pull secret
-  #     #   run: 'echo "{\"auths\": {\"quay\": {\"auth\": \"$(echo -n init:password | base64 -w0)\", \"email\":\"you@example.com\"}}}"  > /home/runner/work/quay-ansible/quay-ansible/mirror-secret.json; chmod 777 /home/runner/work/quay-ansible/quay-ansible/mirror-secret.json'
-
-  #     # - name: Merge secrets
-  #     #   run: "jq -s '.[0] * .[1]' /home/runner/work/quay-ansible/quay-ansible/pull-secret.json /home/runner/work/quay-ansible/quay-ansible/mirror-secret.json > /home/runner/work/quay-ansible/quay-ansible/merged-secret.json; chmod 777 /home/runner/work/quay-ansible/quay-ansible/merged-secret.json; cat /home/runner/work/quay-ansible/quay-ansible/merged-secret.json"
-
-  #     # - name: Mirror OCP Images
-  #     #   run: |
-  #     #     oc adm release mirror -a ${LOCAL_SECRET_JSON}  \
-  #     #     --from=quay.io/${PRODUCT_REPO}/${RELEASE_NAME}:${OCP_RELEASE}-${ARCHITECTURE} \
-  #     #     --to=quay/${LOCAL_REPOSITORY} \
-  #     #     --to-release-image=quay/${LOCAL_REPOSITORY}:${OCP_RELEASE}-${ARCHITECTURE} \
-  #     #     --insecure
-  #     #   env:
-  #     #     OCP_RELEASE: 4.5.4
-  #     #     LOCAL_REPOSITORY: "init/openshift4"
-  #     #     PRODUCT_REPO: "openshift-release-dev"
-  #     #     LOCAL_SECRET_JSON: "/home/runner/work/quay-ansible/quay-ansible/merged-secret.json"
-  #     #     RELEASE_NAME: "ocp-release"
-  #     #     ARCHITECTURE: "x86_64"
-
-  #     - name: Terraform Destroy
-  #       run: terraform destroy --auto-approve
-  #       if: always()
-  #       working-directory: ".github/workflows/offline-installer"
+        working-directory: ".github/workflows/local-${{ matrix.installer-type }}-installer"

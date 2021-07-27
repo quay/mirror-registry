@@ -34,20 +34,8 @@ NOTE - With the offline version, this may take some time.
 Add the following line to host machine `/etc/hosts` file:
 
 ```
-127.0.0.1   quay
+<target ip>   quay
 ```
-
-In order to run the installation playbooks, you must also set up SSH keys. At the moment, this is required for local installations as well.
-
-To create the required SSH keys, run the following commands.
-
-```console
-$ ssh-keygen
-$ ssh-add
-$ ssh-copy-id <targetHostname>
-```
-
-You must provide your ssh private key to the installer CLI with the --ssh-key flag.
 
 To install Quay on your desired host machine, run the following command:
 
@@ -58,7 +46,7 @@ $ sudo ./openshift-mirror-registry install -v
 The following flags are also available:
 
 ```
---ssh-key   -k  The path of your ssh identity key. This defaults to ~/.ssh/id_rsa
+--ssh-key   -k  The path of your ssh identity key. This defaults to ~/.ssh/quay_installer
 --targetHostname  -H  The hostname of the target you wish to install Quay to. This defaults to localhost.
 --targetUsername   -u  The user you wish to ssh into your remote with. This defaults to $USER
 ```
@@ -71,9 +59,7 @@ This command will make the following changes to your machine
 
 ### Access Quay
 
-- The Quay console will be accessible at `https://quay`
-
-- Create a user with a username and password
+- The Quay console will be accessible at `https://quay:8443`
 
 - Genereate an encrypted password using the password you set up your user with. From the upper right corner, choose `Account Settings` from the dropdown. Then, `Generate Encrypted Password` under `Docker CLI Password`. Then you can download the authorization file or copy the Login Command and paste in your terminal. For example, the following command will login and place authentication in the default location. With `podman` the default location (non-root) is `${XDG_RUNTIME_DIR}/containers/auth.json`. In fedora/RHEL, this is `/run/user/$UID/containers/auth.json` or usually `/run/user/1000/containers/auth.json`:
 

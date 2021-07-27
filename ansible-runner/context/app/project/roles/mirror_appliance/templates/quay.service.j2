@@ -11,6 +11,7 @@ ExecStart=/usr/bin/podman run \
     --name quay-app \
     -v /etc/quay-install/quay-config:/quay-registry/conf/stack:Z \
     -v /etc/quay-install/quay-storage:/datastorage:Z \
+    -e DEBUGLOG=true \
     --pod=quay-pod \
     --conmon-pidfile %t/%n-pid \
     --cidfile %t/%n-cid \

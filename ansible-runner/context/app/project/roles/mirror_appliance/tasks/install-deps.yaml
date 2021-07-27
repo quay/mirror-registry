@@ -4,3 +4,10 @@
     state: present
   when: yum_packages is defined
   tags: yum
+
+- name: Add IP address of all hosts to all hosts
+  lineinfile:
+    dest: /etc/hosts
+    regexp: '.*{{ quay_hostname.split(":")[0] if (":" in quay_hostname) else quay_hostname }}$'
+    line: '127.0.0.1 {{ quay_hostname.split(":")[0] if (":" in quay_hostname) else quay_hostname }}'
+    state: present

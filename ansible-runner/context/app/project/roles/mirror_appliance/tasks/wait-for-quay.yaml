@@ -1,6 +1,6 @@
-- name: Waiting up to 3 minutes for Quay to become alive at https://{{ inventory_hostname.split("@")[1] }}/health/instance
+- name: Waiting up to 3 minutes for Quay to become alive at https://{{ quay_hostname }}/health/instance
   uri:
-    url: "https://localhost/health/instance"
+    url: "https://{{ quay_hostname }}/health/instance"
     method: GET
     validate_certs: no
   register: result

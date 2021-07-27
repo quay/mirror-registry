@@ -2,7 +2,9 @@ package cmd
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
+	"os/exec"
 	"strings"
 
 	"github.com/hpcloud/tail"
@@ -32,6 +34,28 @@ func watchFileAndRun(filePath string) error {
 		}
 
 	}
+	return nil
+}
+
+func setupLocalSSH(hostname, username string) error {
+
+	log.Infof("Generating SSH Key")
+	cmd := exec.Command("bash", "-c", "ssh-keygen -b 2048 -t rsa -N '' -f ~/.ssh/quay_installer")
+	if err := cmd.Run(); err != nil {
+		return err
+	}
+	log.Infof("Generated SSH Key at " + os.Getenv("HOME") + "/.ssh/quay_installer")
+
+	keyFile, err := ioutil.ReadFile(os.Getenv("HOME") + "/.ssh/quay_installer.pub")
+	if err != nil {
+		return err
+	}
+
+	cmd = exec.Command("bash", "-c", "/bin/echo \""+string(keyFile)+"\" >> ~/.ssh/authorized_keys")
+	if err := cmd.Run(); err != nil {
+		return err
+	}
+
 	return nil
 }
 

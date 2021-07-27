@@ -44,8 +44,8 @@
         country_name: US
         organization_name: Quay
         email_address: "support@projectquay.io"
-        common_name: '{{ inventory_hostname.split("@")[1] }}'
-        subject_alt_name: 'DNS:{{ inventory_hostname.split("@")[1] }}'
+        common_name: '{{ quay_hostname.split(":")[0] if (":" in quay_hostname) else quay_hostname }}'
+        subject_alt_name: 'DNS:{{ quay_hostname.split(":")[0] if (":" in quay_hostname) else quay_hostname }}'
 
     - name: Generate a Self Signed OpenSSL certificate
       community.crypto.openssl_certificate:

@@ -1,6 +1,6 @@
-- name: Creating init user at endpoint https://{{ inventory_hostname.split("@")[1] }}/api/v1/user/initialize
+- name: Creating init user at endpoint https://{{ quay_hostname }}/api/v1/user/initialize
   uri:
-    url: "https://localhost/api/v1/user/initialize"
+    url: "https://{{ quay_hostname}}/api/v1/user/initialize"
     method: POST
     validate_certs: no
     return_content: yes
