@@ -1,0 +1,44 @@
+name: "Start Terraform VM"
+description: "Starts a terraform VM in a terraform context"
+inputs:
+  terraform-context: # path
+    description: "The folder which holds the terraform context for this VM"
+    required: true
+    default: "~"
+runs:
+  using: "composite"
+  steps:
+    - name: Terraform Format
+      id: fmt
+      run: terraform fmt -check
+      shell: bash
+      working-directory: ${{ inputs.terraform-context }}
+
+    - name: Terraform Init
+      id: init
+      run: terraform init
+      shell: bash
+      working-directory: ${{ inputs.terraform-context }}
+
+    - name: Terraform Plan
+      id: plan
+      run: terraform plan
+      shell: bash
+      working-directory: ${{ inputs.terraform-context }}
+
+    - name: Terraform Apply
+      run: terraform apply --auto-approve
+      shell: bash
+      working-directory: ${{ inputs.terraform-context }}
+
+    - name: Get IP Address
+      run: |
+        export IP=$(terraform output ip)
+        echo "VM Started on ${IP}"
+      shell: bash
+      working-directory: ${{ inputs.terraform-context }}
+
+    - name: Add hostname to /etc/hosts
+      run: echo "$(terraform output --raw ip)  quay" | sudo tee -a /etc/hosts; sudo cat /etc/hosts
+      shell: bash
+      working-directory: ${{ inputs.terraform-context }}

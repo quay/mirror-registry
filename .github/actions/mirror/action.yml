@@ -1,0 +1,36 @@
+name: "Mirror to Quay"
+description: "Mirrors Openshift Catalog to Quay"
+inputs:
+  quay-hostname: # path
+    description: "The hostname of Quay to mirror to"
+    required: true
+  pull-secret:
+    description: "The pull secret passed to OC"
+    required: true
+runs:
+  using: "composite"
+  steps:
+    - name: Create pull secret
+      run: |
+        echo "$PULL_SECRET" > /tmp/pull-secret.json; chmod 777 /tmp/pull-secret.json
+        echo "{\"auths\": {\"${{ inputs.quay-hostname }}\": {\"auth\": \"$(echo -n init:password | base64 -w0)\", \"email\":\"init@quay.io\"}}}"  > /tmp/mirror-secret.json; chmod 777 /tmp/mirror-secret.json
+        jq -s '.[0] * .[1]' /tmp/pull-secret.json /tmp/mirror-secret.json > /tmp/merged-secret.json; chmod 777 /tmp/merged-secret.json; cat /tmp/merged-secret.json
+      shell: bash
+      env:
+        PULL_SECRET: ${{ inputs.pull-secret }}
+
+    - name: Mirror OCP Images
+      run: |
+        oc adm release mirror -a ${LOCAL_SECRET_JSON}  \
+        --from=quay.io/${PRODUCT_REPO}/${RELEASE_NAME}:${OCP_RELEASE}-${ARCHITECTURE} \
+        --to=${{ inputs.quay-hostname }}/${LOCAL_REPOSITORY} \
+        --to-release-image=${{ inputs.quay-hostname }}/${LOCAL_REPOSITORY}:${OCP_RELEASE}-${ARCHITECTURE} \
+        --insecure
+      shell: bash
+      env:
+        OCP_RELEASE: 4.5.4
+        LOCAL_REPOSITORY: "ocp-install/openshift4"
+        PRODUCT_REPO: "openshift-release-dev"
+        LOCAL_SECRET_JSON: "/tmp/merged-secret.json"
+        RELEASE_NAME: "ocp-release"
+        ARCHITECTURE: "x86_64"

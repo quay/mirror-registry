@@ -1,3 +1,7 @@
+- name: Set container_manage_cgroup flag on and keep it persistent across reboots
+  when: ansible_facts['distribution'] == "Red Hat Enterprise Linux"
+  command: "sudo subscription-manager refresh"
+
 - name: Installing Podman
   package:
     name: "{{ yum_packages }}"

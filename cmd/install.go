@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"strconv"
 
 	_ "github.com/lib/pq" // pg driver
 	"github.com/sethvargo/go-password/password"
@@ -76,6 +77,13 @@ func install() {
 	log.Debug("Redis Image: " + redisImage)
 	log.Debug("Postgres Image: " + postgresImage)
 
+	// Detect if installation is local
+	var localInstall bool
+	if targetHostname == "localhost" && targetUsername == os.Getenv("USER") {
+		log.Infof("Detected an installation to localhost")
+		localInstall = true
+	}
+
 	// Check that executable environment is present
 	executableDir, err := os.Executable()
 	check(err)
@@ -86,7 +94,7 @@ func install() {
 	log.Info("Found execution environment at " + executionEnvironmentPath)
 
 	// Check that SSH key is present, and generate if not
-	if sshKey == os.Getenv("HOME")+"/.ssh/quay_installer" && targetHostname == "localhost" {
+	if sshKey == os.Getenv("HOME")+"/.ssh/quay_installer" && localInstall {
 		if pathExists(sshKey) {
 			log.Info("Found SSH key at " + sshKey)
 		} else {
@@ -110,11 +118,31 @@ func install() {
 		if pathExists(defaultArchivePath) {
 			imageArchiveMountFlag = fmt.Sprintf("-v %s:/runner/image-archive.tar", defaultArchivePath)
 			log.Info("Found image archive at " + defaultArchivePath)
+			if localInstall {
+				log.Printf("Loading image archive from %s", defaultArchivePath)
+				cmd := exec.Command("sudo", "podman", "load", "-i", defaultArchivePath)
+				if verbose {
+					cmd.Stderr = os.Stderr
+					cmd.Stdout = os.Stdout
+				}
+				err = cmd.Run()
+				check(err)
+			}
 		}
 	} else { // Flag was set
 		if pathExists(imageArchivePath) {
 			imageArchiveMountFlag = fmt.Sprintf("-v %s:/runner/image-archive.tar", imageArchivePath)
 			log.Info("Found image archive at " + imageArchivePath)
+			if localInstall {
+				log.Printf("Loading image archive from %s", imageArchivePath)
+				cmd := exec.Command("sudo", "podman", "load", "-i", imageArchivePath)
+				if verbose {
+					cmd.Stderr = os.Stderr
+					cmd.Stdout = os.Stdout
+				}
+				err = cmd.Run()
+				check(err)
+			}
 		} else {
 			check(errors.New("Could not find image-archive.tar at " + imageArchivePath))
 		}
@@ -136,6 +164,7 @@ func install() {
 	err = cmd.Run()
 	check(err)
 
+	// FIXME - find a better way to collect logs
 	// Create log file to collect logs
 	// logFile, err := ioutil.TempFile("", "ansible-output")
 	// if err != nil {
@@ -163,8 +192,9 @@ func install() {
 		`--quiet `+
 		`--name ansible_runner_instance `+
 		`quay.io/quay/openshift-mirror-registry-ee `+
-		`ansible-playbook -i %s@%s, --private-key /runner/env/ssh_key -e "init_password=%s quay_image=%s redis_image=%s postgres_image=%s quay_hostname=%s" install_mirror_appliance.yml %s`,
-		sshKey, targetUsername, targetHostname, initPassword, quayImage, redisImage, postgresImage, quayHostname, additionalArgs)
+		// FIXME - Put extra variables into a temp file and then mount into /runner/env?
+		`ansible-playbook -i %s@%s, --private-key /runner/env/ssh_key -e "init_password=%s quay_image=%s redis_image=%s postgres_image=%s quay_hostname=%s local_install=%s" install_mirror_appliance.yml %s`,
+		sshKey, targetUsername, targetHostname, initPassword, quayImage, redisImage, postgresImage, quayHostname, strconv.FormatBool(localInstall), additionalArgs)
 
 	log.Debug("Running command: " + podmanCmd)
 	cmd = exec.Command("bash", "-c", podmanCmd)

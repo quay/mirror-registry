@@ -61,6 +61,6 @@ resource "google_compute_firewall" "ssh-rule-local-online-install" {
   source_ranges = ["0.0.0.0/0"]
 }
 
-output "ip-local-online-install" {
+output "ip" {
   value = google_compute_instance.vm_instance_local_online_install.network_interface.0.access_config.0.nat_ip
 }

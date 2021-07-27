@@ -37,6 +37,18 @@ Add the following line to host machine `/etc/hosts` file:
 <target ip>   quay
 ```
 
+In order to run the installation playbooks, you must also set up SSH keys. At the moment, this is required for local installations as well.
+
+To create the required SSH keys, run the following commands.
+
+```console
+$ ssh-keygen
+$ ssh-add
+$ ssh-copy-id <targetHostname>
+```
+
+You must provide your ssh private key to the installer CLI with the --ssh-key flag.
+
 To install Quay on your desired host machine, run the following command:
 
 ```console
@@ -59,7 +71,9 @@ This command will make the following changes to your machine
 
 ### Access Quay
 
-- The Quay console will be accessible at `https://quay:8443`
+- The Quay console will be accessible at `https://quay`
+
+- Create a user with a username and password
 
 - Genereate an encrypted password using the password you set up your user with. From the upper right corner, choose `Account Settings` from the dropdown. Then, `Generate Encrypted Password` under `Docker CLI Password`. Then you can download the authorization file or copy the Login Command and paste in your terminal. For example, the following command will login and place authentication in the default location. With `podman` the default location (non-root) is `${XDG_RUNTIME_DIR}/containers/auth.json`. In fedora/RHEL, this is `/run/user/$UID/containers/auth.json` or usually `/run/user/1000/containers/auth.json`:
 

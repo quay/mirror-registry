@@ -13,8 +13,8 @@
   copy:
     src: /runner/image-archive.tar
     dest: /etc/quay-install/image-archive.tar
-  when: p.stat.exists
+  when: p.stat.exists and {{ local_install }} == "false"
 
 - name: Loading Images if /runner/image-archive.tar exists
   command: "podman load -i /etc/quay-install/image-archive.tar"
-  when: p.stat.exists
+  when: p.stat.exists and {{ local_install }} == "false"

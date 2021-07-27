@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - master
+    tags:
+      - "v*.*.*"
   pull_request:
 
 jobs:
@@ -62,6 +64,18 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
 
+      - name: Install oc
+        uses: redhat-actions/oc-installer@v1
+        with:
+          oc_version: "4.6"
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v1
+        with:
+          # terraform_version: 0.13.0:
+          cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
+          terraform_wrapper: false
+
       - name: Install SSH Key
         uses: webfactory/ssh-agent@v0.5.2
         with:
@@ -72,40 +86,10 @@ jobs:
         env:
           SSH_KEY: ${{ secrets.TF_VAR_SSH_PRIVATE_KEY }}
 
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v1
+      - name: Initialize VM
+        uses: ./.github/actions/setup-terraform
         with:
-          # terraform_version: 0.13.0:
-          cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
-          terraform_wrapper: false
-
-      - name: Terraform Format
-        id: fmt
-        run: terraform fmt -check
-        working-directory: ".github/workflows/remote-${{ matrix.installer-type }}-installer"
-
-      - name: Terraform Init
-        id: init
-        run: terraform init
-        working-directory: ".github/workflows/remote-${{ matrix.installer-type }}-installer"
-
-      - name: Terraform Plan
-        id: plan
-        run: terraform plan
-        working-directory: ".github/workflows/remote-${{ matrix.installer-type }}-installer"
-
-      - name: Terraform Apply
-        run: terraform apply --auto-approve
-        working-directory: ".github/workflows/remote-${{ matrix.installer-type }}-installer"
-
-      - name: Get IP Address
-        run: |
-          export IP=$(terraform output ip-remote-${{ matrix.installer-type }}-install)
-          echo "VM Started on ${IP}"
-        working-directory: ".github/workflows/remote-${{ matrix.installer-type }}-installer"
-
-      - name: Add hostname to /etc/hosts
-        run: echo "$(terraform -chdir=./.github/workflows/remote-${{ matrix.installer-type }}-installer output --raw ip-remote-${{ matrix.installer-type }}-install)  quay" | sudo tee -a /etc/hosts; sudo cat /etc/hosts
+          terraform-context: ".github/workflows/remote-${{ matrix.installer-type }}-installer"
 
       - name: Wait for VM
         uses: jakejarvis/wait-action@master
@@ -123,42 +107,20 @@ jobs:
       - name: Install Registry
         run: ./openshift-mirror-registry install -u jonathan -H quay -v --additionalArgs "" --initPassword password -k /home/runner/.ssh/id_rsa
 
-      - name: Install oc
-        uses: redhat-actions/oc-installer@v1
+      - name: Mirror Images
+        uses: ./.github/actions/mirror
         with:
-          oc_version: "4.6"
-
-      - name: Create pull secret
-        run: |
-          echo "$PULL_SECRET" > /tmp/pull-secret.json; chmod 777 /tmp/pull-secret.json
-          echo "{\"auths\": {\"quay:8443\": {\"auth\": \"$(echo -n init:password | base64 -w0)\", \"email\":\"init@quay.io\"}}}"  > /tmp/mirror-secret.json; chmod 777 /tmp/mirror-secret.json
-          jq -s '.[0] * .[1]' /tmp/pull-secret.json /tmp/mirror-secret.json > /tmp/merged-secret.json; chmod 777 /tmp/merged-secret.json; cat /tmp/merged-secret.json
-        shell: bash
-        env:
-          PULL_SECRET: ${{ secrets.PULL_SECRET }}
-
-      - name: Mirror OCP Images
-        run: |
-          oc adm release mirror -a ${LOCAL_SECRET_JSON}  \
-          --from=quay.io/${PRODUCT_REPO}/${RELEASE_NAME}:${OCP_RELEASE}-${ARCHITECTURE} \
-          --to=quay:8443/${LOCAL_REPOSITORY} \
-          --to-release-image=quay:8443/${LOCAL_REPOSITORY}:${OCP_RELEASE}-${ARCHITECTURE} \
-          --insecure
-        env:
-          OCP_RELEASE: 4.5.4
-          LOCAL_REPOSITORY: "ocp-install/openshift4"
-          PRODUCT_REPO: "openshift-release-dev"
-          LOCAL_SECRET_JSON: "/tmp/merged-secret.json"
-          RELEASE_NAME: "ocp-release"
-          ARCHITECTURE: "x86_64"
+          quay-hostname: "quay:8443"
+          pull-secret: ${{ secrets.PULL_SECRET }}
 
       - name: Uninstall Registry
         run: ./openshift-mirror-registry uninstall -u jonathan -H quay -v --additionalArgs "" -k /home/runner/.ssh/id_rsa
 
       - name: Terraform Destroy
         run: terraform destroy --auto-approve
-        if: always()
+        shell: bash
         working-directory: ".github/workflows/remote-${{ matrix.installer-type }}-installer"
+        if: always()
 
   test-local-install:
     name: "Local Install"
@@ -174,6 +136,18 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v2
+
+      - name: Install oc
+        uses: redhat-actions/oc-installer@v1
+        with:
+          oc_version: "4.6"
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v1
+        with:
+          # terraform_version: 0.13.0:
+          cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
+          terraform_wrapper: false
 
       - name: Install SSH Key
         uses: webfactory/ssh-agent@v0.5.2
@@ -200,40 +174,10 @@ jobs:
         env:
           SSH_KEY: ${{ secrets.TF_VAR_SSH_PRIVATE_KEY }}
 
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v1
+      - name: Initialize VM
+        uses: ./.github/actions/setup-terraform
         with:
-          # terraform_version: 0.13.0:
-          cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
-          terraform_wrapper: false
-
-      - name: Terraform Format
-        id: fmt
-        run: terraform fmt -check
-        working-directory: ".github/workflows/local-${{ matrix.installer-type }}-installer"
-
-      - name: Terraform Init
-        id: init
-        run: terraform init
-        working-directory: ".github/workflows/local-${{ matrix.installer-type }}-installer"
-
-      - name: Terraform Plan
-        id: plan
-        run: terraform plan
-        working-directory: ".github/workflows/local-${{ matrix.installer-type }}-installer"
-
-      - name: Terraform Apply
-        run: terraform apply --auto-approve
-        working-directory: ".github/workflows/local-${{ matrix.installer-type }}-installer"
-
-      - name: Get IP Address
-        run: |
-          export IP=$(terraform output ip-local-${{ matrix.installer-type }}-install)
-          echo "VM Started on ${IP}"
-        working-directory: ".github/workflows/local-${{ matrix.installer-type }}-installer"
-
-      - name: Add hostname to /etc/hosts
-        run: echo "$(terraform -chdir=./.github/workflows/local-${{ matrix.installer-type }}-installer output --raw ip-local-${{ matrix.installer-type }}-install)  quay" | sudo tee -a /etc/hosts; sudo cat /etc/hosts
+          terraform-context: ".github/workflows/local-${{ matrix.installer-type }}-installer"
 
       - name: Wait for VM
         uses: jakejarvis/wait-action@master
@@ -248,42 +192,52 @@ jobs:
       - name: SSH into PC
         run: scp openshift-mirror-registry.tar.gz jonathan@quay:~/openshift-mirror-registry.tar.gz
 
-      - name: Run binary
-        run: ssh jonathan@quay 'sudo yum -y install podman; sudo setenforce Permissive; tar -xf openshift-mirror-registry.tar.gz; ./openshift-mirror-registry install -v --additionalArgs ""'
+      - name: Install Registry
+        run: ssh jonathan@quay 'sudo subscription-manager refresh; sudo yum -y install podman; sudo setenforce Permissive; tar -xf openshift-mirror-registry.tar.gz; ./openshift-mirror-registry install -v --additionalArgs "" --initPassword password'
 
-      - name: Install oc
-        uses: redhat-actions/oc-installer@v1
+      - name: Mirror Images
+        uses: ./.github/actions/mirror
         with:
-          oc_version: "4.6"
+          quay-hostname: "quay:8443"
+          pull-secret: ${{ secrets.PULL_SECRET }}
 
-      - name: Create pull secret
-        run: |
-          echo "$PULL_SECRET" > /tmp/pull-secret.json; chmod 777 /tmp/pull-secret.json
-          echo "{\"auths\": {\"quay:8443\": {\"auth\": \"$(echo -n init:password | base64 -w0)\", \"email\":\"init@quay.io\"}}}"  > /tmp/mirror-secret.json; chmod 777 /tmp/mirror-secret.json
-          jq -s '.[0] * .[1]' /tmp/pull-secret.json /tmp/mirror-secret.json > /tmp/merged-secret.json; chmod 777 /tmp/merged-secret.json; cat /tmp/merged-secret.json
-        shell: bash
-        env:
-          PULL_SECRET: ${{ secrets.PULL_SECRET }}
-
-      - name: Mirror OCP Images
-        run: |
-          oc adm release mirror -a ${LOCAL_SECRET_JSON}  \
-          --from=quay.io/${PRODUCT_REPO}/${RELEASE_NAME}:${OCP_RELEASE}-${ARCHITECTURE} \
-          --to=quay:8443/${LOCAL_REPOSITORY} \
-          --to-release-image=quay:8443/${LOCAL_REPOSITORY}:${OCP_RELEASE}-${ARCHITECTURE} \
-          --insecure
-        env:
-          OCP_RELEASE: 4.5.4
-          LOCAL_REPOSITORY: "ocp-install/openshift4"
-          PRODUCT_REPO: "openshift-release-dev"
-          LOCAL_SECRET_JSON: "/tmp/merged-secret.json"
-          RELEASE_NAME: "ocp-release"
-          ARCHITECTURE: "x86_64"
-
-      - name: Run binary
+      - name: Uninstall Quay
         run: ssh jonathan@quay './openshift-mirror-registry uninstall -v --additionalArgs ""'
 
       - name: Terraform Destroy
         run: terraform destroy --auto-approve
-        if: always()
+        shell: bash
         working-directory: ".github/workflows/local-${{ matrix.installer-type }}-installer"
+        if: always()
+
+  publish-release:
+    name: "Publish Release"
+    needs: ["build-install-zip", "test-local-install", "test-remote-install"]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Download offline tarfile
+        uses: actions/download-artifact@v2
+        with:
+          name: openshift-mirror-registry-offline-installer
+      - name: Rename offline tarfile
+        run: mv openshift-mirror-registry.tar.gz openshift-mirror-registry-offline.tar.gz
+
+      - name: Download online tarfile
+        uses: actions/download-artifact@v2
+        with:
+          name: openshift-mirror-registry-onine-installer
+      - name: Rename online tarfile
+        run: mv openshift-mirror-registry.tar.gz openshift-mirror-registry-online.tar.gz
+
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: |
+            openshift-mirror-registry-online.tar.gz
+            openshift-mirror-registry-offline.tar.gz
+          prerelease: true

@@ -35,6 +35,11 @@ build-offline-zip: build-base-assets build-image-archive
 	tar -cvzf openshift-mirror-registry.tar.gz openshift-mirror-registry README.md execution-environment.tar image-archive.tar
 	rm -rf openshift-mirror-registry image-archive.tar execution-environment.tar
 
+release:
+	git add .
+	git commit -m "release: Release Version ${RELEASE_VERSION}"
+	git tag ${RELEASE_VERSION} master
+	git push origin ${RELEASE_VERSION}
 
 clean:
 	rm -rf openshift-mirror-registry* image-archive.tar
