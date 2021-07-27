@@ -229,7 +229,7 @@ jobs:
       - name: Download online tarfile
         uses: actions/download-artifact@v2
         with:
-          name: openshift-mirror-registry-onine-installer
+          name: openshift-mirror-registry-online-installer
       - name: Rename online tarfile
         run: mv openshift-mirror-registry.tar.gz openshift-mirror-registry-online.tar.gz
 
@@ -240,4 +240,5 @@ jobs:
           files: |
             openshift-mirror-registry-online.tar.gz
             openshift-mirror-registry-offline.tar.gz
+            README.md
           prerelease: true

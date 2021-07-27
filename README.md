@@ -4,9 +4,10 @@ This application will allow user to install Quay and its required components usi
 
 ## Pre-Requisites
 
-- RHEL 8 or fedora machine with Podman installed
+- RHEL 8 or Fedora machine with Podman installed
 - `sudo` access on desired host (rootless install tbd)
 - make (only if compiling using Makefile)
+- sshd must be enabled
 
 ### Compile
 
@@ -29,17 +30,19 @@ tar -xzvf openshift-mirror-registry.tar.gz -C openshift-mirror-registry
 
 NOTE - With the offline version, this may take some time.
 
-### Installation
+## Installation
 
 Add the following line to host machine `/etc/hosts` file:
 
 ```
-<target ip>   quay
+<targetHostname ip>   quay
 ```
 
-In order to run the installation playbooks, you must also set up SSH keys. At the moment, this is required for local installations as well.
+### SSH Keys
 
-To create the required SSH keys, run the following commands.
+In order to run the installation playbooks, you must also set up SSH keys. Local installations will automatically generate the SSH keys for you.
+
+To generate your own SSH keys to install on a remote host, run the following commands.
 
 ```console
 $ ssh-keygen
@@ -47,12 +50,14 @@ $ ssh-add
 $ ssh-copy-id <targetHostname>
 ```
 
-You must provide your ssh private key to the installer CLI with the --ssh-key flag.
+You can provide your ssh private key to the installer CLI with the --ssh-key flag.
 
-To install Quay on your desired host machine, run the following command:
+### Running the installer
+
+To install Quay on localhost, run the following command:
 
 ```console
-$ sudo ./openshift-mirror-registry install -v
+$ ./openshift-mirror-registry install -v
 ```
 
 The following flags are also available:
@@ -60,47 +65,60 @@ The following flags are also available:
 ```
 --ssh-key   -k  The path of your ssh identity key. This defaults to ~/.ssh/quay_installer
 --targetHostname  -H  The hostname of the target you wish to install Quay to. This defaults to localhost.
---targetUsername   -u  The user you wish to ssh into your remote with. This defaults to $USER
+--targetUsername   -u  The user you wish to ssh into your target with. This defaults to $USER
+--quayHostname          The hostname to set as SERVER_HOSTNAME in the Quay config.yaml. This defaults to quay:8443
+--initPassword          The password of the init user created during Quay installation.
 ```
+
+#### Installing on a Remote Host
+
+To install Quay on a remote host, run the following command:
+
+```console
+$ ./openshift-mirror-registry install -v --targetHostname some.remote.host.com --targetUsername someuser -k ~/.ssh/my_ssh_key
+```
+
+Behind the scenes, Ansible is using `ssh -i ~/.ssh/my_ssh_key someuser@some.remote.host.com` as the target to run its playbooks.
+
+#### What does the installer do?
 
 This command will make the following changes to your machine
 
-- Pulls Quay, Redis, and Postgres containers from quay.io
+- Pulls Quay, Redis, and Postgres containers from quay.io (if using online installer)
 - Sets up systemd files on host machine to ensure that container runtimes are persistent
 - Creates `/etc/quay-install` contains install files, local storage, and config bundle.
+- Installs Quay and creates an initial user
 
-### Access Quay
+## Access Quay
 
-- The Quay console will be accessible at `https://quay`
+Once installed, the Quay console will be accessible at `https://quay:8443`.
 
-- Create a user with a username and password
-
-- Genereate an encrypted password using the password you set up your user with. From the upper right corner, choose `Account Settings` from the dropdown. Then, `Generate Encrypted Password` under `Docker CLI Password`. Then you can download the authorization file or copy the Login Command and paste in your terminal. For example, the following command will login and place authentication in the default location. With `podman` the default location (non-root) is `${XDG_RUNTIME_DIR}/containers/auth.json`. In fedora/RHEL, this is `/run/user/$UID/containers/auth.json` or usually `/run/user/1000/containers/auth.json`:
-
-```console
-$ podman login -u <username> -p <the encrypted password from quay console> --tls-verify=false quay:8080
-```
-
-or, if you download the authfile to a non-default location (--authfile can be added to any podman command):
+You can then log into the registry using the provided credentials.
 
 ```console
-$ podman login -u <username> -p <the encrypted password from quay console> --tls-verify=false --authfile=~/path/to/authfile quay:8080
+$ podman login -u init -p <password> --tls-verify=false quay:8443
 ```
 
 After logging in, you can run commands such as:
 
 ```console
-$ podman tag docker.io/library/busybox:latest quay:8080/<username>/busybox:latest
-$ podman push quay:8080/<username>/busybox:latest --tls-verify=false
-$ podman pull quay:8080/<username>/busybox:latest --tls-verify=false
+$ podman tag docker.io/library/busybox:latest quay:8080/init/busybox:latest
+$ podman push quay:8443/init/busybox:latest --tls-verify=false
+$ podman pull quay:8443/init/busybox:latest --tls-verify=false
 ```
 
-### Uninstall
+## Uninstall
 
-To uninstall Quay, run the following command:
+To uninstall Quay from localhost, run the following command:
 
 ```console
 $ sudo ./openshift-mirror-registry uninstall -v
+```
+
+To uninstall Quay from a remote host, run the following command:
+
+```console
+$ ./openshift-mirror-registry uninstall -v --targetHostname some.remote.host.com --targetUsername someuser -k ~/.ssh/my_ssh_key
 ```
 
 This command will delete the `/etc/quay-install` directory and disable all systemd services set up by Quay.
