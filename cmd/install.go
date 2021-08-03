@@ -56,12 +56,12 @@ func init() {
 	// Add install command
 	rootCmd.AddCommand(installCmd)
 
-	installCmd.Flags().StringVarP(&targetHostname, "targetHostname", "H", "localhost", "The hostname of the target you wish to install Quay to. This defaults to localhost")
-	installCmd.Flags().StringVarP(&targetUsername, "targetUsername", "u", os.Getenv("USER"), "The user on the target host which will be used for SSH. This defaults to the current username")
+	installCmd.Flags().StringVarP(&targetHostname, "targetHostname", "H", os.Getenv("HOST"), "The hostname of the target you wish to install Quay to. This defaults to $HOST")
+	installCmd.Flags().StringVarP(&targetUsername, "targetUsername", "u", os.Getenv("USER"), "The user on the target host which will be used for SSH. This defaults to $USER")
 	installCmd.Flags().StringVarP(&sshKey, "ssh-key", "k", os.Getenv("HOME")+"/.ssh/quay_installer", "The path of your ssh identity key. This defaults to ~/.ssh/quay_installer")
 
 	installCmd.Flags().StringVarP(&initPassword, "initPassword", "", "", "The password of the initial user. If not specified, this will be randomly generated.")
-	installCmd.Flags().StringVarP(&quayHostname, "quayHostname", "", "quay:8443", "The value to set SERVER_HOSTNAME in the Quay config.yaml. This defaults to quay:8443")
+	installCmd.Flags().StringVarP(&quayHostname, "quayHostname", "", "", "The value to set SERVER_HOSTNAME in the Quay config.yaml. This defaults to <targetHostname>:8443")
 
 	installCmd.Flags().StringVarP(&imageArchivePath, "image-archive", "i", "", "An archive containing images")
 	installCmd.Flags().StringVarP(&additionalArgs, "additionalArgs", "", "-K", "Additional arguments you would like to append to the ansible-playbook call. Used mostly for development.")
@@ -152,6 +152,11 @@ func install() {
 	if initPassword == "" {
 		initPassword, err = password.Generate(32, 10, 0, false, false)
 		check(err)
+	}
+
+	// Set quayHostname if not already set
+	if quayHostname == "" {
+		quayHostname = targetHostname + ":8443"
 	}
 
 	// Load execution environment into podman
