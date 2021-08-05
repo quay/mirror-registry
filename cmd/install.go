@@ -78,102 +78,50 @@ func install() {
 	log.Debug("Redis Image: " + redisImage)
 	log.Debug("Postgres Image: " + postgresImage)
 
-	// Detect if installation is local
-	var localInstall bool
-	if targetHostname == "localhost" && targetUsername == os.Getenv("USER") {
-		log.Infof("Detected an installation to localhost")
-		localInstall = true
-	}
-
-	// Check that executable environment is present
-	executableDir, err := os.Executable()
+	// Load execution environment
+	err = loadExecutionEnvironment()
 	check(err)
-	executionEnvironmentPath := path.Join(path.Dir(executableDir), "execution-environment.tar")
-	if !pathExists(executionEnvironmentPath) {
-		check(errors.New("Could not find execution-environment.tar at " + executionEnvironmentPath))
-	}
-	log.Info("Found execution environment at " + executionEnvironmentPath)
 
 	// Check that SSH key is present, and generate if not
-	if sshKey == os.Getenv("HOME")+"/.ssh/quay_installer" && localInstall {
-		if pathExists(sshKey) {
-			log.Info("Found SSH key at " + sshKey)
-		} else {
-			log.Info("Did not find SSH key in default location. Attempting to set up SSH keys.")
-			err = setupLocalSSH(targetHostname, targetUsername)
-			check(err)
-			log.Info("Successfully set up SSH keys")
-		}
-	} else {
-		if !pathExists(sshKey) {
-			check(errors.New("Could not find ssh key at " + sshKey))
-		} else {
-			log.Info("Found SSH key at " + sshKey)
-		}
-	}
+	err = loadSSHKeys()
+	check(err)
 
-	log.Infof("Attempting to set SELinux rules on SSH key")
-	cmd := exec.Command("chcon", "-Rt", "svirt_sandbox_file_t", sshKey)
-	if verbose {
-		cmd.Stderr = os.Stderr
-		cmd.Stdout = os.Stdout
-	}
-	if err := cmd.Run(); err != nil {
-		log.Warn("Could not set SELinux rule. If your system does not have SELinux enabled, you may ignore this.")
-	}
-
-	// Handle Image Archive Loading/Defaulting
+	// Handle Image Archive Defaulting
 	var imageArchiveMountFlag string
 	if imageArchivePath == "" {
+		executableDir, err := os.Executable()
+		check(err)
 		defaultArchivePath := path.Join(path.Dir(executableDir), "image-archive.tar")
 		if pathExists(defaultArchivePath) {
-			imageArchiveMountFlag = fmt.Sprintf("-v %s:/runner/image-archive.tar", defaultArchivePath)
-			log.Info("Found image archive at " + defaultArchivePath)
-			if localInstall {
-				log.Printf("Loading image archive from %s", defaultArchivePath)
-				cmd := exec.Command("sudo", "podman", "load", "-i", defaultArchivePath)
-				if verbose {
-					cmd.Stderr = os.Stderr
-					cmd.Stdout = os.Stdout
-				}
-				err = cmd.Run()
-				check(err)
-			}
-			log.Infof("Attempting to set SELinux rules on image archive")
-			cmd := exec.Command("chcon", "-Rt", "svirt_sandbox_file_t", defaultArchivePath)
-			if verbose {
-				cmd.Stderr = os.Stderr
-				cmd.Stdout = os.Stdout
-			}
-			if err := cmd.Run(); err != nil {
-				log.Warn("Could not set SELinux rule. If your system does not have SELinux enabled, you may ignore this.")
-			}
+			imageArchivePath = defaultArchivePath
 		}
-	} else { // Flag was set
-		if pathExists(imageArchivePath) {
-			imageArchiveMountFlag = fmt.Sprintf("-v %s:/runner/image-archive.tar", imageArchivePath)
-			log.Info("Found image archive at " + imageArchivePath)
-			if localInstall {
-				log.Printf("Loading image archive from %s", imageArchivePath)
-				cmd := exec.Command("sudo", "podman", "load", "-i", imageArchivePath)
-				if verbose {
-					cmd.Stderr = os.Stderr
-					cmd.Stdout = os.Stdout
-				}
-				err = cmd.Run()
-				check(err)
-			}
-			log.Infof("Attempting to set SELinux rules on image archive")
-			cmd := exec.Command("chcon", "-Rt", "svirt_sandbox_file_t", imageArchivePath)
+	} else {
+		if !pathExists(imageArchivePath) {
+			check(errors.New("Could not find image-archive.tar at " + imageArchivePath))
+		}
+	}
+
+	if imageArchivePath != "" {
+		imageArchiveMountFlag = fmt.Sprintf("-v %s:/runner/image-archive.tar", imageArchivePath)
+		log.Info("Found image archive at " + imageArchivePath)
+		if isLocalInstall() {
+			log.Printf("Loading image archive from %s", imageArchivePath)
+			cmd := exec.Command("sudo", "podman", "load", "-i", imageArchivePath)
 			if verbose {
 				cmd.Stderr = os.Stderr
 				cmd.Stdout = os.Stdout
 			}
-			if err := cmd.Run(); err != nil {
-				log.Warn("Could not set SELinux rule. If your system does not have SELinux enabled, you may ignore this.")
-			}
-		} else {
-			check(errors.New("Could not find image-archive.tar at " + imageArchivePath))
+			err = cmd.Run()
+			check(err)
+		}
+		log.Infof("Attempting to set SELinux rules on image archive")
+		cmd := exec.Command("chcon", "-Rt", "svirt_sandbox_file_t", imageArchivePath)
+		if verbose {
+			cmd.Stderr = os.Stderr
+			cmd.Stdout = os.Stdout
+		}
+		if err := cmd.Run(); err != nil {
+			log.Warn("Could not set SELinux rule. If your system does not have SELinux enabled, you may ignore this.")
 		}
 	}
 
@@ -194,27 +142,6 @@ func install() {
 		askBecomePassFlag = "-K"
 	}
 
-	// Load execution environment into podman
-	log.Printf("Loading execution environment from execution-environment.tar")
-	cmd = exec.Command("sudo", "podman", "load", "-i", executionEnvironmentPath)
-	if verbose {
-		cmd.Stderr = os.Stderr
-		cmd.Stdout = os.Stdout
-	}
-	err = cmd.Run()
-	check(err)
-
-	// FIXME - find a better way to collect logs
-	// Create log file to collect logs
-	// logFile, err := ioutil.TempFile("", "ansible-output")
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
-	// log.Debug("Writing ansible playbook logs to " + logFile.Name())
-	// defer os.Remove(logFile.Name())
-
-	// go watchFileAndRun(logFile.Name())
-
 	// Run playbook
 	log.Printf("Running install playbook. This may take some time. To see playbook output run the installer with -v (verbose) flag.")
 	podmanCmd := fmt.Sprintf(`sudo podman run `+
@@ -223,28 +150,24 @@ func install() {
 		`--net host `+
 		imageArchiveMountFlag+ // optional image archive flag
 		` -v %s:/runner/env/ssh_key `+
-		// `-v %s:/var/log/ansible/hosts/`+targetUsername+`@`+targetHostname+` `+
 		`-e RUNNER_OMIT_EVENTS=False `+
 		`-e RUNNER_ONLY_FAILED_EVENTS=False `+
 		`-e ANSIBLE_HOST_KEY_CHECKING=False `+
 		`-e ANSIBLE_CONFIG=/runner/project/ansible.cfg `+
-		// `-e ANSIBLE_STDOUT_CALLBACK=log_plays `+
 		`--quiet `+
 		`--name ansible_runner_instance `+
 		`quay.io/quay/openshift-mirror-registry-ee `+
-		// FIXME - Put extra variables into a temp file and then mount into /runner/env?
 		`ansible-playbook -i %s@%s, --private-key /runner/env/ssh_key -e "init_password=%s quay_image=%s redis_image=%s postgres_image=%s quay_hostname=%s local_install=%s" install_mirror_appliance.yml %s %s`,
-		sshKey, targetUsername, targetHostname, initPassword, quayImage, redisImage, postgresImage, quayHostname, strconv.FormatBool(localInstall), askBecomePassFlag, additionalArgs)
+		sshKey, targetUsername, targetHostname, initPassword, quayImage, redisImage, postgresImage, quayHostname, strconv.FormatBool(isLocalInstall()), askBecomePassFlag, additionalArgs)
 
 	log.Debug("Running command: " + podmanCmd)
-	cmd = exec.Command("bash", "-c", podmanCmd)
+	cmd := exec.Command("bash", "-c", podmanCmd)
 	cmd.Stderr = os.Stderr
 	cmd.Stdout = os.Stdout
 	cmd.Stdin = os.Stdin
 	err = cmd.Run()
 	check(err)
 
-	cleanup()
 	log.Printf("Quay installed successfully")
 	log.Printf("Quay is available at %s with credentials (init, %s)", "https://"+quayHostname, initPassword)
 }
