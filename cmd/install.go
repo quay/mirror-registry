@@ -36,8 +36,8 @@ var initPassword string
 // quayHostname is the value to set SERVER_HOSTNAME in the Quay config.yaml
 var quayHostname string
 
-// // The port to append to SERVER_HOSTNAME in the Quay config.yaml
-// var quayPort string
+// askBecomePass holds whether or not to ask for sudo password during SSH connection
+var askBecomePass bool
 
 // additionalArgs are arguments that you would like to append to the end of the ansible-playbook call (used mostly for development)
 var additionalArgs string
@@ -64,7 +64,8 @@ func init() {
 	installCmd.Flags().StringVarP(&quayHostname, "quayHostname", "", "", "The value to set SERVER_HOSTNAME in the Quay config.yaml. This defaults to <targetHostname>:8443")
 
 	installCmd.Flags().StringVarP(&imageArchivePath, "image-archive", "i", "", "An archive containing images")
-	installCmd.Flags().StringVarP(&additionalArgs, "additionalArgs", "", "-K", "Additional arguments you would like to append to the ansible-playbook call. Used mostly for development.")
+	installCmd.Flags().BoolVarP(&askBecomePass, "askBecomePass", "", false, "Whether or not to ask for sudo password during SSH connection.")
+	installCmd.Flags().StringVarP(&additionalArgs, "additionalArgs", "", "", "Additional arguments you would like to append to the ansible-playbook call. Used mostly for development.")
 
 }
 
@@ -159,6 +160,12 @@ func install() {
 		quayHostname = targetHostname + ":8443"
 	}
 
+	// Set askBecomePass flag if true
+	var askBecomePassFlag string
+	if askBecomePass {
+		askBecomePassFlag = "-K"
+	}
+
 	// Load execution environment into podman
 	log.Printf("Loading execution environment from execution-environment.tar")
 	cmd := exec.Command("sudo", "podman", "load", "-i", executionEnvironmentPath)
@@ -198,15 +205,13 @@ func install() {
 		`--name ansible_runner_instance `+
 		`quay.io/quay/openshift-mirror-registry-ee `+
 		// FIXME - Put extra variables into a temp file and then mount into /runner/env?
-		`ansible-playbook -i %s@%s, --private-key /runner/env/ssh_key -e "init_password=%s quay_image=%s redis_image=%s postgres_image=%s quay_hostname=%s local_install=%s" install_mirror_appliance.yml %s`,
-		sshKey, targetUsername, targetHostname, initPassword, quayImage, redisImage, postgresImage, quayHostname, strconv.FormatBool(localInstall), additionalArgs)
+		`ansible-playbook -i %s@%s, --private-key /runner/env/ssh_key -e "init_password=%s quay_image=%s redis_image=%s postgres_image=%s quay_hostname=%s local_install=%s" install_mirror_appliance.yml %s %s`,
+		sshKey, targetUsername, targetHostname, initPassword, quayImage, redisImage, postgresImage, quayHostname, strconv.FormatBool(localInstall), askBecomePassFlag, additionalArgs)
 
 	log.Debug("Running command: " + podmanCmd)
 	cmd = exec.Command("bash", "-c", podmanCmd)
-	if verbose {
-		cmd.Stderr = os.Stderr
-		cmd.Stdout = os.Stdout
-	}
+	cmd.Stderr = os.Stderr
+	cmd.Stdout = os.Stdout
 	cmd.Stdin = os.Stdin
 	err = cmd.Run()
 	check(err)

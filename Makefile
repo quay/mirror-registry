@@ -39,7 +39,7 @@ release:
 	git add .
 	git commit -m "release: Release Version ${RELEASE_VERSION}"
 	git tag ${RELEASE_VERSION} master
-	git push origin ${RELEASE_VERSION}
+	git push --atomic origin master {RELEASE_VERSION}
 
 clean:
 	rm -rf openshift-mirror-registry* image-archive.tar
