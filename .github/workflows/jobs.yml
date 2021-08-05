@@ -193,7 +193,7 @@ jobs:
         run: scp openshift-mirror-registry.tar.gz jonathan@quay:~/openshift-mirror-registry.tar.gz
 
       - name: Install Registry
-        run: ssh jonathan@quay 'sudo subscription-manager refresh; sudo yum -y install podman; sudo setenforce Permissive; tar -xf openshift-mirror-registry.tar.gz; ./openshift-mirror-registry install -v --quayHostname quay:8443 --initPassword password'
+        run: ssh jonathan@quay 'sudo subscription-manager refresh; sudo yum -y install podman; tar -xf openshift-mirror-registry.tar.gz; ./openshift-mirror-registry install -v --quayHostname quay:8443 --initPassword password'
 
       - name: Mirror Images
         uses: ./.github/actions/mirror

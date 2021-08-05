@@ -112,6 +112,16 @@ func install() {
 		}
 	}
 
+	log.Infof("Attempting to set SELinux rules on SSH key")
+	cmd := exec.Command("chcon", "-Rt", "svirt_sandbox_file_t", sshKey)
+	if verbose {
+		cmd.Stderr = os.Stderr
+		cmd.Stdout = os.Stdout
+	}
+	if err := cmd.Run(); err != nil {
+		log.Warn("Could not set SELinux rule. If your system does not have SELinux enabled, you may ignore this.")
+	}
+
 	// Handle Image Archive Loading/Defaulting
 	var imageArchiveMountFlag string
 	if imageArchivePath == "" {
@@ -129,6 +139,15 @@ func install() {
 				err = cmd.Run()
 				check(err)
 			}
+			log.Infof("Attempting to set SELinux rules on image archive")
+			cmd := exec.Command("chcon", "-Rt", "svirt_sandbox_file_t", defaultArchivePath)
+			if verbose {
+				cmd.Stderr = os.Stderr
+				cmd.Stdout = os.Stdout
+			}
+			if err := cmd.Run(); err != nil {
+				log.Warn("Could not set SELinux rule. If your system does not have SELinux enabled, you may ignore this.")
+			}
 		}
 	} else { // Flag was set
 		if pathExists(imageArchivePath) {
@@ -143,6 +162,15 @@ func install() {
 				}
 				err = cmd.Run()
 				check(err)
+			}
+			log.Infof("Attempting to set SELinux rules on image archive")
+			cmd := exec.Command("chcon", "-Rt", "svirt_sandbox_file_t", imageArchivePath)
+			if verbose {
+				cmd.Stderr = os.Stderr
+				cmd.Stdout = os.Stdout
+			}
+			if err := cmd.Run(); err != nil {
+				log.Warn("Could not set SELinux rule. If your system does not have SELinux enabled, you may ignore this.")
 			}
 		} else {
 			check(errors.New("Could not find image-archive.tar at " + imageArchivePath))
@@ -168,7 +196,7 @@ func install() {
 
 	// Load execution environment into podman
 	log.Printf("Loading execution environment from execution-environment.tar")
-	cmd := exec.Command("sudo", "podman", "load", "-i", executionEnvironmentPath)
+	cmd = exec.Command("sudo", "podman", "load", "-i", executionEnvironmentPath)
 	if verbose {
 		cmd.Stderr = os.Stderr
 		cmd.Stdout = os.Stdout

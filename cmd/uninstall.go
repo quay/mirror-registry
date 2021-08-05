@@ -75,6 +75,16 @@ func uninstall() {
 		}
 	}
 
+	log.Infof("Attempting to set SELinux rule")
+	cmd = exec.Command("chcon", "-Rt", "svirt_sandbox_file_t", sshKey)
+	if verbose {
+		cmd.Stderr = os.Stderr
+		cmd.Stdout = os.Stdout
+	}
+	if err := cmd.Run(); err != nil {
+		log.Warn("Could not set SELinux rule. If your system does not have SELinux enabled, you may ignore this.")
+	}
+
 	// Set askBecomePass flag if true
 	var askBecomePassFlag string
 	if askBecomePass {

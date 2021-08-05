@@ -41,6 +41,11 @@ func setupLocalSSH(hostname, username string) error {
 
 	log.Infof("Generating SSH Key")
 	cmd := exec.Command("bash", "-c", "ssh-keygen -b 2048 -t rsa -N '' -f ~/.ssh/quay_installer")
+	if verbose {
+		cmd.Stderr = os.Stderr
+		cmd.Stdout = os.Stdout
+	}
+
 	if err := cmd.Run(); err != nil {
 		return err
 	}
@@ -51,7 +56,12 @@ func setupLocalSSH(hostname, username string) error {
 		return err
 	}
 
+	log.Infof("Adding key to ~/.ssh/authorized_keys")
 	cmd = exec.Command("bash", "-c", "/bin/echo \""+string(keyFile)+"\" >> ~/.ssh/authorized_keys")
+	if verbose {
+		cmd.Stderr = os.Stderr
+		cmd.Stdout = os.Stdout
+	}
 	if err := cmd.Run(); err != nil {
 		return err
 	}
