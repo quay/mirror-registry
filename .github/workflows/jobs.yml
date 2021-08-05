@@ -4,8 +4,6 @@ on:
   push:
     branches:
       - master
-    # tags:
-    #   - "v*.*.*"
   # pull_request:
 
 jobs:
@@ -214,7 +212,7 @@ jobs:
 
   publish-release:
     name: "Publish Release"
-    needs: ["build-install-zip"]
+    needs: ["build-install-zip", "test-remote-install", "test-local-install"]
     runs-on: ubuntu-latest
     if: startsWith(github.event.head_commit.message, 'release:')
     steps:
@@ -235,11 +233,18 @@ jobs:
       - name: Rename online tarfile
         run: mv openshift-mirror-registry.tar.gz openshift-mirror-registry-online.tar.gz
 
-      - name: Release
-        uses: softprops/action-gh-release@v1
+      - name: Get release version
+        uses: jungwinter/split@v1
+        id: version
         with:
-          files: |
-            openshift-mirror-registry-online.tar.gz
-            openshift-mirror-registry-offline.tar.gz
-            README.md
+          msg: ${{ github.event.head_commit.message }}
+
+      - uses: ncipollo/release-action@v1
+        with:
+          artifacts: "*.tar.gz,README.md"
+          allowUpdates: true
           prerelease: true
+          commit: master
+          name: ${{ steps.version.outputs._3 }}
+          tag: ${{ steps.version.outputs._3 }}
+          token: ${{ secrets.GITHUB_TOKEN }}
