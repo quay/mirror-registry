@@ -4,242 +4,256 @@ on:
   push:
     branches:
       - master
-    # tags:
-    #   - "v*.*.*"
+    tags:
+      - "v*.*.*"
   # pull_request:
 
 jobs:
-  build-install-zip:
-    name: "Build Installer"
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        installer-type: ["online", "offline"]
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v2
+  # build-install-zip:
+  #   name: "Build Installer"
+  #   runs-on: ubuntu-latest
+  #   strategy:
+  #     matrix:
+  #       installer-type: ["online", "offline"]
+  #   steps:
+  #     - name: Checkout
+  #       uses: actions/checkout@v2
 
-      - name: Set up Go 1.x
-        uses: actions/setup-go@v2
-        with:
-          go-version: ^1.13
-        id: go
+  #     - name: Set up Go 1.x
+  #       uses: actions/setup-go@v2
+  #       with:
+  #         go-version: ^1.13
+  #       id: go
 
-      - name: Get dependencies
-        run: |
-          go get -v -t -d ./...
-          if [ -f Gopkg.toml ]; then
-              curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
-              dep ensure
-          fi
+  #     - name: Get dependencies
+  #       run: |
+  #         go get -v -t -d ./...
+  #         if [ -f Gopkg.toml ]; then
+  #             curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
+  #             dep ensure
+  #         fi
 
-      - name: Install ansible builder
-        run: sudo pip install ansible-builder
+  #     - name: Install ansible builder
+  #       run: sudo pip install ansible-builder
 
-      - name: Log into podman for registry.redhat.io
-        run: "sudo podman login -u ${{ secrets.REGISTRY_USERNAME }} -p ${{ secrets.REGISTRY_PASSWORD }} registry.redhat.io"
+  #     - name: Log into podman for registry.redhat.io
+  #       run: "sudo podman login -u ${{ secrets.REGISTRY_USERNAME }} -p ${{ secrets.REGISTRY_PASSWORD }} registry.redhat.io"
 
-      - name: Build tarfile
-        run: make build-${{ matrix.installer-type }}-zip
+  #     - name: Build tarfile
+  #       run: make build-${{ matrix.installer-type }}-zip
 
-      - name: Upload tarfile
-        uses: actions/upload-artifact@v2
-        with:
-          name: openshift-mirror-registry-${{ matrix.installer-type }}-installer
-          path: openshift-mirror-registry.tar.gz
-          retention-days: 1
+  #     - name: Upload tarfile
+  #       uses: actions/upload-artifact@v2
+  #       with:
+  #         name: openshift-mirror-registry-${{ matrix.installer-type }}-installer
+  #         path: openshift-mirror-registry.tar.gz
+  #         retention-days: 1
 
-  test-remote-install:
-    name: "Remote Install"
-    needs: ["build-install-zip"]
-    runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/heads/master')
-    strategy:
-      fail-fast: false
-      matrix:
-        installer-type: ["online", "offline"]
-    env:
-      GOOGLE_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
-      TF_VAR_SSH_PUBLIC_KEY: ${{ secrets.TF_VAR_SSH_PUBLIC_KEY }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v2
+  # test-remote-install:
+  #   name: "Remote Install"
+  #   needs: ["build-install-zip"]
+  #   runs-on: ubuntu-latest
+  #   if: startsWith(github.ref, 'refs/heads/master')
+  #   strategy:
+  #     fail-fast: false
+  #     matrix:
+  #       installer-type: ["online", "offline"]
+  #   env:
+  #     GOOGLE_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
+  #     TF_VAR_SSH_PUBLIC_KEY: ${{ secrets.TF_VAR_SSH_PUBLIC_KEY }}
+  #   steps:
+  #     - name: Checkout
+  #       uses: actions/checkout@v2
 
-      - name: Install oc
-        uses: redhat-actions/oc-installer@v1
-        with:
-          oc_version: "4.6"
+  #     - name: Install oc
+  #       uses: redhat-actions/oc-installer@v1
+  #       with:
+  #         oc_version: "4.6"
 
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v1
-        with:
-          # terraform_version: 0.13.0:
-          cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
-          terraform_wrapper: false
+  #     - name: Setup Terraform
+  #       uses: hashicorp/setup-terraform@v1
+  #       with:
+  #         # terraform_version: 0.13.0:
+  #         cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
+  #         terraform_wrapper: false
 
-      - name: Install SSH Key
-        uses: webfactory/ssh-agent@v0.5.2
-        with:
-          ssh-private-key: ${{ secrets.TF_VAR_SSH_PRIVATE_KEY }}
+  #     - name: Install SSH Key
+  #       uses: webfactory/ssh-agent@v0.5.2
+  #       with:
+  #         ssh-private-key: ${{ secrets.TF_VAR_SSH_PRIVATE_KEY }}
 
-      - name: Write SSH Key
-        run: 'echo "$SSH_KEY" > /home/runner/.ssh/id_rsa'
-        env:
-          SSH_KEY: ${{ secrets.TF_VAR_SSH_PRIVATE_KEY }}
+  #     - name: Write SSH Key
+  #       run: 'echo "$SSH_KEY" > /home/runner/.ssh/id_rsa'
+  #       env:
+  #         SSH_KEY: ${{ secrets.TF_VAR_SSH_PRIVATE_KEY }}
 
-      - name: Initialize VM
-        uses: ./.github/actions/setup-terraform
-        with:
-          terraform-context: ".github/workflows/remote-${{ matrix.installer-type }}-installer"
+  #     - name: Initialize VM
+  #       uses: ./.github/actions/setup-terraform
+  #       with:
+  #         terraform-context: ".github/workflows/remote-${{ matrix.installer-type }}-installer"
 
-      - name: Wait for VM
-        uses: jakejarvis/wait-action@master
-        with:
-          time: "60s"
+  #     - name: Wait for VM
+  #       uses: jakejarvis/wait-action@master
+  #       with:
+  #         time: "60s"
 
-      - name: Download tarfile
-        uses: actions/download-artifact@v2
-        with:
-          name: openshift-mirror-registry-${{ matrix.installer-type }}-installer
+  #     - name: Download tarfile
+  #       uses: actions/download-artifact@v2
+  #       with:
+  #         name: openshift-mirror-registry-${{ matrix.installer-type }}-installer
 
-      - name: Extract tarfile
-        run: tar -xf openshift-mirror-registry.tar.gz
+  #     - name: Extract tarfile
+  #       run: tar -xf openshift-mirror-registry.tar.gz
 
-      - name: Install Registry
-        run: ./openshift-mirror-registry install -u jonathan -H quay -v --initPassword password -k /home/runner/.ssh/id_rsa
+  #     - name: Install Registry
+  #       run: ./openshift-mirror-registry install -u jonathan -H quay -v --initPassword password -k /home/runner/.ssh/id_rsa
 
-      - name: Mirror Images
-        uses: ./.github/actions/mirror
-        with:
-          quay-hostname: "quay:8443"
-          pull-secret: ${{ secrets.PULL_SECRET }}
+  #     - name: Mirror Images
+  #       uses: ./.github/actions/mirror
+  #       with:
+  #         quay-hostname: "quay:8443"
+  #         pull-secret: ${{ secrets.PULL_SECRET }}
 
-      - name: Uninstall Registry
-        run: ./openshift-mirror-registry uninstall -u jonathan -H quay -v -k /home/runner/.ssh/id_rsa
+  #     - name: Uninstall Registry
+  #       run: ./openshift-mirror-registry uninstall -u jonathan -H quay -v -k /home/runner/.ssh/id_rsa
 
-      - name: Terraform Destroy
-        run: terraform destroy --auto-approve
-        shell: bash
-        working-directory: ".github/workflows/remote-${{ matrix.installer-type }}-installer"
-        if: always()
+  #     - name: Terraform Destroy
+  #       run: terraform destroy --auto-approve
+  #       shell: bash
+  #       working-directory: ".github/workflows/remote-${{ matrix.installer-type }}-installer"
+  #       if: always()
 
-  test-local-install:
-    name: "Local Install"
-    needs: ["build-install-zip"]
-    runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/heads/master')
-    strategy:
-      fail-fast: false
-      matrix:
-        installer-type: ["online", "offline"]
-    env:
-      GOOGLE_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
-      TF_VAR_SSH_PUBLIC_KEY: ${{ secrets.TF_VAR_SSH_PUBLIC_KEY }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v2
+  # test-local-install:
+  #   name: "Local Install"
+  #   needs: ["build-install-zip"]
+  #   runs-on: ubuntu-latest
+  #   if: startsWith(github.ref, 'refs/heads/master')
+  #   strategy:
+  #     fail-fast: false
+  #     matrix:
+  #       installer-type: ["online", "offline"]
+  #   env:
+  #     GOOGLE_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
+  #     TF_VAR_SSH_PUBLIC_KEY: ${{ secrets.TF_VAR_SSH_PUBLIC_KEY }}
+  #   steps:
+  #     - name: Checkout
+  #       uses: actions/checkout@v2
 
-      - name: Install oc
-        uses: redhat-actions/oc-installer@v1
-        with:
-          oc_version: "4.6"
+  #     - name: Install oc
+  #       uses: redhat-actions/oc-installer@v1
+  #       with:
+  #         oc_version: "4.6"
 
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v1
-        with:
-          # terraform_version: 0.13.0:
-          cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
-          terraform_wrapper: false
+  #     - name: Setup Terraform
+  #       uses: hashicorp/setup-terraform@v1
+  #       with:
+  #         # terraform_version: 0.13.0:
+  #         cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
+  #         terraform_wrapper: false
 
-      - name: Install SSH Key
-        uses: webfactory/ssh-agent@v0.5.2
-        with:
-          ssh-private-key: ${{ secrets.TF_VAR_SSH_PRIVATE_KEY }}
+  #     - name: Install SSH Key
+  #       uses: webfactory/ssh-agent@v0.5.2
+  #       with:
+  #         ssh-private-key: ${{ secrets.TF_VAR_SSH_PRIVATE_KEY }}
 
-      - name: Write SSH Key
-        run: 'echo "$SSH_KEY" > /home/runner/.ssh/id_rsa'
-        env:
-          SSH_KEY: ${{ secrets.TF_VAR_SSH_PRIVATE_KEY }}
+  #     - name: Write SSH Key
+  #       run: 'echo "$SSH_KEY" > /home/runner/.ssh/id_rsa'
+  #       env:
+  #         SSH_KEY: ${{ secrets.TF_VAR_SSH_PRIVATE_KEY }}
 
-      - name: Write SSH Key
-        run: |
-          mkdir -p ~/.ssh/
-          echo "$SSH_KEY" > ~/.ssh/staging.key
-          chmod 600 ~/.ssh/staging.key
-          cat >>~/.ssh/config <<END
-          Host quay
-            HostName quay
-            User jonathan
-            IdentityFile ~/.ssh/staging.key
-            StrictHostKeyChecking no
-          END
-        env:
-          SSH_KEY: ${{ secrets.TF_VAR_SSH_PRIVATE_KEY }}
+  #     - name: Write SSH Key
+  #       run: |
+  #         mkdir -p ~/.ssh/
+  #         echo "$SSH_KEY" > ~/.ssh/staging.key
+  #         chmod 600 ~/.ssh/staging.key
+  #         cat >>~/.ssh/config <<END
+  #         Host quay
+  #           HostName quay
+  #           User jonathan
+  #           IdentityFile ~/.ssh/staging.key
+  #           StrictHostKeyChecking no
+  #         END
+  #       env:
+  #         SSH_KEY: ${{ secrets.TF_VAR_SSH_PRIVATE_KEY }}
 
-      - name: Initialize VM
-        uses: ./.github/actions/setup-terraform
-        with:
-          terraform-context: ".github/workflows/local-${{ matrix.installer-type }}-installer"
+  #     - name: Initialize VM
+  #       uses: ./.github/actions/setup-terraform
+  #       with:
+  #         terraform-context: ".github/workflows/local-${{ matrix.installer-type }}-installer"
 
-      - name: Wait for VM
-        uses: jakejarvis/wait-action@master
-        with:
-          time: "60s"
+  #     - name: Wait for VM
+  #       uses: jakejarvis/wait-action@master
+  #       with:
+  #         time: "60s"
 
-      - name: Download tarfile
-        uses: actions/download-artifact@v2
-        with:
-          name: openshift-mirror-registry-${{ matrix.installer-type }}-installer
+  #     - name: Download tarfile
+  #       uses: actions/download-artifact@v2
+  #       with:
+  #         name: openshift-mirror-registry-${{ matrix.installer-type }}-installer
 
-      - name: SSH into PC
-        run: scp openshift-mirror-registry.tar.gz jonathan@quay:~/openshift-mirror-registry.tar.gz
+  #     - name: SSH into PC
+  #       run: scp openshift-mirror-registry.tar.gz jonathan@quay:~/openshift-mirror-registry.tar.gz
 
-      - name: Install Registry
-        run: ssh jonathan@quay 'sudo subscription-manager refresh; sudo yum -y install podman; sudo setenforce Permissive; tar -xf openshift-mirror-registry.tar.gz; ./openshift-mirror-registry install -v --quayHostname quay:8443 --initPassword password'
+  #     - name: Install Registry
+  #       run: ssh jonathan@quay 'sudo subscription-manager refresh; sudo yum -y install podman; sudo setenforce Permissive; tar -xf openshift-mirror-registry.tar.gz; ./openshift-mirror-registry install -v --quayHostname quay:8443 --initPassword password'
 
-      - name: Mirror Images
-        uses: ./.github/actions/mirror
-        with:
-          quay-hostname: "quay:8443"
-          pull-secret: ${{ secrets.PULL_SECRET }}
+  #     - name: Mirror Images
+  #       uses: ./.github/actions/mirror
+  #       with:
+  #         quay-hostname: "quay:8443"
+  #         pull-secret: ${{ secrets.PULL_SECRET }}
 
-      - name: Uninstall Quay
-        run: ssh jonathan@quay './openshift-mirror-registry uninstall -v'
+  #     - name: Uninstall Quay
+  #       run: ssh jonathan@quay './openshift-mirror-registry uninstall -v'
 
-      - name: Terraform Destroy
-        run: terraform destroy --auto-approve
-        shell: bash
-        working-directory: ".github/workflows/local-${{ matrix.installer-type }}-installer"
-        if: always()
+  #     - name: Terraform Destroy
+  #       run: terraform destroy --auto-approve
+  #       shell: bash
+  #       working-directory: ".github/workflows/local-${{ matrix.installer-type }}-installer"
+  #       if: always()
 
   publish-release:
     name: "Publish Release"
-    needs: ["build-install-zip"]
+    # needs: ["build-install-zip"]
     runs-on: ubuntu-latest
     if: startsWith(github.event.head_commit.message, 'release:')
     steps:
       - name: Checkout
         uses: actions/checkout@v2
 
-      - name: Download offline tarfile
-        uses: actions/download-artifact@v2
-        with:
-          name: openshift-mirror-registry-offline-installer
-      - name: Rename offline tarfile
-        run: mv openshift-mirror-registry.tar.gz openshift-mirror-registry-offline.tar.gz
+      # - name: Download offline tarfile
+      #   uses: actions/download-artifact@v2
+      #   with:
+      #     name: openshift-mirror-registry-offline-installer
+      # - name: Rename offline tarfile
+      #   run: mv openshift-mirror-registry.tar.gz openshift-mirror-registry-offline.tar.gz
 
-      - name: Download online tarfile
-        uses: actions/download-artifact@v2
-        with:
-          name: openshift-mirror-registry-online-installer
-      - name: Rename online tarfile
-        run: mv openshift-mirror-registry.tar.gz openshift-mirror-registry-online.tar.gz
+      # - name: Download online tarfile
+      #   uses: actions/download-artifact@v2
+      #   with:
+      #     name: openshift-mirror-registry-online-installer
+      # - name: Rename online tarfile
+      #   run: mv openshift-mirror-registry.tar.gz openshift-mirror-registry-online.tar.gz
 
-      - name: Release
-        uses: softprops/action-gh-release@v1
+      - name: Get release version
+        uses: jungwinter/split@v1
+        id: version
         with:
-          files: |
-            openshift-mirror-registry-online.tar.gz
-            openshift-mirror-registry-offline.tar.gz
-            README.md
+          msg: ${{ github.event.head_commit.message }}
+
+      - uses: ncipollo/release-action@v1
+        with:
+          artifacts: "*.tar.gz,README.md"
+          allowUpdates: true
           prerelease: true
+          commit: master
+          name: ${{ steps.version.outputs._3 }}
+          tag: ${{ steps.version.outputs._3 }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: release package
+        if: steps.split.outputs._0 == '/release'
+        uses: actions/create-release@latest
+        with:
+          release_name: Release
+          tag_name: ${{ steps.split.outputs._2 }}

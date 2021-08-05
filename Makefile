@@ -38,8 +38,7 @@ build-offline-zip: build-base-assets build-image-archive
 release:
 	git add .
 	git commit -m "release: Release Version ${RELEASE_VERSION}"
-	git tag ${RELEASE_VERSION} master
-	git push --atomic origin master {RELEASE_VERSION}
+	git push
 
 clean:
 	rm -rf openshift-mirror-registry* image-archive.tar
