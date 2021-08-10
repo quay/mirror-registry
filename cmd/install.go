@@ -39,6 +39,9 @@ var quayHostname string
 // askBecomePass holds whether or not to ask for sudo password during SSH connection
 var askBecomePass bool
 
+// quayRoot is the directory where all the data are stored
+var quayRoot string
+
 // additionalArgs are arguments that you would like to append to the end of the ansible-playbook call (used mostly for development)
 var additionalArgs string
 
@@ -65,6 +68,7 @@ func init() {
 
 	installCmd.Flags().StringVarP(&imageArchivePath, "image-archive", "i", "", "An archive containing images")
 	installCmd.Flags().BoolVarP(&askBecomePass, "askBecomePass", "", false, "Whether or not to ask for sudo password during SSH connection.")
+	installCmd.Flags().StringVarP(&quayRoot, "quayRoot", "r", "", "The folder where quay persistent data are saved. This defaults to /etc/quay-install")
 	installCmd.Flags().StringVarP(&additionalArgs, "additionalArgs", "", "", "Additional arguments you would like to append to the ansible-playbook call. Used mostly for development.")
 
 }
@@ -136,6 +140,11 @@ func install() {
 		quayHostname = targetHostname + ":8443"
 	}
 
+        // Set quayRoot if not already set
+        if quayRoot == "" {
+                quayRoot = "/etc/quay-install"
+        }
+
 	// Set askBecomePass flag if true
 	var askBecomePassFlag string
 	if askBecomePass {
@@ -157,8 +166,8 @@ func install() {
 		`--quiet `+
 		`--name ansible_runner_instance `+
 		`quay.io/quay/openshift-mirror-registry-ee `+
-		`ansible-playbook -i %s@%s, --private-key /runner/env/ssh_key -e "init_password=%s quay_image=%s redis_image=%s postgres_image=%s quay_hostname=%s local_install=%s" install_mirror_appliance.yml %s %s`,
-		sshKey, targetUsername, targetHostname, initPassword, quayImage, redisImage, postgresImage, quayHostname, strconv.FormatBool(isLocalInstall()), askBecomePassFlag, additionalArgs)
+		`ansible-playbook -i %s@%s, --private-key /runner/env/ssh_key -e "init_password=%s quay_image=%s redis_image=%s postgres_image=%s quay_hostname=%s local_install=%s quay_root=%s" install_mirror_appliance.yml %s %s`,
+		sshKey, targetUsername, targetHostname, initPassword, quayImage, redisImage, postgresImage, quayHostname, strconv.FormatBool(isLocalInstall()), quayRoot, askBecomePassFlag, additionalArgs)
 
 	log.Debug("Running command: " + podmanCmd)
 	cmd := exec.Command("bash", "-c", podmanCmd)
@@ -168,6 +177,6 @@ func install() {
 	err = cmd.Run()
 	check(err)
 
-	log.Printf("Quay installed successfully")
+	log.Printf("Quay installed successfully, permament data are stored in %s", quayRoot)
 	log.Printf("Quay is available at %s with credentials (init, %s)", "https://"+quayHostname, initPassword)
 }
