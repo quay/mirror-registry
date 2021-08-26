@@ -1,0 +1,19 @@
+[req]
+default_bits = 4096
+default_md = sha256
+distinguished_name = req_distinguished_name
+x509_extensions = v3_req
+prompt = no
+[req_distinguished_name]
+C = US
+ST = VA
+L = New York
+O = Quay
+OU = Division
+CN = {{ quay_hostname.split(":")[0] if (":" in quay_hostname) else quay_hostname }}
+[v3_req]
+keyUsage = keyEncipherment, dataEncipherment
+extendedKeyUsage = serverAuth
+subjectAltName = @alt_names
+[alt_names]
+DNS = {{ quay_hostname.split(":")[0] if (":" in quay_hostname) else quay_hostname }}
