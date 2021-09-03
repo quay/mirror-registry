@@ -23,36 +23,13 @@
 
 - name: Create SSL Certs
   block:
-    - name: Upgrade pip
-      pip:
-        name: pip
-        extra_args: --upgrade
+    - name: Create CSR
+      template:
+        src: ../templates/req.j2
+        dest: {{ quay_root }}/quay-config/req
 
-    - name: Install cryptography python package
-      pip:
-        name: cryptography
-
-    - name: Generate an OpenSSL private key with the default values (4096 bits, RSA)
-      community.crypto.openssl_privatekey:
-        path: "{{ quay_root }}/quay-config/ssl.key"
-        type: RSA
-
-    - name: Generate an OpenSSL Certificate Signing Request
-      community.crypto.openssl_csr:
-        path: "{{ quay_root }}/quay-config/ssl.csr"
-        privatekey_path: "{{ quay_root }}/quay-config/ssl.key"
-        country_name: US
-        organization_name: Quay
-        email_address: "support@projectquay.io"
-        common_name: '{{ quay_hostname.split(":")[0] if (":" in quay_hostname) else quay_hostname }}'
-        subject_alt_name: 'DNS:{{ quay_hostname.split(":")[0] if (":" in quay_hostname) else quay_hostname }}'
-
-    - name: Generate a Self Signed OpenSSL certificate
-      community.crypto.openssl_certificate:
-        path: "{{ quay_root }}/quay-config/ssl.cert"
-        privatekey_path: "{{ quay_root }}/quay-config/ssl.key"
-        csr_path: "{{ quay_root }}/quay-config/ssl.csr"
-        provider: selfsigned
+    - name: Creating self-signed cert
+      command: "openssl req -new -nodes -x509 -days 365 -keyout {{ quay_root }}/quay-config/ssl.key -out {{ quay_root }}/quay-config/ssl.cert -config {{ quay_root }}/quay-config/req"
 
     - name: Set permissions for key
       ansible.builtin.file:
