@@ -29,6 +29,8 @@ The following flags are also available:
 --targetUsername    -u  The user on the target host which will be used for SSH. This defaults to $USER
 --quayHostname          The value to set SERVER_HOSTNAME in the Quay config.yaml. This defaults to <targetHostname>:8443
 --initPassword          The password of the init user created during Quay installation.
+--sslCert               The path to the SSL certificate Quay should use
+--sslKey                The path to the SSL key
 --verbose           -v  Show debug logs and ansible playbook outputs
 ```
 

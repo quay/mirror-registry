@@ -71,18 +71,9 @@ func loadSSHKeys() error {
 			log.Info("Found SSH key at " + sshKey)
 		}
 	}
+	setSELinux(sshKey)
 
-	log.Infof("Attempting to set SELinux rules on SSH key")
-	cmd := exec.Command("chcon", "-Rt", "svirt_sandbox_file_t", sshKey)
-	if verbose {
-		cmd.Stderr = os.Stderr
-		cmd.Stdout = os.Stdout
-	}
-	if err := cmd.Run(); err != nil {
-		log.Warn("Could not set SELinux rule. If your system does not have SELinux enabled, you may ignore this.")
-	}
-
-	return nil
+    return nil
 }
 
 func setupLocalSSH() error {
@@ -115,6 +106,38 @@ func setupLocalSSH() error {
 	}
 
 	return nil
+}
+
+func loadCerts() error {
+	if pathExists(sslCert) {
+		log.Info("Found SSL certificate at " + sslCert)
+	} else {
+		log.Info("Did not found SSL certificate at " + sslCert)
+		return errors.New("Could not find SSL certificate at " + sslCert)
+	}
+	setSELinux(sslCert)
+
+	if pathExists(sslKey) {
+		log.Info("Found SSL key at " + sslKey)
+	} else {
+		log.Info("Did not found SSL key at " + sslKey)
+		return errors.New("Could not find SSL key at " + sslKey)
+	}
+	setSELinux(sslKey)
+
+	return nil
+}
+
+func setSELinux(path string) {
+	log.Infof("Attempting to set SELinux rules on " + path)
+	cmd := exec.Command("chcon", "-Rt", "svirt_sandbox_file_t", path)
+	if verbose {
+		cmd.Stderr = os.Stderr
+		cmd.Stdout = os.Stdout
+	}
+	if err := cmd.Run(); err != nil {
+		log.Warn("Could not set SELinux rule. If your system does not have SELinux enabled, you may ignore this.")
+	}
 }
 
 func pathExists(path string) bool {
