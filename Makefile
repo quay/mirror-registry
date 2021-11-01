@@ -19,11 +19,13 @@ build-image-archive:
 	sudo podman pull ${QUAY_IMAGE}
 	sudo podman pull ${REDIS_IMAGE}
 	sudo podman pull ${POSTGRES_IMAGE}
+	sudo podman pull ${PAUSE_IMAGE}
 	sudo podman save \
 	--multi-image-archive \
 	${QUAY_IMAGE} \
 	${REDIS_IMAGE} \
-	${POSTGRES_IMAGE}\
+	${POSTGRES_IMAGE} \
+	${PAUSE_IMAGE}\
 	> image-archive.tar
 
 
