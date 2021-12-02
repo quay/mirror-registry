@@ -46,9 +46,14 @@
     src: ../templates/quay.service.j2
     dest: /etc/systemd/system/quay-app.service
 
+- name: Check if Quay image is loaded
+  command: podman inspect --type=image {{ quay_image }}
+  register: quay_image
+
 - name: Pull Quay image
   containers.podman.podman_image:
     name: "{{ quay_image }}"
+  when: quay_image is not defined
 
 - name: Start Quay service
   systemd:

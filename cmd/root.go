@@ -33,11 +33,14 @@ func loadExecutionEnvironment() error {
 
 	// Load execution environment into podman
 	log.Printf("Loading execution environment from execution-environment.tar")
-	cmd := exec.Command("sudo", "podman", "load", "-i", executionEnvironmentPath)
+	statement := getImageMetadata("ansible", eeImage, executionEnvironmentPath)
+	cmd := exec.Command("/bin/bash", "-c", statement)
 	if verbose {
 		cmd.Stderr = os.Stderr
 		cmd.Stdout = os.Stdout
 	}
+	log.Debug("Importing execution enviornment with command: ", cmd)
+
 	err = cmd.Run()
 	if err != nil {
 		return err
