@@ -3,7 +3,7 @@ name: "Terraform"
 on:
   push:
     branches:
-      - master
+      - '**'
   # pull_request:
 
 jobs:
@@ -51,7 +51,6 @@ jobs:
     name: "Remote Install"
     needs: ["build-install-zip"]
     runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/heads/master')
     strategy:
       fail-fast: false
       matrix:
@@ -125,7 +124,6 @@ jobs:
     name: "Local Install"
     needs: ["build-install-zip"]
     runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/heads/master')
     strategy:
       fail-fast: false
       matrix:
