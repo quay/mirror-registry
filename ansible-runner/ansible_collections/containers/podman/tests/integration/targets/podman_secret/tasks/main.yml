@@ -1,0 +1,80 @@
+- name: Test podman_secret
+  block:
+
+    - name: Make sure secret doesn't exist
+      containers.podman.podman_secret:
+        state: absent
+        name: mysecret
+
+    - name: Create secret
+      containers.podman.podman_secret:
+        name: mysecret
+        data: secret content
+
+    - name: Recreate secret
+      containers.podman.podman_secret:
+        name: mysecret
+        data: super secret content
+        force: true
+      register: forced
+
+    - name: Skip secret
+      containers.podman.podman_secret:
+        name: mysecret
+        data: super secret content
+        skip_existing: true
+      register: skipped
+
+    - name: Check assertions
+      assert:
+        that:
+          - forced is changed
+          - skipped is not changed
+
+    - name: Create container that uses secret
+      containers.podman.podman_container:
+        name: showmysecret
+        image: alpine:3.7
+        secrets:
+          - mysecret
+        command: cat /run/secrets/mysecret
+        detach: false
+        rm: true
+      register: container
+
+    - name: Output secret data
+      debug:
+        msg: '{{ container.stdout }}'
+
+    - name: Check secret data
+      assert:
+        that:
+          - container.stdout == "super secret content"
+
+    - name: Remove secret
+      containers.podman.podman_secret:
+        state: absent
+        name: mysecret
+      register: removed
+
+    - name: Check removed is changed
+      assert:
+        that:
+          - removed is changed
+
+    - name: Remove secret
+      containers.podman.podman_secret:
+        state: absent
+        name: mysecret
+      register: removed
+
+    - name: Check removed is not changed
+      assert:
+        that:
+          - removed is not changed
+
+  always:
+    - name: Remove container that uses secret
+      containers.podman.podman_container:
+        name: showmysecret
+        state: absent

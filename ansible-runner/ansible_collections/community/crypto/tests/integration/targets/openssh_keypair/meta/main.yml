@@ -1,0 +1,5 @@
+dependencies:
+  - setup_ssh_keygen
+  - setup_openssl
+  - setup_bcrypt
+  - setup_remote_tmp_dir

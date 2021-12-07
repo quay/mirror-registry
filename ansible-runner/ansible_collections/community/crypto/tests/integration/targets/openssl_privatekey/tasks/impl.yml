@@ -1,0 +1,869 @@
+---
+- name: "({{ select_crypto_backend }}) Generate privatekey1 - standard (check mode)"
+  openssl_privatekey:
+    path: '{{ remote_tmp_dir }}/privatekey1.pem'
+    select_crypto_backend: '{{ select_crypto_backend }}'
+    return_content: yes
+  check_mode: true
+  register: privatekey1_check
+
+- name: "({{ select_crypto_backend }}) Generate privatekey1 - standard"
+  openssl_privatekey:
+    path: '{{ remote_tmp_dir }}/privatekey1.pem'
+    select_crypto_backend: '{{ select_crypto_backend }}'
+    return_content: yes
+  register: privatekey1
+
+- name: "({{ select_crypto_backend }}) Generate privatekey1 - standard (idempotence, check mode)"
+  openssl_privatekey:
+    path: '{{ remote_tmp_dir }}/privatekey1.pem'
+    select_crypto_backend: '{{ select_crypto_backend }}'
+    return_content: yes
+  check_mode: true
+  register: privatekey1_idempotence_check
+
+- name: "({{ select_crypto_backend }}) Generate privatekey1 - standard (idempotence)"
+  openssl_privatekey:
+    path: '{{ remote_tmp_dir }}/privatekey1.pem'
+    select_crypto_backend: '{{ select_crypto_backend }}'
+    return_content: yes
+  register: privatekey1_idempotence
+
+- name: "({{ select_crypto_backend }}) Generate privatekey2 - size 2048"
+  openssl_privatekey:
+    path: '{{ remote_tmp_dir }}/privatekey2.pem'
+    size: 2048
+    select_crypto_backend: '{{ select_crypto_backend }}'
+
+- name: "({{ select_crypto_backend }}) Generate privatekey3 - type DSA"
+  openssl_privatekey:
+    path: '{{ remote_tmp_dir }}/privatekey3.pem'
+    type: DSA
+    size: 3072
+    select_crypto_backend: '{{ select_crypto_backend }}'
+
+- name: "({{ select_crypto_backend }}) Generate privatekey4 - standard"
+  openssl_privatekey:
+    path: '{{ remote_tmp_dir }}/privatekey4.pem'
+    size: '{{ default_rsa_key_size }}'
+    select_crypto_backend: '{{ select_crypto_backend }}'
+
+- name: "({{ select_crypto_backend }}) Delete privatekey4 - standard"
+  openssl_privatekey:
+    state: absent
+    path: '{{ remote_tmp_dir }}/privatekey4.pem'
+    select_crypto_backend: '{{ select_crypto_backend }}'
+    return_content: yes
+  register: privatekey4_delete
+
+- name: "({{ select_crypto_backend }}) Delete privatekey4 - standard (idempotence)"
+  openssl_privatekey:
+    state: absent
+    path: '{{ remote_tmp_dir }}/privatekey4.pem'
+    select_crypto_backend: '{{ select_crypto_backend }}'
+  register: privatekey4_delete_idempotence
+
+- name: "({{ select_crypto_backend }}) Generate privatekey5 - standard - with passphrase"
+  openssl_privatekey:
+    path: '{{ remote_tmp_dir }}/privatekey5.pem'
+    passphrase: ansible
+    cipher: auto
+    size: '{{ default_rsa_key_size }}'
+    select_crypto_backend: '{{ select_crypto_backend }}'
+
+- name: "({{ select_crypto_backend }}) Generate privatekey5 - standard - idempotence"
+  openssl_privatekey:
+    path: '{{ remote_tmp_dir }}/privatekey5.pem'
+    passphrase: ansible
+    cipher: auto
+    size: '{{ default_rsa_key_size }}'
+    select_crypto_backend: '{{ select_crypto_backend }}'
+  register: privatekey5_idempotence
+
+- name: "({{ select_crypto_backend }}) Generate privatekey6 - standard - with non-ASCII passphrase"
+  openssl_privatekey:
+    path: '{{ remote_tmp_dir }}/privatekey6.pem'
+    passphrase: ànsïblé
+    cipher: auto
+    size: '{{ default_rsa_key_size }}'
+    select_crypto_backend: '{{ select_crypto_backend }}'
+
+- set_fact:
+    ecc_types:
+    - curve: secp384r1
+      openssl_name: secp384r1
+      min_cryptography_version: "0.5"
+    - curve: secp521r1
+      openssl_name: secp521r1
+      min_cryptography_version: "0.5"
+    - curve: secp224r1
+      openssl_name: secp224r1
+      min_cryptography_version: "0.5"
+    - curve: secp192r1
+      openssl_name: prime192v1
+      min_cryptography_version: "0.5"
+    - curve: secp256r1
+      openssl_name: secp256r1
+      min_cryptography_version: "0.5"
+    - curve: secp256k1
+      openssl_name: secp256k1
+      min_cryptography_version: "0.9"
+    - curve: brainpoolP256r1
+      openssl_name: brainpoolP256r1
+      min_cryptography_version: "2.2"
+    - curve: brainpoolP384r1
+      openssl_name: brainpoolP384r1
+      min_cryptography_version: "2.2"
+    - curve: brainpoolP512r1
+      openssl_name: brainpoolP512r1
+      min_cryptography_version: "2.2"
+    - curve: sect571k1
+      openssl_name: sect571k1
+      min_cryptography_version: "0.5"
+    - curve: sect409k1
+      openssl_name: sect409k1
+      min_cryptography_version: "0.5"
+    - curve: sect283k1
+      openssl_name: sect283k1
+      min_cryptography_version: "0.5"
+    - curve: sect233k1
+      openssl_name: sect233k1
+      min_cryptography_version: "0.5"
+    - curve: sect163k1
+      openssl_name: sect163k1
+      min_cryptography_version: "0.5"
+    - curve: sect571r1
+      openssl_name: sect571r1
+      min_cryptography_version: "0.5"
+    - curve: sect409r1
+      openssl_name: sect409r1
+      min_cryptography_version: "0.5"
+    - curve: sect283r1
+      openssl_name: sect283r1
+      min_cryptography_version: "0.5"
+    - curve: sect233r1
+      openssl_name: sect233r1
+      min_cryptography_version: "0.5"
+    - curve: sect163r2
+      openssl_name: sect163r2
+      min_cryptography_version: "0.5"
+
+- name: "({{ select_crypto_backend }}) Test ECC key generation"
+  openssl_privatekey:
+    path: '{{ remote_tmp_dir }}/privatekey-{{ item.curve }}.pem'
+    type: ECC
+    curve: "{{ item.curve }}"
+    select_crypto_backend: '{{ select_crypto_backend }}'
+  when: |
+    cryptography_version.stdout is version(item.min_cryptography_version, '>=') and
+    item.openssl_name in openssl_ecc_list
+  loop: "{{ ecc_types }}"
+  loop_control:
+    label: "{{ item.curve }}"
+  register: privatekey_ecc_generate
+
+- name: "({{ select_crypto_backend }}) Test ECC key generation (idempotency)"
+  openssl_privatekey:
+    path: '{{ remote_tmp_dir }}/privatekey-{{ item.curve }}.pem'
+    type: ECC
+    curve: "{{ item.curve }}"
+    select_crypto_backend: '{{ select_crypto_backend }}'
+  when: |
+    cryptography_version.stdout is version(item.min_cryptography_version, '>=') and
+    item.openssl_name in openssl_ecc_list
+  loop: "{{ ecc_types }}"
+  loop_control:
+    label: "{{ item.curve }}"
+  register: privatekey_ecc_idempotency
+
+- block:
+  - name: "({{ select_crypto_backend }}) Test other type generation"
+    openssl_privatekey:
+      path: '{{ remote_tmp_dir }}/privatekey-{{ item.type }}.pem'
+      type: "{{ item.type }}"
+      select_crypto_backend: '{{ select_crypto_backend }}'
+    when: cryptography_version.stdout is version(item.min_version, '>=')
+    loop: "{{ types }}"
+    loop_control:
+      label: "{{ item.type }}"
+    ignore_errors: yes
+    register: privatekey_t1_generate
+
+  - name: "({{ select_crypto_backend }}) Test other type generation (idempotency)"
+    openssl_privatekey:
+      path: '{{ remote_tmp_dir }}/privatekey-{{ item.type }}.pem'
+      type: "{{ item.type }}"
+      select_crypto_backend: '{{ select_crypto_backend }}'
+    when: cryptography_version.stdout is version(item.min_version, '>=')
+    loop: "{{ types }}"
+    loop_control:
+      label: "{{ item.type }}"
+    ignore_errors: yes
+    register: privatekey_t1_idempotency
+
+  when: select_crypto_backend == 'cryptography'
+  vars:
+    types:
+      - type: X25519
+        min_version: '2.5'
+      - type: Ed25519
+        min_version: '2.6'
+      - type: Ed448
+        min_version: '2.6'
+      - type: X448
+        min_version: '2.6'
+
+- name: "({{ select_crypto_backend }}) Generate privatekey with passphrase"
+  openssl_privatekey:
+    path: '{{ remote_tmp_dir }}/privatekeypw.pem'
+    passphrase: hunter2
+    cipher: auto
+    size: '{{ default_rsa_key_size }}'
+    select_crypto_backend: '{{ select_crypto_backend }}'
+    backup: yes
+  register: passphrase_1
+
+- name: "({{ select_crypto_backend }}) Generate privatekey with passphrase (idempotent)"
+  openssl_privatekey:
+    path: '{{ remote_tmp_dir }}/privatekeypw.pem'
+    passphrase: hunter2
+    cipher: auto
+    size: '{{ default_rsa_key_size }}'
+    select_crypto_backend: '{{ select_crypto_backend }}'
+    backup: yes
+  register: passphrase_2
+
+- name: "({{ select_crypto_backend }}) Regenerate privatekey without passphrase"
+  openssl_privatekey:
+    path: '{{ remote_tmp_dir }}/privatekeypw.pem'
+    size: '{{ default_rsa_key_size }}'
+    select_crypto_backend: '{{ select_crypto_backend }}'
+    backup: yes
+  register: passphrase_3
+
+- name: "({{ select_crypto_backend }}) Regenerate privatekey without passphrase (idempotent)"
+  openssl_privatekey:
+    path: '{{ remote_tmp_dir }}/privatekeypw.pem'
+    size: '{{ default_rsa_key_size }}'
+    select_crypto_backend: '{{ select_crypto_backend }}'
+    backup: yes
+  register: passphrase_4
+
+- name: "({{ select_crypto_backend }}) Regenerate privatekey with passphrase"
+  openssl_privatekey:
+    path: '{{ remote_tmp_dir }}/privatekeypw.pem'
+    passphrase: hunter2
+    cipher: auto
+    size: '{{ default_rsa_key_size }}'
+    select_crypto_backend: '{{ select_crypto_backend }}'
+    backup: yes
+  register: passphrase_5
+
+- name: "({{ select_crypto_backend }}) Create broken key"
+  copy:
+    dest: "{{ remote_tmp_dir }}/broken"
+    content: "broken"
+- name: "({{ select_crypto_backend }}) Regenerate broken key"
+  openssl_privatekey:
+    path: '{{ remote_tmp_dir }}/broken.pem'
+    size: '{{ default_rsa_key_size }}'
+    select_crypto_backend: '{{ select_crypto_backend }}'
+  register: output_broken
+
+- name: "({{ select_crypto_backend }}) Remove module"
+  openssl_privatekey:
+    path: '{{ remote_tmp_dir }}/privatekeypw.pem'
+    passphrase: hunter2
+    cipher: auto
+    size: '{{ default_rsa_key_size }}'
+    select_crypto_backend: '{{ select_crypto_backend }}'
+    backup: yes
+    state: absent
+  register: remove_1
+
+- name: "({{ select_crypto_backend }}) Remove module (idempotent)"
+  openssl_privatekey:
+    path: '{{ remote_tmp_dir }}/privatekeypw.pem'
+    passphrase: hunter2
+    cipher: auto
+    size: '{{ default_rsa_key_size }}'
+    select_crypto_backend: '{{ select_crypto_backend }}'
+    backup: yes
+    state: absent
+  register: remove_2
+
+- name: "({{ select_crypto_backend }}) Generate privatekey_mode (mode 0400)"
+  openssl_privatekey:
+    path: '{{ remote_tmp_dir }}/privatekey_mode.pem'
+    mode: '0400'
+    size: '{{ default_rsa_key_size }}'
+    select_crypto_backend: '{{ select_crypto_backend }}'
+  register: privatekey_mode_1
+- name: "({{ select_crypto_backend }}) Stat for privatekey_mode"
+  stat:
+    path: '{{ remote_tmp_dir }}/privatekey_mode.pem'
+  register: privatekey_mode_1_stat
+
+- name: "({{ select_crypto_backend }}) Generate privatekey_mode (mode 0400, idempotency)"
+  openssl_privatekey:
+    path: '{{ remote_tmp_dir }}/privatekey_mode.pem'
+    mode: '0400'
+    size: '{{ default_rsa_key_size }}'
+    select_crypto_backend: '{{ select_crypto_backend }}'
+  register: privatekey_mode_2
+
+- name: Make sure that mtime actually changes.
+  # The "privatekey_mode_1_stat.stat.mtime != privatekey_mode_3_stat.stat.mtime" test should be
+  # changed to compare content instead of mtime. On macOS 10.15, mtime resolution is one second,
+  # and the machine (VM) is fast enough that both modifications can happen in the same second.
+  pause:
+    seconds: 1
+
+- name: "({{ select_crypto_backend }}) Generate privatekey_mode (mode 0400, force)"
+  openssl_privatekey:
+    path: '{{ remote_tmp_dir }}/privatekey_mode.pem'
+    mode: '0400'
+    force: yes
+    size: '{{ default_rsa_key_size }}'
+    select_crypto_backend: '{{ select_crypto_backend }}'
+  register: privatekey_mode_3
+- name: "({{ select_crypto_backend }}) Stat for privatekey_mode"
+  stat:
+    path: '{{ remote_tmp_dir }}/privatekey_mode.pem'
+  register: privatekey_mode_3_stat
+
+- block:
+  - name: "({{ select_crypto_backend }}) Generate privatekey_fmt_1 - auto format"
+    openssl_privatekey:
+      path: '{{ remote_tmp_dir }}/privatekey_fmt_1.pem'
+      format: auto
+      size: '{{ default_rsa_key_size }}'
+      select_crypto_backend: '{{ select_crypto_backend }}'
+    register: privatekey_fmt_1_step_1
+
+  - name: "({{ select_crypto_backend }}) Generate privatekey_fmt_1 - auto format (idempotent)"
+    openssl_privatekey:
+      path: '{{ remote_tmp_dir }}/privatekey_fmt_1.pem'
+      format: auto
+      size: '{{ default_rsa_key_size }}'
+      select_crypto_backend: '{{ select_crypto_backend }}'
+    register: privatekey_fmt_1_step_2
+
+  - name: "({{ select_crypto_backend }}) Generate privatekey_fmt_1 - PKCS1 format"
+    openssl_privatekey:
+      path: '{{ remote_tmp_dir }}/privatekey_fmt_1.pem'
+      format: pkcs1
+      size: '{{ default_rsa_key_size }}'
+      select_crypto_backend: '{{ select_crypto_backend }}'
+    register: privatekey_fmt_1_step_3
+
+  - name: "({{ select_crypto_backend }}) Generate privatekey_fmt_1 - PKCS8 format"
+    openssl_privatekey:
+      path: '{{ remote_tmp_dir }}/privatekey_fmt_1.pem'
+      format: pkcs8
+      size: '{{ default_rsa_key_size }}'
+      select_crypto_backend: '{{ select_crypto_backend }}'
+    register: privatekey_fmt_1_step_4
+
+  - name: "({{ select_crypto_backend }}) Generate privatekey_fmt_1 - PKCS8 format (idempotent)"
+    openssl_privatekey:
+      path: '{{ remote_tmp_dir }}/privatekey_fmt_1.pem'
+      format: pkcs8
+      size: '{{ default_rsa_key_size }}'
+      select_crypto_backend: '{{ select_crypto_backend }}'
+    register: privatekey_fmt_1_step_5
+
+  - name: "({{ select_crypto_backend }}) Generate privatekey_fmt_1 - auto format (ignore)"
+    openssl_privatekey:
+      path: '{{ remote_tmp_dir }}/privatekey_fmt_1.pem'
+      format: auto_ignore
+      size: '{{ default_rsa_key_size }}'
+      select_crypto_backend: '{{ select_crypto_backend }}'
+    register: privatekey_fmt_1_step_6
+
+  - name: "({{ select_crypto_backend }}) Generate privatekey_fmt_1 - auto format (no ignore)"
+    openssl_privatekey:
+      path: '{{ remote_tmp_dir }}/privatekey_fmt_1.pem'
+      format: auto
+      size: '{{ default_rsa_key_size }}'
+      select_crypto_backend: '{{ select_crypto_backend }}'
+    register: privatekey_fmt_1_step_7
+
+  - name: "({{ select_crypto_backend }}) Generate privatekey_fmt_1 - raw format (fail)"
+    openssl_privatekey:
+      path: '{{ remote_tmp_dir }}/privatekey_fmt_1.pem'
+      format: raw
+      size: '{{ default_rsa_key_size }}'
+      select_crypto_backend: '{{ select_crypto_backend }}'
+    ignore_errors: yes
+    register: privatekey_fmt_1_step_8
+
+  - name: "({{ select_crypto_backend }}) Generate privatekey_fmt_1 - PKCS8 format (convert)"
+    openssl_privatekey_info:
+      path: '{{ remote_tmp_dir }}/privatekey_fmt_1.pem'
+      select_crypto_backend: '{{ select_crypto_backend }}'
+    register: privatekey_fmt_1_step_9_before
+
+  - name: "({{ select_crypto_backend }}) Generate privatekey_fmt_1 - PKCS8 format (convert)"
+    openssl_privatekey:
+      path: '{{ remote_tmp_dir }}/privatekey_fmt_1.pem'
+      format: pkcs8
+      format_mismatch: convert
+      size: '{{ default_rsa_key_size }}'
+      select_crypto_backend: '{{ select_crypto_backend }}'
+    register: privatekey_fmt_1_step_9
+
+  - name: "({{ select_crypto_backend }}) Generate privatekey_fmt_1 - PKCS8 format (convert)"
+    openssl_privatekey_info:
+      path: '{{ remote_tmp_dir }}/privatekey_fmt_1.pem'
+      select_crypto_backend: '{{ select_crypto_backend }}'
+    register: privatekey_fmt_1_step_9_after
+
+  when: 'select_crypto_backend == "cryptography"'
+
+- block:
+  - name: "({{ select_crypto_backend }}) Generate privatekey_fmt_2 - PKCS8 format"
+    openssl_privatekey:
+      path: '{{ remote_tmp_dir }}/privatekey_fmt_2.pem'
+      type: X448
+      format: pkcs8
+      select_crypto_backend: '{{ select_crypto_backend }}'
+    ignore_errors: yes
+    register: privatekey_fmt_2_step_1
+
+  - name: "({{ select_crypto_backend }}) Generate privatekey_fmt_2 - PKCS8 format (idempotent)"
+    openssl_privatekey:
+      path: '{{ remote_tmp_dir }}/privatekey_fmt_2.pem'
+      type: X448
+      format: pkcs8
+      select_crypto_backend: '{{ select_crypto_backend }}'
+    ignore_errors: yes
+    register: privatekey_fmt_2_step_2
+
+  - name: "({{ select_crypto_backend }}) Generate privatekey_fmt_2 - raw format"
+    openssl_privatekey:
+      path: '{{ remote_tmp_dir }}/privatekey_fmt_2.pem'
+      type: X448
+      format: raw
+      select_crypto_backend: '{{ select_crypto_backend }}'
+      return_content: yes
+    ignore_errors: yes
+    register: privatekey_fmt_2_step_3
+
+  - name: "({{ select_crypto_backend }}) Read privatekey_fmt_2.pem"
+    slurp:
+      src: "{{ remote_tmp_dir }}/privatekey_fmt_2.pem"
+    ignore_errors: yes
+    register: content
+
+  - name: "({{ select_crypto_backend }}) Generate privatekey_fmt_2 - verify that returned content is base64 encoded"
+    assert:
+      that:
+        - privatekey_fmt_2_step_3.privatekey == content.content
+    when: privatekey_fmt_2_step_1 is not failed
+
+  - name: "({{ select_crypto_backend }}) Generate privatekey_fmt_2 - raw format (idempotent)"
+    openssl_privatekey:
+      path: '{{ remote_tmp_dir }}/privatekey_fmt_2.pem'
+      type: X448
+      format: raw
+      select_crypto_backend: '{{ select_crypto_backend }}'
+      return_content: yes
+    ignore_errors: yes
+    register: privatekey_fmt_2_step_4
+
+  - name: "({{ select_crypto_backend }}) Read privatekey_fmt_2.pem"
+    slurp:
+      src: "{{ remote_tmp_dir }}/privatekey_fmt_2.pem"
+    ignore_errors: yes
+    register: content
+
+  - name: "({{ select_crypto_backend }}) Generate privatekey_fmt_2 - verify that returned content is base64 encoded"
+    assert:
+      that:
+        - privatekey_fmt_2_step_4.privatekey == content.content
+    when: privatekey_fmt_2_step_1 is not failed
+
+  - name: "({{ select_crypto_backend }}) Generate privatekey_fmt_2 - auto format (ignore)"
+    openssl_privatekey:
+      path: '{{ remote_tmp_dir }}/privatekey_fmt_2.pem'
+      type: X448
+      format: auto_ignore
+      select_crypto_backend: '{{ select_crypto_backend }}'
+      return_content: yes
+    ignore_errors: yes
+    register: privatekey_fmt_2_step_5
+
+  - name: "({{ select_crypto_backend }}) Read privatekey_fmt_2.pem"
+    slurp:
+      src: "{{ remote_tmp_dir }}/privatekey_fmt_2.pem"
+    ignore_errors: yes
+    register: content
+
+  - name: "({{ select_crypto_backend }}) Generate privatekey_fmt_2 - verify that returned content is base64 encoded"
+    assert:
+      that:
+        - privatekey_fmt_2_step_5.privatekey == content.content
+    when: privatekey_fmt_2_step_1 is not failed
+
+  - name: "({{ select_crypto_backend }}) Generate privatekey_fmt_2 - auto format (no ignore)"
+    openssl_privatekey:
+      path: '{{ remote_tmp_dir }}/privatekey_fmt_2.pem'
+      type: X448
+      format: auto
+      select_crypto_backend: '{{ select_crypto_backend }}'
+      return_content: yes
+    ignore_errors: yes
+    register: privatekey_fmt_2_step_6
+
+  - name: "({{ select_crypto_backend }}) Read private key"
+    slurp:
+      src: '{{ remote_tmp_dir }}/privatekey_fmt_2.pem'
+    register: slurp
+    when: privatekey_fmt_2_step_1 is not failed
+
+  - name: "({{ select_crypto_backend }}) Generate privatekey_fmt_2 - verify that returned content is not base64 encoded"
+    assert:
+      that:
+        - privatekey_fmt_2_step_6.privatekey == (slurp.content | b64decode)
+    when: privatekey_fmt_2_step_1 is not failed
+
+  when: 'select_crypto_backend == "cryptography" and cryptography_version.stdout is version("2.6", ">=")'
+
+
+
+# Test regenerate option
+
+- name: "({{ select_crypto_backend }}) Regenerate - setup simple keys"
+  openssl_privatekey:
+    path: '{{ remote_tmp_dir }}/regenerate-a-{{ item }}.pem'
+    type: RSA
+    size: '{{ default_rsa_key_size }}'
+    select_crypto_backend: '{{ select_crypto_backend }}'
+  loop: "{{ regenerate_values }}"
+- name: "({{ select_crypto_backend }}) Regenerate - setup password protected keys"
+  openssl_privatekey:
+    path: '{{ remote_tmp_dir }}/regenerate-b-{{ item }}.pem'
+    type: RSA
+    size: '{{ default_rsa_key_size }}'
+    passphrase: hunter2
+    cipher: auto
+    select_crypto_backend: '{{ select_crypto_backend }}'
+  loop: "{{ regenerate_values }}"
+- name: "({{ select_crypto_backend }}) Regenerate - setup broken keys"
+  copy:
+    dest: '{{ remote_tmp_dir }}/regenerate-c-{{ item }}.pem'
+    content: 'broken key'
+    mode: '0700'
+  loop: "{{ regenerate_values }}"
+
+- name: "({{ select_crypto_backend }}) Regenerate - modify broken keys (check mode)"
+  openssl_privatekey:
+    path: '{{ remote_tmp_dir }}/regenerate-c-{{ item }}.pem'
+    type: RSA
+    size: '{{ default_rsa_key_size }}'
+    regenerate: '{{ item }}'
+    select_crypto_backend: '{{ select_crypto_backend }}'
+  check_mode: yes
+  loop: "{{ regenerate_values }}"
+  ignore_errors: yes
+  register: result
+- assert:
+    that:
+      - result.results[0] is failed
+      - "'Unable to read the key. The key is protected with a another passphrase / no passphrase or broken. Will not proceed.' in result.results[0].msg or 'Cannot load raw key' in result.results[0].msg"
+      - result.results[1] is failed
+      - "'Unable to read the key. The key is protected with a another passphrase / no passphrase or broken. Will not proceed.' in result.results[1].msg or 'Cannot load raw key' in result.results[1].msg"
+      - result.results[2] is failed
+      - "'Unable to read the key. The key is protected with a another passphrase / no passphrase or broken. Will not proceed.' in result.results[2].msg or 'Cannot load raw key' in result.results[2].msg"
+      - result.results[3] is changed
+      - result.results[4] is changed
+
+- name: "({{ select_crypto_backend }}) Regenerate - modify broken keys"
+  openssl_privatekey:
+    path: '{{ remote_tmp_dir }}/regenerate-c-{{ item }}.pem'
+    type: RSA
+    size: '{{ default_rsa_key_size }}'
+    regenerate: '{{ item }}'
+    select_crypto_backend: '{{ select_crypto_backend }}'
+  loop: "{{ regenerate_values }}"
+  ignore_errors: yes
+  register: result
+- assert:
+    that:
+      - result.results[0] is failed
+      - "'Unable to read the key. The key is protected with a another passphrase / no passphrase or broken. Will not proceed.' in result.results[0].msg or 'Cannot load raw key' in result.results[0].msg"
+      - result.results[1] is failed
+      - "'Unable to read the key. The key is protected with a another passphrase / no passphrase or broken. Will not proceed.' in result.results[1].msg or 'Cannot load raw key' in result.results[1].msg"
+      - result.results[2] is failed
+      - "'Unable to read the key. The key is protected with a another passphrase / no passphrase or broken. Will not proceed.' in result.results[2].msg or 'Cannot load raw key' in result.results[2].msg"
+      - result.results[3] is changed
+      - result.results[4] is changed
+
+- name: "({{ select_crypto_backend }}) Regenerate - modify password protected keys (check mode)"
+  openssl_privatekey:
+    path: '{{ remote_tmp_dir }}/regenerate-b-{{ item }}.pem'
+    type: RSA
+    size: '{{ default_rsa_key_size }}'
+    regenerate: '{{ item }}'
+    select_crypto_backend: '{{ select_crypto_backend }}'
+  check_mode: yes
+  loop: "{{ regenerate_values }}"
+  ignore_errors: yes
+  register: result
+- assert:
+    that:
+      - result.results[0] is failed
+      - "'Unable to read the key. The key is protected with a another passphrase / no passphrase or broken. Will not proceed.' in result.results[0].msg"
+      - result.results[1] is failed
+      - "'Unable to read the key. The key is protected with a another passphrase / no passphrase or broken. Will not proceed.' in result.results[1].msg"
+      - result.results[2] is failed
+      - "'Unable to read the key. The key is protected with a another passphrase / no passphrase or broken. Will not proceed.' in result.results[2].msg"
+      - result.results[3] is changed
+      - result.results[4] is changed
+
+- name: "({{ select_crypto_backend }}) Regenerate - modify password protected keys"
+  openssl_privatekey:
+    path: '{{ remote_tmp_dir }}/regenerate-b-{{ item }}.pem'
+    type: RSA
+    size: '{{ default_rsa_key_size }}'
+    regenerate: '{{ item }}'
+    select_crypto_backend: '{{ select_crypto_backend }}'
+  loop: "{{ regenerate_values }}"
+  ignore_errors: yes
+  register: result
+- assert:
+    that:
+      - result.results[0] is failed
+      - "'Unable to read the key. The key is protected with a another passphrase / no passphrase or broken. Will not proceed.' in result.results[0].msg"
+      - result.results[1] is failed
+      - "'Unable to read the key. The key is protected with a another passphrase / no passphrase or broken. Will not proceed.' in result.results[1].msg"
+      - result.results[2] is failed
+      - "'Unable to read the key. The key is protected with a another passphrase / no passphrase or broken. Will not proceed.' in result.results[2].msg"
+      - result.results[3] is changed
+      - result.results[4] is changed
+
+- name: "({{ select_crypto_backend }}) Regenerate - not modify regular keys (check mode)"
+  openssl_privatekey:
+    path: '{{ remote_tmp_dir }}/regenerate-a-{{ item }}.pem'
+    type: RSA
+    size: '{{ default_rsa_key_size }}'
+    regenerate: '{{ item }}'
+    select_crypto_backend: '{{ select_crypto_backend }}'
+  check_mode: yes
+  loop: "{{ regenerate_values }}"
+  register: result
+- assert:
+    that:
+      - result.results[0] is not changed
+      - result.results[1] is not changed
+      - result.results[2] is not changed
+      - result.results[3] is not changed
+      - result.results[4] is changed
+
+- name: "({{ select_crypto_backend }}) Regenerate - not modify regular keys"
+  openssl_privatekey:
+    path: '{{ remote_tmp_dir }}/regenerate-a-{{ item }}.pem'
+    type: RSA
+    size: '{{ default_rsa_key_size }}'
+    regenerate: '{{ item }}'
+    select_crypto_backend: '{{ select_crypto_backend }}'
+  loop: "{{ regenerate_values }}"
+  register: result
+- assert:
+    that:
+      - result.results[0] is not changed
+      - result.results[1] is not changed
+      - result.results[2] is not changed
+      - result.results[3] is not changed
+      - result.results[4] is changed
+
+- name: "({{ select_crypto_backend }}) Regenerate - adjust key size (check mode)"
+  openssl_privatekey:
+    path: '{{ remote_tmp_dir }}/regenerate-a-{{ item }}.pem'
+    type: RSA
+    size: '{{ default_rsa_key_size + 20 }}'
+    regenerate: '{{ item }}'
+    select_crypto_backend: '{{ select_crypto_backend }}'
+  check_mode: yes
+  loop: "{{ regenerate_values }}"
+  ignore_errors: yes
+  register: result
+- assert:
+    that:
+      - result.results[0] is success and result.results[0] is not changed
+      - result.results[1] is failed
+      - "'Key has wrong type and/or size. Will not proceed.' in result.results[1].msg"
+      - result.results[2] is changed
+      - result.results[3] is changed
+      - result.results[4] is changed
+
+- name: "({{ select_crypto_backend }}) Regenerate - adjust key size"
+  openssl_privatekey:
+    path: '{{ remote_tmp_dir }}/regenerate-a-{{ item }}.pem'
+    type: RSA
+    size: '{{ default_rsa_key_size + 20 }}'
+    regenerate: '{{ item }}'
+    select_crypto_backend: '{{ select_crypto_backend }}'
+  loop: "{{ regenerate_values }}"
+  ignore_errors: yes
+  register: result
+- assert:
+    that:
+      - result.results[0] is success and result.results[0] is not changed
+      - result.results[1] is failed
+      - "'Key has wrong type and/or size. Will not proceed.' in result.results[1].msg"
+      - result.results[2] is changed
+      - result.results[3] is changed
+      - result.results[4] is changed
+
+- name: "({{ select_crypto_backend }}) Regenerate - redistribute keys"
+  copy:
+    src: '{{ remote_tmp_dir }}/regenerate-a-always.pem'
+    dest: '{{ remote_tmp_dir }}/regenerate-a-{{ item }}.pem'
+    remote_src: true
+  loop: "{{ regenerate_values }}"
+  when: "item != 'always'"
+
+- name: "({{ select_crypto_backend }}) Regenerate - adjust key type (check mode)"
+  openssl_privatekey:
+    path: '{{ remote_tmp_dir }}/regenerate-a-{{ item }}.pem'
+    type: DSA
+    size: '{{ default_rsa_key_size }}'
+    regenerate: '{{ item }}'
+    select_crypto_backend: '{{ select_crypto_backend }}'
+  check_mode: yes
+  loop: "{{ regenerate_values }}"
+  ignore_errors: yes
+  register: result
+- assert:
+    that:
+      - result.results[0] is success and result.results[0] is not changed
+      - result.results[1] is failed
+      - "'Key has wrong type and/or size. Will not proceed.' in result.results[1].msg"
+      - result.results[2] is changed
+      - result.results[3] is changed
+      - result.results[4] is changed
+
+- name: "({{ select_crypto_backend }}) Regenerate - adjust key type"
+  openssl_privatekey:
+    path: '{{ remote_tmp_dir }}/regenerate-a-{{ item }}.pem'
+    type: DSA
+    size: '{{ default_rsa_key_size }}'
+    regenerate: '{{ item }}'
+    select_crypto_backend: '{{ select_crypto_backend }}'
+  loop: "{{ regenerate_values }}"
+  ignore_errors: yes
+  register: result
+- assert:
+    that:
+      - result.results[0] is success and result.results[0] is not changed
+      - result.results[1] is failed
+      - "'Key has wrong type and/or size. Will not proceed.' in result.results[1].msg"
+      - result.results[2] is changed
+      - result.results[3] is changed
+      - result.results[4] is changed
+
+- block:
+  - name: "({{ select_crypto_backend }}) Regenerate - redistribute keys"
+    copy:
+      src: '{{ remote_tmp_dir }}/regenerate-a-always.pem'
+      dest: '{{ remote_tmp_dir }}/regenerate-a-{{ item }}.pem'
+      remote_src: true
+    loop: "{{ regenerate_values }}"
+    when: "item != 'always'"
+
+  - name: "({{ select_crypto_backend }}) Regenerate - format mismatch (check mode)"
+    openssl_privatekey:
+      path: '{{ remote_tmp_dir }}/regenerate-a-{{ item }}.pem'
+      type: DSA
+      size: '{{ default_rsa_key_size }}'
+      format: pkcs8
+      regenerate: '{{ item }}'
+      select_crypto_backend: '{{ select_crypto_backend }}'
+    check_mode: yes
+    loop: "{{ regenerate_values }}"
+    ignore_errors: yes
+    register: result
+  - assert:
+      that:
+        - result.results[0] is success and result.results[0] is not changed
+        - result.results[1] is failed
+        - "'Key has wrong format. Will not proceed.' in result.results[1].msg"
+        - result.results[2] is changed
+        - result.results[3] is changed
+        - result.results[4] is changed
+
+  - name: "({{ select_crypto_backend }}) Regenerate - format mismatch"
+    openssl_privatekey:
+      path: '{{ remote_tmp_dir }}/regenerate-a-{{ item }}.pem'
+      type: DSA
+      size: '{{ default_rsa_key_size }}'
+      format: pkcs8
+      regenerate: '{{ item }}'
+      select_crypto_backend: '{{ select_crypto_backend }}'
+    loop: "{{ regenerate_values }}"
+    ignore_errors: yes
+    register: result
+  - assert:
+      that:
+        - result.results[0] is success and result.results[0] is not changed
+        - result.results[1] is failed
+        - "'Key has wrong format. Will not proceed.' in result.results[1].msg"
+        - result.results[2] is changed
+        - result.results[3] is changed
+        - result.results[4] is changed
+
+  - name: "({{ select_crypto_backend }}) Regenerate - redistribute keys"
+    copy:
+      src: '{{ remote_tmp_dir }}/regenerate-a-always.pem'
+      dest: '{{ remote_tmp_dir }}/regenerate-a-{{ item }}.pem'
+      remote_src: true
+    loop: "{{ regenerate_values }}"
+    when: "item != 'always'"
+
+  - name: "({{ select_crypto_backend }}) Regenerate - convert format (check mode)"
+    openssl_privatekey:
+      path: '{{ remote_tmp_dir }}/regenerate-a-{{ item }}.pem'
+      type: DSA
+      size: '{{ default_rsa_key_size }}'
+      format: pkcs1
+      format_mismatch: convert
+      regenerate: '{{ item }}'
+      select_crypto_backend: '{{ select_crypto_backend }}'
+    check_mode: yes
+    loop: "{{ regenerate_values }}"
+    register: result
+  - assert:
+      that:
+        - result.results[0] is changed
+        - result.results[1] is changed
+        - result.results[2] is changed
+        - result.results[3] is changed
+        - result.results[4] is changed
+
+  - name: "({{ select_crypto_backend }}) Regenerate - convert format"
+    openssl_privatekey:
+      path: '{{ remote_tmp_dir }}/regenerate-a-{{ item }}.pem'
+      type: DSA
+      size: '{{ default_rsa_key_size }}'
+      format: pkcs1
+      format_mismatch: convert
+      regenerate: '{{ item }}'
+      select_crypto_backend: '{{ select_crypto_backend }}'
+    loop: "{{ regenerate_values }}"
+    register: result
+  - assert:
+      that:
+        - result.results[0] is changed
+        - result.results[1] is changed
+        - result.results[2] is changed
+        - result.results[3] is changed
+        - result.results[4] is changed
+        # for all values but 'always', the key should have not been regenerated.
+        # verify this by comparing fingerprints:
+        - result.results[0].fingerprint == result.results[1].fingerprint
+        - result.results[0].fingerprint == result.results[2].fingerprint
+        - result.results[0].fingerprint == result.results[3].fingerprint
+        - result.results[0].fingerprint != result.results[4].fingerprint
+  when: 'select_crypto_backend == "cryptography" and cryptography_version.stdout is version("2.6", ">=")'

@@ -1,0 +1,2 @@
+- name: delete temporary directory
+  include_tasks: default-cleanup.yml

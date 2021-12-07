@@ -1,0 +1,8 @@
+---
+passphrase: password
+regenerate_values:
+  - never
+  - fail
+  - partial_idempotence
+  - full_idempotence
+  - always

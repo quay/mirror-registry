@@ -61,8 +61,8 @@ func uninstall() {
 		`-e ANSIBLE_CONFIG=/runner/project/ansible.cfg `+
 		`--quiet `+
 		`--name ansible_runner_instance `+
-		`quay.io/quay/openshift-mirror-registry-ee `+
-		`ansible-playbook -i %s@%s, --private-key /runner/env/ssh_key uninstall_mirror_appliance.yml %s %s`,
+		eeImage+
+		` ansible-playbook -i %s@%s, --private-key /runner/env/ssh_key uninstall_mirror_appliance.yml %s %s`,
 		sshKey, targetUsername, strings.Split(targetHostname, ":")[0], askBecomePassFlag, additionalArgs)
 
 	log.Debug("Running command: " + podmanCmd)

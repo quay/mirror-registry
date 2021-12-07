@@ -1,9 +1,10 @@
 - name: Installing Podman
-  package:
-    name: "{{ yum_packages }}"
+  dnf:
+    name: "{{ dnf_packages }}"
     state: present
-  when: yum_packages is defined
-  tags: yum
+  when: dnf_packages is defined
+  tags: dnf
+  become: yes
 
 - name: Add IP address of all hosts to all hosts
   lineinfile:

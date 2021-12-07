@@ -1,0 +1,46 @@
+---
+- name: Prepare a container
+  include_tasks: build_test_container.yml
+
+- name: Test idempotency of users
+  include_tasks: idem_users.yml
+
+- name: Test idempotency of workdir
+  include_tasks: idem_workdir.yml
+
+- name: Test idempotency of labels
+  include_tasks: idem_labels.yml
+
+- name: Test idempotency of stop signal
+  include_tasks: idem_stopsignal.yml
+
+- name: Test idempotency of ports
+  include_tasks: idem_ports.yml
+
+- name: Test idempotency of volumes
+  include_tasks: idem_volumes.yml
+
+- name: Test idempotency of containers in pods
+  include_tasks: idem_pods.yml
+
+- name: Test idempotency of other settings
+  include_tasks: idem_all.yml
+
+- name: Test idempotency for root containers
+  include_tasks: root-podman.yml
+  vars:
+    ansible_python_interpreter: "/usr/bin/python"
+  args:
+    apply:
+      become: true
+
+- name: Test idempotency for root network containers
+  include_tasks: root-podman-network.yml
+  vars:
+    ansible_python_interpreter: "/usr/bin/python"
+  args:
+    apply:
+      become: true
+
+- name: Test idempotency for rootless network containers
+  include_tasks: rootless-podman-network.yml

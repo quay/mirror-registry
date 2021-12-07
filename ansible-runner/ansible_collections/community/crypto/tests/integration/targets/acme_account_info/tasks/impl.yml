@@ -1,0 +1,98 @@
+---
+- block:
+  - name: Generate account keys
+    openssl_privatekey:
+      path: "{{ remote_tmp_dir }}/{{ item }}.pem"
+      type: ECC
+      curve: secp256r1
+      force: true
+    loop: "{{ account_keys }}"
+
+  - name: Parse account keys (to ease debugging some test failures)
+    openssl_privatekey_info:
+      path: "{{ remote_tmp_dir }}/{{ item }}.pem"
+      return_private_key_data: true
+    loop: "{{ account_keys }}"
+
+  vars:
+    account_keys:
+      - accountkey
+      - accountkey2
+
+- name: Check that account does not exist
+  acme_account_info:
+    select_crypto_backend: "{{ select_crypto_backend }}"
+    account_key_src: "{{ remote_tmp_dir }}/accountkey.pem"
+    acme_version: 2
+    acme_directory: https://{{ acme_host }}:14000/dir
+    validate_certs: no
+  register: account_not_created
+
+- name: Create it now
+  acme_account:
+    select_crypto_backend: "{{ select_crypto_backend }}"
+    account_key_src: "{{ remote_tmp_dir }}/accountkey.pem"
+    acme_version: 2
+    acme_directory: https://{{ acme_host }}:14000/dir
+    validate_certs: no
+    state: present
+    allow_creation: yes
+    terms_agreed: yes
+    contact:
+    - mailto:example@example.org
+
+- name: Check that account exists
+  acme_account_info:
+    select_crypto_backend: "{{ select_crypto_backend }}"
+    account_key_src: "{{ remote_tmp_dir }}/accountkey.pem"
+    acme_version: 2
+    acme_directory: https://{{ acme_host }}:14000/dir
+    validate_certs: no
+  register: account_created
+
+- name: Read account key
+  slurp:
+    src: '{{ remote_tmp_dir }}/accountkey.pem'
+  register: slurp
+
+- name: Clear email address
+  acme_account:
+    select_crypto_backend: "{{ select_crypto_backend }}"
+    account_key_content: "{{ slurp.content | b64decode }}"
+    acme_version: 2
+    acme_directory: https://{{ acme_host }}:14000/dir
+    validate_certs: no
+    state: present
+    allow_creation: no
+    contact: []
+
+- name: Check that account was modified
+  acme_account_info:
+    select_crypto_backend: "{{ select_crypto_backend }}"
+    account_key_src: "{{ remote_tmp_dir }}/accountkey.pem"
+    acme_version: 2
+    acme_directory: https://{{ acme_host }}:14000/dir
+    validate_certs: no
+    account_uri: "{{ account_created.account_uri }}"
+  register: account_modified
+
+- name: Check with wrong account URI
+  acme_account_info:
+    select_crypto_backend: "{{ select_crypto_backend }}"
+    account_key_src: "{{ remote_tmp_dir }}/accountkey.pem"
+    acme_version: 2
+    acme_directory: https://{{ acme_host }}:14000/dir
+    validate_certs: no
+    account_uri: "{{ account_created.account_uri }}test1234doesnotexists"
+  register: account_not_exist
+
+- name: Check with wrong account key
+  acme_account_info:
+    select_crypto_backend: "{{ select_crypto_backend }}"
+    account_key_src: "{{ remote_tmp_dir }}/accountkey2.pem"
+    acme_version: 2
+    acme_directory: https://{{ acme_host }}:14000/dir
+    validate_certs: no
+    account_uri: "{{ account_created.account_uri }}"
+  ignore_errors: yes
+  register: account_wrong_key

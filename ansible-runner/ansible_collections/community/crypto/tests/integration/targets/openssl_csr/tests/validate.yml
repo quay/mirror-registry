@@ -1,0 +1,336 @@
+---
+- name: "({{ select_crypto_backend }}) Validate CSR (test - privatekey modulus)"
+  shell: '{{ openssl_binary }} rsa -noout -modulus -in {{ remote_tmp_dir }}/privatekey.pem'
+  register: privatekey_modulus
+
+- name: "({{ select_crypto_backend }}) Validate CSR (test - Common Name)"
+  shell: "{{ openssl_binary }} req -noout -subject -in {{ remote_tmp_dir }}/csr.csr -nameopt oneline,-space_eq"
+  register: csr_cn
+
+- name: "({{ select_crypto_backend }}) Validate CSR (test - csr modulus)"
+  shell: '{{ openssl_binary }} req -noout -modulus -in {{ remote_tmp_dir }}/csr.csr'
+  register: csr_modulus
+
+- name: "({{ select_crypto_backend }}) Validate CSR (assert)"
+  assert:
+    that:
+      - csr_cn.stdout.split('=')[-1] == 'www.ansible.com'
+      - csr_modulus.stdout == privatekey_modulus.stdout
+
+- name: "({{ select_crypto_backend }}) Validate CSR (check mode, idempotency)"
+  assert:
+    that:
+      - generate_csr_check is changed
+      - generate_csr is changed
+      - generate_csr_idempotent is not changed
+      - generate_csr_idempotent_check is not changed
+
+- name: "({{ select_crypto_backend }}) Read CSR"
+  slurp:
+    src: '{{ remote_tmp_dir }}/csr.csr'
+  register: slurp
+
+- name: "({{ select_crypto_backend }}) Validate CSR (data retrieval)"
+  assert:
+    that:
+      - generate_csr_check.csr is none
+      - generate_csr.csr == (slurp.content | b64decode)
+      - generate_csr.csr == generate_csr_idempotent.csr
+      - generate_csr.csr == generate_csr_idempotent_check.csr
+
+- name: "({{ select_crypto_backend }}) Validate CSR without SAN (check mode, idempotency)"
+  assert:
+    that:
+      - generate_csr_nosan_check is changed
+      - generate_csr_nosan is changed
+      - generate_csr_nosan_check_idempotent is not changed
+      - generate_csr_nosan_check_idempotent_check is not changed
+
+- name: "({{ select_crypto_backend }}) Validate CSR_KU_XKU (assert idempotency, change)"
+  assert:
+    that:
+      - csr_ku_xku is not changed
+      - csr_ku_xku_change is changed
+      - csr_ku_xku_change_2 is changed
+
+- name: "({{ select_crypto_backend }}) Validate old_API CSR (test - Common Name)"
+  shell: "{{ openssl_binary }} req -noout -subject -in {{ remote_tmp_dir }}/csr_oldapi.csr -nameopt oneline,-space_eq"
+  register: csr_oldapi_cn
+
+- name: "({{ select_crypto_backend }}) Validate old_API CSR (test - csr modulus)"
+  shell: '{{ openssl_binary }} req -noout -modulus -in {{ remote_tmp_dir }}/csr_oldapi.csr'
+  register: csr_oldapi_modulus
+
+- name: "({{ select_crypto_backend }}) Validate old_API CSR (assert)"
+  assert:
+    that:
+      - csr_oldapi_cn.stdout.split('=')[-1] == 'www.ansible.com'
+      - csr_oldapi_modulus.stdout == privatekey_modulus.stdout
+
+- name: "({{ select_crypto_backend }}) Validate invalid SAN (1/2)"
+  assert:
+    that:
+      - generate_csr_invalid_san is failed
+      - "'Subject Alternative Name' in generate_csr_invalid_san.msg"
+
+- name: "({{ select_crypto_backend }}) Validate invalid SAN (2/2)"
+  # Note that modern cryptography versions simply accept this name.
+  # The error has been observed with cryptography 1.7.2 and 1.9, but not with 2.3 and newer.
+  assert:
+    that:
+      - generate_csr_invalid_san_2 is failed
+      - "'The label system:kube-controller-manager is not a valid A-label' in generate_csr_invalid_san_2.msg"
+  when: cryptography_version.stdout is version('2.0', '<')
+
+- name: "({{ select_crypto_backend }}) Validate OCSP Must Staple CSR (test - everything)"
+  shell: "{{ openssl_binary }} req -noout -in {{ remote_tmp_dir }}/csr_ocsp.csr -text"
+  register: csr_ocsp
+
+- name: "({{ select_crypto_backend }}) Validate OCSP Must Staple CSR (assert)"
+  assert:
+    that:
+      - "(csr_ocsp.stdout is search('\\s+TLS Feature:\\s*\\n\\s+status_request\\s+')) or
+         (csr_ocsp.stdout is search('\\s+1.3.6.1.5.5.7.1.24:\\s*\\n\\s+0\\.\\.\\.\\.\\s+'))"
+
+- name: "({{ select_crypto_backend }}) Validate OCSP Must Staple CSR (assert idempotency)"
+  assert:
+    that:
+      - csr_ocsp_idempotency is not changed
+
+- name: "({{ select_crypto_backend }}) Validate ECC CSR (test - privatekey's public key)"
+  shell: '{{ openssl_binary }} ec -pubout -in {{ remote_tmp_dir }}/privatekey2.pem'
+  register: privatekey_ecc_key
+
+- name: "({{ select_crypto_backend }}) Validate ECC CSR (test - Common Name)"
+  shell: "{{ openssl_binary }} req -noout -subject -in {{ remote_tmp_dir }}/csr2.csr -nameopt oneline,-space_eq"
+  register: csr_ecc_cn
+
+- name: "({{ select_crypto_backend }}) Validate ECC CSR (test - CSR pubkey)"
+  shell: '{{ openssl_binary }} req -noout -pubkey -in {{ remote_tmp_dir }}/csr2.csr'
+  register: csr_ecc_pubkey
+
+- name: "({{ select_crypto_backend }}) Validate ECC CSR (assert)"
+  assert:
+    that:
+      - csr_ecc_cn.stdout.split('=')[-1] == 'www.ansible.com'
+      - csr_ecc_pubkey.stdout == privatekey_ecc_key.stdout
+
+- name: "({{ select_crypto_backend }}) Validate CSR (text common name - Common Name)"
+  shell: "{{ openssl_binary }} req -noout -subject -in {{ remote_tmp_dir }}/csr3.csr -nameopt oneline,-space_eq"
+  register: csr3_cn
+
+- name: "({{ select_crypto_backend }}) Validate CSR (assert)"
+  assert:
+    that:
+      - csr3_cn.stdout.split('=')[-1] == 'This is for Ansible'
+
+- name: "({{ select_crypto_backend }}) Validate country name idempotency and validation"
+  assert:
+    that:
+      - country_idempotent_1 is changed
+      - country_idempotent_2 is not changed
+      - country_idempotent_3 is not changed
+      - country_fail_4 is failed
+
+- name:
+  assert:
+    that:
+      - passphrase_error_1 is failed
+      - "'assphrase' in passphrase_error_1.msg or 'assword' in passphrase_error_1.msg"
+      - passphrase_error_2 is failed
+      - "'assphrase' in passphrase_error_2.msg or 'assword' in passphrase_error_2.msg or 'serializ' in passphrase_error_2.msg"
+      - passphrase_error_3 is failed
+      - "'assphrase' in passphrase_error_3.msg or 'assword' in passphrase_error_3.msg or 'serializ' in passphrase_error_3.msg"
+
+- name: "({{ select_crypto_backend }}) Verify that broken CSR will be regenerated"
+  assert:
+    that:
+      - output_broken is changed
+
+- name: "({{ select_crypto_backend }}) Verify that subject key identifier handling works"
+  assert:
+    that:
+      - subject_key_identifier_1 is changed
+      - subject_key_identifier_2 is not changed
+      - subject_key_identifier_3 is changed
+      - subject_key_identifier_4 is changed
+      - subject_key_identifier_5 is not changed
+      - subject_key_identifier_6 is changed
+
+- name: "({{ select_crypto_backend }}) Verify that authority key identifier handling works"
+  assert:
+    that:
+      - authority_key_identifier_1 is changed
+      - authority_key_identifier_2 is not changed
+      - authority_key_identifier_3 is changed
+      - authority_key_identifier_4 is changed
+
+- name: "({{ select_crypto_backend }}) Verify that authority cert issuer / serial number handling works"
+  assert:
+    that:
+      - authority_cert_issuer_sn_1 is changed
+      - authority_cert_issuer_sn_2 is not changed
+      - authority_cert_issuer_sn_3 is changed
+      - authority_cert_issuer_sn_4 is changed
+      - authority_cert_issuer_sn_5 is changed
+
+- name: "({{ select_crypto_backend }}) Check backup"
+  assert:
+    that:
+      - csr_backup_1 is changed
+      - csr_backup_1.backup_file is undefined
+      - csr_backup_2 is not changed
+      - csr_backup_2.backup_file is undefined
+      - csr_backup_3 is changed
+      - csr_backup_3.backup_file is string
+      - csr_backup_4 is changed
+      - csr_backup_4.backup_file is string
+      - csr_backup_5 is not changed
+      - csr_backup_5.backup_file is undefined
+      - csr_backup_4.csr is none
+
+- name: "({{ select_crypto_backend }}) Check CSR with everything"
+  assert:
+    that:
+      - everything_1 is changed
+      - everything_2 is not changed
+      - everything_3 is not changed
+      - everything_4 is changed
+      - everything_info.basic_constraints == [
+          "CA:TRUE",
+          "pathlen:23",
+        ]
+      - everything_info.basic_constraints_critical == true
+      - everything_info.extended_key_usage_critical == false
+      - everything_info.key_usage == [
+            "CRL Sign",
+            "Certificate Sign",
+            "Data Encipherment",
+            "Decipher Only",
+            "Digital Signature",
+            "Encipher Only",
+            "Key Agreement",
+            "Key Encipherment",
+            "Non Repudiation"
+        ]
+      - everything_info.key_usage_critical == true
+      - everything_info.ocsp_must_staple == true
+      - everything_info.ocsp_must_staple_critical == false
+      - everything_info.signature_valid == true
+      - everything_info.subject.commonName == "www.example.com"
+      - everything_info.subject.countryName == "de"
+      - everything_info.subject.emailAddress == "test@example.com"
+      - everything_info.subject.givenName == "First Name"
+      - everything_info.subject.localityName == "Somewhere"
+      - everything_info.subject.organizationName == "Ansiblé"
+      - everything_info.subject.organizationalUnitName == "Crÿpto Depârtment ☺"
+      - everything_info.subject.postalAddress == "1234 Somewhere"
+      - everything_info.subject.postalCode == "1234"
+      - everything_info.subject.pseudonym == "test"
+      - everything_info.subject.serialNumber == "1234"
+      - everything_info.subject.stateOrProvinceName == "Zürich"
+      - everything_info.subject.streetAddress == "Welcome Street N° 5"
+      - everything_info.subject.surname == "Last Name Which Happens To Be A Very Løng String With A Lot Of Spaces, Jr."
+      - everything_info.subject.title == "Chïeﬀ"
+      - everything_info.subject.userId == "asdf"
+      - everything_info.subject | length == 16
+      - >
+        everything_info.subject_ordered == [
+          ["commonName", "www.example.com"],
+          ["countryName", "de"],
+          ["localityName", "Somewhere"],
+          ["stateOrProvinceName", "Zürich"],
+          ["streetAddress", "Welcome Street N° 5"],
+          ["organizationName", "Ansiblé"],
+          ["organizationalUnitName", "Crÿpto Depârtment ☺"],
+          ["serialNumber", "1234"],
+          ["surname", "Last Name Which Happens To Be A Very Løng String With A Lot Of Spaces, Jr."],
+          ["givenName", "First Name"],
+          ["title", "Chïeﬀ"],
+          ["pseudonym", "test"],
+          ["userId", "asdf"],
+          ["emailAddress", "test@example.com"],
+          ["postalAddress", "1234 Somewhere"],
+          ["postalCode", "1234"],
+        ]
+      - everything_info.subject_alt_name_critical == false
+      - everything_info.name_constraints_excluded == [
+          "DNS:.example.com",
+          "DNS:.org",
+        ]
+      - everything_info.name_constraints_critical == true
+
+- name: "({{ select_crypto_backend }}) Check CSR with everything"
+  assert:
+    that:
+      - everything_info.authority_cert_issuer == [
+            "DNS:ca.example.org",
+            "IP:1.2.3.4"
+        ]
+      - everything_info.authority_cert_serial_number == 12345
+      - everything_info.authority_key_identifier == "44:55:66:77"
+      - everything_info.subject_alt_name == [
+            "DNS:www.ansible.com",
+            "IP:1.2.3.4",
+            "IP:::1",
+            "email:test@example.org",
+            "URI:https://example.org/test/index.html",
+            "RID:1.2.3.4",
+            "otherName:1.2.3.4;0c:07:63:65:72:74:72:65:71",
+            "otherName:1.3.6.1.4.1.311.20.2.3;0c:0d:62:6f:62:40:6c:6f:63:61:6c:68:6f:73:74",
+            "dirName:CN=example.net,O=Example Net",
+            "dirName:CN=example.com,O=Example Com"
+        ]
+      - everything_info.subject_key_identifier == "00:11:22:33"
+      - everything_info.extended_key_usage == [
+            "1.2.3.4.5.6",
+            "Any Extended Key Usage",
+            "Biometric Info",
+            "Code Signing",
+            "E-mail Protection",
+            "IPSec User",
+            "OCSP Signing",
+            "TLS Web Client Authentication",
+            "TLS Web Server Authentication",
+            "TLS Web Server Authentication",
+            "Time Stamping",
+            "dvcs",
+            "qcStatements",
+        ]
+      - everything_info.name_constraints_permitted == [
+          "DNS:www.example.com",
+          "IP:1.2.3.0/24",
+          "IP:::1:0:0/112",
+        ]
+
+- name: "({{ select_crypto_backend }}) Verify Ed25519 and Ed448 tests (for cryptography >= 2.6, < 2.8)"
+  assert:
+    that:
+      - generate_csr_ed25519_ed448.results[0] is failed
+      - generate_csr_ed25519_ed448.results[1] is failed
+      - generate_csr_ed25519_ed448.results[0].msg == 'Signing with Ed25519 and Ed448 keys requires cryptography 2.8 or newer.'
+      - generate_csr_ed25519_ed448.results[1].msg == 'Signing with Ed25519 and Ed448 keys requires cryptography 2.8 or newer.'
+      - generate_csr_ed25519_ed448_idempotent.results[0] is failed
+      - generate_csr_ed25519_ed448_idempotent.results[1] is failed
+  when: select_crypto_backend == 'cryptography' and cryptography_version.stdout is version('2.6', '>=') and cryptography_version.stdout is version('2.8', '<') and generate_csr_ed25519_ed448_privatekey is not failed
+
+- name: "({{ select_crypto_backend }}) Verify Ed25519 and Ed448 tests (for cryptography >= 2.8)"
+  assert:
+    that:
+      - generate_csr_ed25519_ed448 is succeeded
+      - generate_csr_ed25519_ed448.results[0] is changed
+      - generate_csr_ed25519_ed448.results[1] is changed
+      - generate_csr_ed25519_ed448_idempotent is succeeded
+      - generate_csr_ed25519_ed448_idempotent.results[0] is not changed
+      - generate_csr_ed25519_ed448_idempotent.results[1] is not changed
+  when: select_crypto_backend == 'cryptography' and cryptography_version.stdout is version('2.8', '>=') and generate_csr_ed25519_ed448_privatekey is not failed
+
+- name: "({{ select_crypto_backend }}) Verify CRL distribution endpoints (for cryptography >= 1.6)"
+  assert:
+    that:
+      - crl_distribution_endpoints_1 is changed
+      - crl_distribution_endpoints_2 is not changed
+      - crl_distribution_endpoints_3 is changed
+      - crl_distribution_endpoints_4 is changed
+      - crl_distribution_endpoints_5 is changed
+  when: select_crypto_backend == 'cryptography' and cryptography_version.stdout is version('1.6', '>=')

@@ -1,0 +1,70 @@
+ARG EE_BASE_IMAGE=registry.redhat.io/ansible-automation-platform-20-early-access/ee-minimal-rhel8
+ARG EE_BUILDER_IMAGE=registry.redhat.io/ansible-automation-platform-20-early-access/ansible-builder-rhel8:2.0.0-15
+
+# Create Go CLI
+FROM registry.redhat.io/ubi8:latest AS cli
+
+ENV GOROOT=/usr/local/go
+ENV PATH=$GOPATH/bin:$GOROOT/bin:$PATH 
+
+# Get Go binary
+RUN curl -o go1.16.4.linux-amd64.tar.gz https://dl.google.com/go/go1.16.4.linux-amd64.tar.gz
+RUN tar -xzf go1.16.4.linux-amd64.tar.gz  &&\
+    mv go /usr/local
+
+COPY . /cli
+WORKDIR /cli
+
+# Create CLI
+ENV EE_IMAGE=quay.io/quay/openshift-mirror-registry-ee:latest
+ENV QUAY_IMAGE=quay.io/projectquay/quay
+ENV REDIS_IMAGE=docker.io/centos/redis-5-centos8
+ENV POSTGRES_IMAGE=docker.io/centos/postgresql-10-centos8
+
+RUN go build -v \
+    -ldflags "-X github.com/quay/openshift-mirror-registry/cmd.eeImage=${EE_IMAGE} -X github.com/quay/openshift-mirror-registry/cmd.quayImage=${QUAY_IMAGE} -X github.com/quay/openshift-mirror-registry/cmd.redisImage=${REDIS_IMAGE} -X github.com/quay/openshift-mirror-registry/cmd.postgresImage=${POSTGRES_IMAGE}" \
+    -o openshift-mirror-registry
+
+# Create Ansible Execution Environment
+FROM $EE_BASE_IMAGE as galaxy
+ARG ANSIBLE_GALAXY_CLI_COLLECTION_OPTS=
+USER root
+
+ADD ansible-runner/context/_build /build
+WORKDIR /build
+
+RUN ansible-galaxy role install -r requirements.yml --roles-path /usr/share/ansible/roles
+RUN ansible-galaxy collection install $ANSIBLE_GALAXY_CLI_COLLECTION_OPTS -r requirements.yml --collections-path /usr/share/ansible/collections
+
+FROM $EE_BUILDER_IMAGE as builder
+
+COPY --from=galaxy /usr/share/ansible /usr/share/ansible
+
+ADD ansible-runner/context/_build/requirements.txt requirements.txt
+RUN ansible-builder introspect --sanitize --user-pip=requirements.txt --write-bindep=/tmp/src/bindep.txt --write-pip=/tmp/src/requirements.txt
+RUN assemble
+
+FROM $EE_BASE_IMAGE as ansible
+USER root
+
+COPY --from=galaxy /usr/share/ansible /usr/share/ansible
+
+COPY --from=builder /output/ /output/
+RUN /output/install-from-bindep && rm -rf /output/wheels
+COPY ansible-runner/context/app /runner
+
+# Create OMR archive
+FROM registry.redhat.io/ubi8:latest AS build
+
+# Import and archive image dependencies
+COPY --from=ansible / /ansible
+RUN tar -cvf execution-environment.tar -C /ansible .
+
+COPY --from=cli /cli/openshift-mirror-registry .
+
+# Bundle OMR archive
+RUN tar -czvf openshift-mirror-registry.tar.gz execution-environment.tar openshift-mirror-registry
+
+# Extract bundle to final release image
+FROM registry.redhat.io/ubi8:latest AS release
+COPY --from=build openshift-mirror-registry.tar.gz openshift-mirror-registry.tar.gz

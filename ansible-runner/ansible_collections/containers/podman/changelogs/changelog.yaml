@@ -1,0 +1,341 @@
+ancestor: null
+releases:
+  1.0.0:
+    changes:
+      bugfixes:
+      - buildah_connection - Fix buildah debug output for py2
+      - podman_connection - Run pause=false w/o message condition
+      - podman_container - Add idempotency for user and stop signal
+      - podman_container - Fix idempotency issues with workdir and volumes
+      - podman_container - Fix image, healthcheck and other idempotency
+      - podman_container - Improve idempotency of podman_container in uts, ipc, networks,
+        cpu_shares
+      - podman_image - only set changed=true if there is a new image
+      - podman_image - use correct option for remove_signatures flag
+      minor_changes:
+      - buildah_connection - add support of specific user
+      - buildah_connection - added Buildah connection rootless
+      - podman_connection - add user flags before container id in podman exec
+      release_summary: Initial release of collection with new modules
+    modules:
+    - description: Manage Podman containers
+      name: podman_container
+      namespace: ''
+    - description: Retrieve information about Podman networks
+      name: podman_network_info module
+      namespace: ''
+    release_date: '2020-05-20'
+  1.0.1:
+    changes:
+      bugfixes:
+      - podman_container - Add inspect of image and user idempotency
+      - podman_image - Add option for tls_verify=false for images
+      release_summary: Idempotency and images improvements
+    release_date: '2020-06-01'
+  1.0.2:
+    changes:
+      bugfixes:
+      - podman_container - Add idempotency for existing local volumes
+      release_summary: Idempotency fixes
+    release_date: '2020-06-05'
+  1.0.3:
+    changes:
+      minor_changes:
+      - Relicense under GPLv3 and clean up modules
+      release_summary: Relicense under GPLv3 and clean up modules
+    release_date: '2020-06-08'
+  1.0.4:
+    changes:
+      bugfixes:
+      - podman_container - Add idempotency for ulimits and tests
+      - podman_container - Fix idempotency for podman > 2 versions
+      release_summary: Idempotency and Podman v2 fixes
+    release_date: '2020-06-29'
+  1.0.5:
+    changes:
+      bugfixes:
+      - podman_connection - Add check for empty dir for podman connection mount
+      - podman_connection - Increase verbosity for mount failure messages
+      - podman_container - Improve idempotency for volumes with slashesAdd idempotency
+        for ulimits and tests
+      - podman_container - Improve ports idempotency and support UDP
+      release_summary: Idempotency and another bugfixes for podman connection plugin.
+    release_date: '2020-07-09'
+  1.1.0:
+    changes:
+      bugfixes:
+      - podman_container - Fix idempotency for networks and add tests
+      minor_changes:
+      - Add podman pod and pod info modules
+      release_summary: New modules for pods management.
+    modules:
+    - description: Manage Podman pods
+      name: podman_pod
+      namespace: ''
+    - description: Retrieve information about Podman pods
+      name: podman_pod_info
+      namespace: ''
+    release_date: '2020-07-19'
+  1.1.1:
+    changes:
+      bugfixes:
+      - podman_volume_info - Improve podman volume info tests with new module
+      minor_changes:
+      - Create podman_volume module for volumes management
+      release_summary: New modules for volumes management.
+    modules:
+    - description: Manage Podman volumes
+      name: podman_volume
+      namespace: ''
+    release_date: '2020-07-22'
+  1.1.2:
+    changes:
+      bugfixes:
+      - podman_connection - Chown file for users when copy them to container
+      release_summary: Urgent fix for podman connection plugin.
+    release_date: '2020-07-26'
+  1.1.3:
+    changes:
+      bugfixes:
+      - podman_container - Fix idempotency for case with = in env
+      - podman_container - Fix issue with idempotency uts, ipc with pod
+      release_summary: Idempotency fixes for podman containers.
+    release_date: '2020-07-29'
+  1.1.4:
+    changes:
+      minor_changes:
+      - Add pip installation for podman collection.
+      release_summary: Pip install and minor fixes.
+    release_date: '2020-08-06'
+  1.2.0:
+    changes:
+      minor_changes:
+      - Add changelog file to collection.
+      release_summary: Add changelog file.
+    release_date: '2020-08-17'
+  1.3.0:
+    changes:
+      bugfixes:
+      - podman_volume - Fix return data from podman_volume module
+      minor_changes:
+      - Create podman_network module for podman networks management
+      release_summary: New podman_network module and bugfixes
+    modules:
+    - description: Manage Podman networks
+      name: podman_network
+      namespace: ''
+    release_date: '2020-09-03'
+  1.3.1:
+    changes:
+      bugfixes:
+      - multiple modules - fix diff calculation for lower/upper cases
+      - podman_container - Add note about containerPort setting
+      - podman_container - Fix init option it's boolean not string
+      - podman_container - Remove pyyaml from requirements
+      - podman_network - Check if dnsname plugin installed for CNI
+      - podman_volume - Set options for a volume as list and fix idempotency
+      release_summary: bugfixes
+    release_date: '2020-10-09'
+  1.3.2:
+    changes:
+      bugfixes:
+      - podman_container - Fix signals case for podman_container
+      release_summary: bugfixes
+    release_date: '2020-10-20'
+  1.4.0:
+    changes:
+      bugfixes:
+      - podman_container - Fix force restart option for containers
+      - podman_container - Fix idempotency for volume GID and UID
+      - podman_container - Fix no_hosts idempotency for newer version
+      - podman_container - Remove 'detach' when creating container
+      - podman_image - Fix doc defaults for podman_image
+      - podman_logout - Handle podman logout not logging out when logged in via different
+        tool
+      - podman_network - Correct IP range example for podman_network
+      minor_changes:
+      - podman_container - Add log level for Podman in module
+      - podman_container - Add mac_address field to podman_container module
+      - podman_container - Add strict image compare with hashes
+      - podman_container - Improve compatibility with docker_container by adding aliases
+      - podman_container - Move containers logic to module utils
+      - podman_image - reuse existing results in present()
+      - podman_network - Add IPv6 to network
+      - podman_network - Add support of network options like MTU, VLAN
+      - podman_pod - Move pod logic to separate library
+      release_summary: New modules and bugfixes, new network options
+    modules:
+    - description: Manage multiple Podman containers at once
+      name: podman_containers
+      namespace: ''
+    - description: Get info about Podman logged in registries
+      name: podman_login_info
+      namespace: ''
+    - description: Log out with Podman from registries
+      name: podman_logout
+      namespace: ''
+    release_date: '2020-09-03'
+  1.4.1:
+    changes:
+      bugfixes:
+      - podman_container - Convert gidmap to list for podman_container
+      - podman_container - Convert log-opts to dictionary and idempotent
+      release_summary: Bugfixes for podman container
+    release_date: '2020-12-21'
+  1.4.2:
+    changes:
+      bugfixes:
+      - documentation - Add docs to Github
+      - podman_container - Add 'created' state for podman_container
+      - podman_container - Change default log level for 3+ versions
+      - podman_container - Convert systemd option to a string
+      - podman_container - Don't recreate container if env_file is specified
+      - podman_container - Fix 'cap_add' and 'cap_drop' idempotency
+      - podman_container - Fix idempotency for multiple ports
+      - podman_container - Fix slirp4netns options idempotency
+      - podman_container - Fix uid/gid checks for podman 1.6.4 volumes
+      - podman_container - Handle slash removals for root volumes mount
+      - podman_container - Restart container in a simple manner
+      - podman_container - podman_container_lib - fix command idempotency
+      - podman_image - Add debug log and podman_actions to podman_image
+      - podman_image - Don't set default for validate-certs in podman_image
+      release_summary: Bugfixes for podman container
+    release_date: '2021-02-14'
+  1.4.3:
+    changes:
+      bugfixes:
+      - Add docs generation
+      - Update documentation
+      release_summary: Documentation fixes and updates
+    release_date: '2021-02-14'
+  1.4.4:
+    changes:
+      bugfixes:
+      - Attempt graceful stop when recreating container
+      - Don't calculate image digest in check mode
+      - Fix internal networks and DNS plugin for v3
+      - Fix podman_pod* modules for Podman v3
+      - Fixes for podman_container for Podman v3
+      release_summary: Fixes for newest version 3 of Podman
+    release_date: '2021-03-01'
+  1.4.5:
+    changes:
+      bugfixes:
+      - Add IPv6 support for publishing ports
+      - Add sigrtmin+3 signal (required for systemd containers)
+      - Add support for Podman Pod restart
+      - Convert IPv6 to shorten form
+      - Fix error with images info where no images
+      - Fix idempotency for rootless networks from v3
+      - Fix no_log for newer ansible-test
+      - Fix uppercase labels idempotency issue
+      - Stop pods without recreating them
+      release_summary: Additional fixes for newest version 3 of Podman
+    release_date: '2021-04-02'
+  1.5.0:
+    changes:
+      minor_changes:
+      - Podman login module
+      release_summary: New module - Podman login
+    modules:
+    - description: Login to a container registry using podman
+      name: podman_login
+      namespace: ''
+    release_date: '2021-04-05'
+  1.6.0:
+    changes:
+      bugfixes:
+      - Fix ansible-test issues for CI
+      - Fix idempotency for environment
+      - Fix ipv6=false issue
+      - Fix multi-containers options
+      - Fix overlayfs issue in CI for buildah connection
+      minor_changes:
+      - Add Ansible 2.11 to all tests and use Ubuntu 20.04
+      - Add Ansible 2.11 to testing
+      - Add RPM building scripts
+      - Add support for timezones in containers
+      release_summary: New module podman_play for playing Kubernetes YAML and bugfixes
+    modules:
+    - description: Play Kubernetes YAML files with Podman
+      name: podman_play
+      namespace: ''
+    release_date: '2021-06-03'
+  1.6.1:
+    changes:
+      bugfixes:
+      - Fix failure when listing containers
+      release_summary: Bugfix for podman_container_info
+    release_date: '2021-06-08'
+  1.6.2:
+    changes:
+      bugfixes:
+      - Add meta/runtime.yml which is required for Galaxy now
+      - Avoid exposing pipelining support for podman connections
+      - Change present state to be as created state
+      - Disable no-hosts idempotency
+      - Fix idempotency with systemd podman files
+      - Remove idempotency for volume UID/GID
+      release_summary: Bugfixes for idempotency and pipelining
+    release_date: '2021-08-02'
+  1.7.0:
+    changes:
+      minor_changes:
+      - Podman secret module
+      release_summary: New module - Podman secret
+    modules:
+    - description: Manage podman secrets
+      name: podman_secret
+      namespace: ''
+    release_date: '2021-08-15'
+  1.7.1:
+    changes:
+      bugfixes:
+      - Add support for podman pod create --infra-name
+      - Fix idempotency when containers have a common network
+      - Remove idempotency leftovers of volumes GID,UID
+      release_summary: Bugfixes and new features
+    release_date: '2021-09-01'
+  1.8.0:
+    changes:
+      major_changes:
+      - Add systemd generation for pods
+      - Generate systemd service files for containers
+      release_summary: New modules for images and containers
+    modules:
+    - description: Export a podman container to tar file
+      name: podman_export
+      namespace: ''
+    - description: Import Podman container from a tar file
+      name: podman_import
+      namespace: ''
+    - description: Load image from a tar file
+      name: podman_load
+      namespace: ''
+    - description: Saves podman image to tar file
+      name: podman_save
+      namespace: ''
+    release_date: '2021-09-17'
+  1.8.1:
+    changes:
+      bugfixes:
+      - Add .service extension to systemd files
+      - Add aliases for image load/save
+      - Change python version for ansible-core to 3.9
+      - Fix suboption key in podman_container/podman_pod for generate_systemd documentation
+      release_summary: Fixes for systemd units generation
+    release_date: '2021-09-24'
+  1.8.2:
+    changes:
+      bugfixes:
+      - Add option for ansible-core in RPM spec file
+      - Add skip option for podman secret
+      - Add support for network-alias flag
+      - Allow to actually pass a list of string for "mounts"
+      - Don't add newlines to secrets
+      - Fix issue with podman and exposed ports
+      - Fix signal diff for truncated and RT signal names
+      - Support empty stings in prefixes
+      - Update error message when pull set to false
+      release_summary: Fixes for various modules
+    release_date: '2021-11-09'

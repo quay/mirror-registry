@@ -1,0 +1,234 @@
+# Volumes
+- containers.podman.podman_container:
+    name: idempotency
+    state: absent
+
+- containers.podman.podman_container:
+    image: "{{ idem_image }}"
+    name: idempotency
+    state: started
+    command: 1h
+
+- containers.podman.podman_container:
+    image: "{{ idem_image }}"
+    name: idempotency
+    state: present
+    command: 1h
+  register: test1
+
+- name: check test1
+  assert:
+    that: test1 is not changed
+
+- containers.podman.podman_container:
+    image: "{{ idem_image }}"
+    name: idempotency
+    state: present
+    command: 1h
+  register: test2
+
+- name: check test2
+  assert:
+    that: test2 is not changed
+
+- containers.podman.podman_container:
+    image: "{{ idem_image }}"
+    name: idempotency
+    state: present
+    command: 1h
+  register: test3
+
+- name: check test3
+  assert:
+    that: test3 is not changed
+
+- containers.podman.podman_container:
+    image: "{{ idem_image }}"
+    name: idempotency
+    state: present
+    volumes:
+      - /opt:/somedir
+    command: 1h
+  register: test4
+
+- name: check test4
+  assert:
+    that: test4 is changed
+
+- containers.podman.podman_container:
+    image: "{{ idem_image }}"
+    name: idempotency
+    state: present
+    volumes:
+      - /opt/://somedir
+    command: 1h
+  register: test5
+
+- name: check test5
+  assert:
+    that: test5 is not changed
+
+- containers.podman.podman_container:
+    image: "{{ idem_image }}"
+    name: idempotency
+    state: present
+    command: 1h
+  register: test6
+
+- name: check test6
+  assert:
+    that: test6 is changed
+
+- containers.podman.podman_container:
+    image: "{{ idem_image }}"
+    name: idempotency
+    state: present
+    volumes:
+      - /opt:/somedir
+      - /data
+    command: 1h
+  register: test7
+
+- name: check test7
+  assert:
+    that: test7 is changed
+
+- containers.podman.podman_container:
+    image: "{{ idem_image }}"
+    name: idempotency
+    state: present
+    volumes:
+      - /data
+    command: 1h
+  register: test8
+
+- name: check test8
+  assert:
+    that: test8 is changed
+
+- containers.podman.podman_container:
+    image: "{{ idem_image }}"
+    name: idempotency
+    state: present
+    command: 1h
+  register: test9
+
+- name: check test9
+  assert:
+    that: test9 is not changed
+
+- name: Create volumes
+  shell: |
+    podman volume inspect local_volume1 || podman volume create local_volume1
+    podman volume inspect local_volume2 || podman volume create local_volume2
+
+- containers.podman.podman_container:
+    image: "{{ idem_image }}"
+    name: idempotency
+    state: present
+    command: 1h
+    volumes:
+      - "/opt:/anotherdir"
+      - "local_volume1:/data"
+  register: test10
+
+- name: check test10
+  assert:
+    that: test10 is changed
+
+- containers.podman.podman_container:
+    image: "{{ idem_image }}"
+    name: idempotency
+    state: present
+    command: 1h
+    volumes:
+      - "/opt//:/anotherdir"
+      - "local_volume1:/data/"
+  register: test11
+
+- name: check test11
+  assert:
+    that: test11 is not changed
+
+- containers.podman.podman_container:
+    image: "{{ idem_image }}"
+    name: idempotency
+    state: present
+    command: 1h
+    volumes:
+      - "/opt:/anotherdir"
+      - "local_volume2:/data"
+  register: test12
+
+- name: check test12
+  assert:
+    that: test12 is changed
+
+- containers.podman.podman_container:
+    image: "{{ idem_image }}"
+    name: idempotency
+    state: present
+    command: 1h
+    volumes:
+      - "/opt:/anotherdir"
+  register: test13
+
+- name: check test13
+  assert:
+    that: test13 is not changed
+
+- containers.podman.podman_container:
+    name: idempotency1
+    state: absent
+
+- containers.podman.podman_container:
+    image: alpine
+    name: idempotency1
+    state: present
+    command: sleep 1h
+
+- containers.podman.podman_container:
+    image: alpine
+    name: idempotency1
+    state: present
+    command: sleep 1h
+  register: test14
+
+- name: check test14
+  assert:
+    that: test14 is not changed
+
+- containers.podman.podman_container:
+    image: alpine
+    name: idempotency1
+    state: present
+    volumes:
+      - /opt:/data
+    command: sleep 1h
+  register: test15
+
+- name: check test15
+  assert:
+    that: test15 is changed
+
+- containers.podman.podman_container:
+    image: alpine
+    name: idempotency1
+    state: present
+    command: sleep 1h
+  register: test16
+
+- name: check test16
+  assert:
+    that: test16 is changed
+
+- containers.podman.podman_container:
+    image: alpine
+    name: idempotency1
+    state: present
+    command: sleep 1h
+  register: test17
+
+- name: check test17
+  assert:
+    that: test17 is not changed
