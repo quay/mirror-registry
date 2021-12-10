@@ -138,7 +138,7 @@ func install() {
 	}
 
 	// Add port if not present
-	if !strings.Contains(":", quayHostname) {
+	if !strings.Contains(quayHostname, ":") {
 		quayHostname = quayHostname + ":8443"
 	}
 
