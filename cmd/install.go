@@ -159,7 +159,7 @@ func install() {
 	// Set the SSL flag if cert and key are defined
 	var sslCertKeyFlag string
 	if sslCert != "" && sslKey != "" {
-	sslCertAbs, err := filepath.Abs(sslCert)
+		sslCertAbs, err := filepath.Abs(sslCert)
 	if err != nil {
 		check(errors.New("Unable to get absolute path of " + sslCert))
 	}
@@ -177,7 +177,7 @@ func install() {
 		`--workdir /runner/project `+
 		`--net host `+
 		imageArchiveMountFlag+ // optional image archive flag
-		sslCertKeyFlag + // optional ssl cert/key flag
+		sslCertKeyFlag+ // optional ssl cert/key flag
 		` -v %s:/runner/env/ssh_key `+
 		`-e RUNNER_OMIT_EVENTS=False `+
 		`-e RUNNER_ONLY_FAILED_EVENTS=False `+
