@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"path"
 	"strconv"
+	"strings"
 
 	_ "github.com/lib/pq" // pg driver
 	"github.com/sethvargo/go-password/password"
@@ -134,6 +135,11 @@ func install() {
 	// Set quayHostname if not already set
 	if quayHostname == "" {
 		quayHostname = targetHostname + ":8443"
+	}
+
+	// Add port if not present
+	if !strings.Contains(quayHostname, ":") {
+		quayHostname = quayHostname + ":8443"
 	}
 
 	// Set askBecomePass flag if true
