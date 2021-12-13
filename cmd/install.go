@@ -160,13 +160,13 @@ func install() {
 	var sslCertKeyFlag string
 	if sslCert != "" && sslKey != "" {
 		sslCertAbs, err := filepath.Abs(sslCert)
-	if err != nil {
-		check(errors.New("Unable to get absolute path of " + sslCert))
-	}
-	sslKeyAbs, err := filepath.Abs(sslKey)
-	if err != nil {
-		check(errors.New("Unable to get absolute path of " + sslKey))
-	}
+		if err != nil {
+			check(errors.New("Unable to get absolute path of " + sslCert))
+		}
+		sslKeyAbs, err := filepath.Abs(sslKey)
+		if err != nil {
+			check(errors.New("Unable to get absolute path of " + sslKey))
+		}
 		sslCertKeyFlag = fmt.Sprintf("-v %s:/runner/certs/quay.cert -v %s:/runner/certs/quay.key", sslCertAbs, sslKeyAbs)
 	}
 

@@ -73,7 +73,7 @@ func loadSSHKeys() error {
 	}
 	setSELinux(sshKey)
 
-    return nil
+	return nil
 }
 
 func setupLocalSSH() error {
