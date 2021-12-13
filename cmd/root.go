@@ -108,22 +108,20 @@ func setupLocalSSH() error {
 	return nil
 }
 
-func loadCerts() error {
-	if pathExists(sslCert) {
-		log.Info("Found SSL certificate at " + sslCert)
+func loadCerts(cert, key string) error {
+	if pathExists(cert) {
+		log.Info("Found SSL certificate at " + cert)
+		setSELinux(cert)
 	} else {
-		log.Info("Did not found SSL certificate at " + sslCert)
-		return errors.New("Could not find SSL certificate at " + sslCert)
+		log.Info("Did not found SSL certificate at " + cert)
 	}
-	setSELinux(sslCert)
 
-	if pathExists(sslKey) {
-		log.Info("Found SSL key at " + sslKey)
+	if pathExists(key) {
+		log.Info("Found SSL key at " + key)
+		setSELinux(key)
 	} else {
-		log.Info("Did not found SSL key at " + sslKey)
-		return errors.New("Could not find SSL key at " + sslKey)
+		log.Info("Did not found SSL key at " + key)
 	}
-	setSELinux(sslKey)
 
 	return nil
 }

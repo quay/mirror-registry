@@ -92,8 +92,8 @@ func install() {
 	err = loadExecutionEnvironment()
 	check(err)
 
-	// Load custom certificates
-	err = loadCerts()
+	// Check that SSL Cert and Key exist, set Selinux if present
+	err = loadCerts(sslCert, sslKey)
 	check(err)
 
 	// Check that SSH key is present, and generate if not
