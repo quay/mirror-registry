@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"crypto/tls"
+	"crypto/x509"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -108,19 +110,50 @@ func setupLocalSSH() error {
 	return nil
 }
 
-func loadCerts(cert, key string) error {
-	if pathExists(cert) {
-		log.Info("Found SSL certificate at " + cert)
-		setSELinux(cert)
-	} else {
-		log.Info("Did not found SSL certificate at " + cert)
+func loadCerts(certFile, keyFile, hostname string, skipCheck bool) error {
+	log.Info("Loading SSL certificate file " + certFile)
+	log.Info("Loading SSL key file " + keyFile)
+	if ! skipCheck {
+		certKey, err := tls.LoadX509KeyPair(certFile, keyFile)
+		if err != nil {
+			log.Errorf("Failed loading certificate and key file: %s", err.Error())
+			return err
+		}
+
+		cert, err := x509.ParseCertificate(certKey.Certificate[0])
+		if err != nil {
+			log.Errorf("Failed parsing certificate file: %s", err.Error())
+			return err
+		}
+
+		roots := x509.NewCertPool()
+		// Allow self-signed certificate and do not check the issuer
+		roots.AddCert(cert)
+
+		opts := x509.VerifyOptions{
+			DNSName:   hostname,
+			Roots:     roots,
+			KeyUsages: []x509.ExtKeyUsage{x509.ExtKeyUsageAny},
+		}
+
+		_, err = cert.Verify(opts)
+		if err != nil {
+			log.Errorf("Failed verifying certificate: %s", err.Error())
+			return err
+		}
+		log.Info("SSL certificate check succeeded")
 	}
 
-	if pathExists(key) {
-		log.Info("Found SSL key at " + key)
-		setSELinux(key)
+	if pathExists(certFile) {
+		setSELinux(certFile)
 	} else {
-		log.Info("Did not found SSL key at " + key)
+		return errors.New("Certificate file not found: " + certFile)
+	}
+
+	if pathExists(keyFile) {
+		setSELinux(keyFile)
+	} else {
+		errors.New("Certificate key file not found: " + keyFile)
 	}
 
 	return nil

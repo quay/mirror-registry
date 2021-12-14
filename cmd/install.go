@@ -8,6 +8,7 @@ import (
 	"path"
 	"path/filepath"
 	"strconv"
+	"strings"
 
 	_ "github.com/lib/pq" // pg driver
 	"github.com/sethvargo/go-password/password"
@@ -30,6 +31,9 @@ var sslCert string
 
 // sslKey is the path to the SSL key
 var sslKey string
+
+// sslCheckSkip holds whether or not to check the SSL certificate
+var sslCheckSkip bool
 
 // targetHostname is the hostname of the server you wish to install Quay on
 var targetHostname string
@@ -69,6 +73,7 @@ func init() {
 
 	installCmd.Flags().StringVarP(&sslCert, "sslCert", "", "", "The path to the SSL certificate Quay should use")
 	installCmd.Flags().StringVarP(&sslKey, "sslKey", "", "", "The path to the SSL key Quay should use")
+	installCmd.Flags().BoolVarP(&sslCheckSkip, "sslCheckSkip", "", false, "Whether or not to check the certificate hostname against the SERVER_HOSTNAME in config.yaml.")
 
 	installCmd.Flags().StringVarP(&initPassword, "initPassword", "", "", "The password of the initial user. If not specified, this will be randomly generated.")
 	installCmd.Flags().StringVarP(&quayHostname, "quayHostname", "", "", "The value to set SERVER_HOSTNAME in the Quay config.yaml. This defaults to <targetHostname>:8443")
@@ -92,8 +97,13 @@ func install() {
 	err = loadExecutionEnvironment()
 	check(err)
 
-	// Check that SSL Cert and Key exist, set Selinux if present
-	err = loadCerts(sslCert, sslKey)
+	// Set quayHostname if not already set
+	if quayHostname == "" {
+		quayHostname = targetHostname + ":8443"
+	}
+
+	// Load the SSL certificate and the key
+	err = loadCerts(sslCert, sslKey, strings.Split(quayHostname, ":")[0], sslCheckSkip)
 	check(err)
 
 	// Check that SSH key is present, and generate if not
@@ -145,11 +155,6 @@ func install() {
 		check(err)
 	}
 
-	// Set quayHostname if not already set
-	if quayHostname == "" {
-		quayHostname = targetHostname + ":8443"
-	}
-
 	// Set askBecomePass flag if true
 	var askBecomePassFlag string
 	if askBecomePass {
@@ -167,7 +172,7 @@ func install() {
 		if err != nil {
 			check(errors.New("Unable to get absolute path of " + sslKey))
 		}
-		sslCertKeyFlag = fmt.Sprintf("-v %s:/runner/certs/quay.cert -v %s:/runner/certs/quay.key", sslCertAbs, sslKeyAbs)
+		sslCertKeyFlag = fmt.Sprintf("-v %s:/runner/certs/quay.cert:Z -v %s:/runner/certs/quay.key:Z", sslCertAbs, sslKeyAbs)
 	}
 
 	// Run playbook
