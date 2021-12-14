@@ -21,6 +21,18 @@
     src: ../templates/config.yaml.j2
     dest: /etc/quay-install/quay-config/config.yaml
 
+- name: Check if SSL Cert exists
+  stat:
+    path: /runner/certs/quay.cert
+  delegate_to: localhost
+  register: ssl_cert
+
+- name: Check if SSL Key exists
+  stat:
+    path: /runner/certs/quay.key
+  delegate_to: localhost
+  register: ssl_key
+
 - name: Create SSL Certs
   block:
     - name: Create CSR
@@ -30,16 +42,36 @@
 
     - name: Creating self-signed cert
       command: "openssl req -new -nodes -x509 -days 365 -keyout /etc/quay-install/quay-config/ssl.key -out /etc/quay-install/quay-config/ssl.cert -config /etc/quay-install/quay-config/req"
+  when: (ssl_cert.stat.exists == False) and (ssl_key.stat.exists == False)
 
+- name: Copy SSL Certs
+  block:
+    - name: Copy SSL certificate
+      copy:
+        src: /runner/certs/quay.cert
+        dest: /etc/quay-install/quay-config/ssl.cert
+
+    - name: Copy SSL key
+      copy:
+        src: /runner/certs/quay.key
+        dest: /etc/quay-install/quay-config/ssl.key
+  when: (ssl_cert.stat.exists == True) and (ssl_key.stat.exists == True)
+
+- name: Set certificate permissions
+  block:
     - name: Set permissions for key
       ansible.builtin.file:
         path: /etc/quay-install/quay-config/ssl.key
         mode: u=rw,g=r,o=r
+        owner: root
+        group: root
 
     - name: Set permissions for cert
       ansible.builtin.file:
         path: /etc/quay-install/quay-config/ssl.cert
         mode: u=rw,g=r,o=r
+        owner: root
+        group: root
 
 - name: Copy Quay systemd service file
   template:

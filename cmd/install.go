@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -24,6 +25,15 @@ var imageArchivePath string
 
 // sshKey is the optional location of the SSH key you would like to use to connect to your host.
 var sshKey string
+
+// sslCert is the path to the SSL certitificate
+var sslCert string
+
+// sslKey is the path to the SSL key
+var sslKey string
+
+// sslCheckSkip holds whether or not to check the SSL certificate
+var sslCheckSkip bool
 
 // targetHostname is the hostname of the server you wish to install Quay on
 var targetHostname string
@@ -61,6 +71,10 @@ func init() {
 	installCmd.Flags().StringVarP(&targetUsername, "targetUsername", "u", os.Getenv("USER"), "The user on the target host which will be used for SSH. This defaults to $USER")
 	installCmd.Flags().StringVarP(&sshKey, "ssh-key", "k", os.Getenv("HOME")+"/.ssh/quay_installer", "The path of your ssh identity key. This defaults to ~/.ssh/quay_installer")
 
+	installCmd.Flags().StringVarP(&sslCert, "sslCert", "", "", "The path to the SSL certificate Quay should use")
+	installCmd.Flags().StringVarP(&sslKey, "sslKey", "", "", "The path to the SSL key Quay should use")
+	installCmd.Flags().BoolVarP(&sslCheckSkip, "sslCheckSkip", "", false, "Whether or not to check the certificate hostname against the SERVER_HOSTNAME in config.yaml.")
+
 	installCmd.Flags().StringVarP(&initPassword, "initPassword", "", "", "The password of the initial user. If not specified, this will be randomly generated.")
 	installCmd.Flags().StringVarP(&quayHostname, "quayHostname", "", "", "The value to set SERVER_HOSTNAME in the Quay config.yaml. This defaults to <targetHostname>:8443")
 
@@ -81,6 +95,15 @@ func install() {
 
 	// Load execution environment
 	err = loadExecutionEnvironment()
+	check(err)
+
+	// Set quayHostname if not already set
+	if quayHostname == "" {
+		quayHostname = targetHostname + ":8443"
+	}
+
+	// Load the SSL certificate and the key
+	err = loadCerts(sslCert, sslKey, strings.Split(quayHostname, ":")[0], sslCheckSkip)
 	check(err)
 
 	// Check that SSH key is present, and generate if not
@@ -148,6 +171,20 @@ func install() {
 		askBecomePassFlag = "-K"
 	}
 
+	// Set the SSL flag if cert and key are defined
+	var sslCertKeyFlag string
+	if sslCert != "" && sslKey != "" {
+		sslCertAbs, err := filepath.Abs(sslCert)
+		if err != nil {
+			check(errors.New("Unable to get absolute path of " + sslCert))
+		}
+		sslKeyAbs, err := filepath.Abs(sslKey)
+		if err != nil {
+			check(errors.New("Unable to get absolute path of " + sslKey))
+		}
+		sslCertKeyFlag = fmt.Sprintf("-v %s:/runner/certs/quay.cert:Z -v %s:/runner/certs/quay.key:Z", sslCertAbs, sslKeyAbs)
+	}
+
 	// Run playbook
 	log.Printf("Running install playbook. This may take some time. To see playbook output run the installer with -v (verbose) flag.")
 	podmanCmd := fmt.Sprintf(`sudo podman run `+
@@ -155,6 +192,7 @@ func install() {
 		`--workdir /runner/project `+
 		`--net host `+
 		imageArchiveMountFlag+ // optional image archive flag
+		sslCertKeyFlag+ // optional ssl cert/key flag
 		` -v %s:/runner/env/ssh_key `+
 		`-e RUNNER_OMIT_EVENTS=False `+
 		`-e RUNNER_ONLY_FAILED_EVENTS=False `+

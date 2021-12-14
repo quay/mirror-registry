@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"crypto/tls"
+	"crypto/x509"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -71,16 +73,7 @@ func loadSSHKeys() error {
 			log.Info("Found SSH key at " + sshKey)
 		}
 	}
-
-	log.Infof("Attempting to set SELinux rules on SSH key")
-	cmd := exec.Command("chcon", "-Rt", "svirt_sandbox_file_t", sshKey)
-	if verbose {
-		cmd.Stderr = os.Stderr
-		cmd.Stdout = os.Stdout
-	}
-	if err := cmd.Run(); err != nil {
-		log.Warn("Could not set SELinux rule. If your system does not have SELinux enabled, you may ignore this.")
-	}
+	setSELinux(sshKey)
 
 	return nil
 }
@@ -115,6 +108,69 @@ func setupLocalSSH() error {
 	}
 
 	return nil
+}
+
+func loadCerts(certFile, keyFile, hostname string, skipCheck bool) error {
+	if certFile != "" && keyFile != "" {
+		log.Info("Loading SSL certificate file " + certFile)
+		log.Info("Loading SSL key file " + keyFile)
+		if !skipCheck {
+			certKey, err := tls.LoadX509KeyPair(certFile, keyFile)
+			if err != nil {
+				log.Errorf("Failed loading certificate and key file: %s", err.Error())
+				return err
+			}
+
+			cert, err := x509.ParseCertificate(certKey.Certificate[0])
+			if err != nil {
+				log.Errorf("Failed parsing certificate file: %s", err.Error())
+				return err
+			}
+
+			roots := x509.NewCertPool()
+			// Allow self-signed certificate and do not check the issuer
+			roots.AddCert(cert)
+
+			opts := x509.VerifyOptions{
+				DNSName:   hostname,
+				Roots:     roots,
+				KeyUsages: []x509.ExtKeyUsage{x509.ExtKeyUsageAny},
+			}
+
+			_, err = cert.Verify(opts)
+			if err != nil {
+				log.Errorf("Failed verifying certificate: %s", err.Error())
+				return err
+			}
+			log.Info("SSL certificate check succeeded")
+		}
+
+		if pathExists(certFile) {
+			setSELinux(certFile)
+		} else {
+			return errors.New("Certificate file not found: " + certFile)
+		}
+
+		if pathExists(keyFile) {
+			setSELinux(keyFile)
+		} else {
+			return errors.New("Certificate key file not found: " + keyFile)
+		}
+	}
+
+	return nil
+}
+
+func setSELinux(path string) {
+	log.Infof("Attempting to set SELinux rules on " + path)
+	cmd := exec.Command("chcon", "-Rt", "svirt_sandbox_file_t", path)
+	if verbose {
+		cmd.Stderr = os.Stderr
+		cmd.Stdout = os.Stdout
+	}
+	if err := cmd.Run(); err != nil {
+		log.Warn("Could not set SELinux rule. If your system does not have SELinux enabled, you may ignore this.")
+	}
 }
 
 func pathExists(path string) bool {
