@@ -12,7 +12,7 @@ O = Quay
 OU = Division
 CN = {{ quay_hostname.split(":")[0] if (":" in quay_hostname) else quay_hostname }}
 [v3_req]
-keyUsage = keyEncipherment, dataEncipherment
+keyUsage = nonRepudiation, digitalSignature, keyEncipherment
 extendedKeyUsage = serverAuth
 subjectAltName = @alt_names
 [alt_names]
