@@ -4,7 +4,7 @@
 
 - name: Create install directory for image-archive.tar dest
   ansible.builtin.file:
-    path: /etc/quay-install
+    path: "{{ quay_root }}"
     state: directory
     recurse: yes
   when: p.stat.exists
@@ -12,9 +12,9 @@
 - name: Copy Images if /runner/image-archive.tar exists
   copy:
     src: /runner/image-archive.tar
-    dest: /etc/quay-install/image-archive.tar
+    dest: "{{ quay_root }}/image-archive.tar"
   when: p.stat.exists and local_install == "false"
 
 - name: Loading Images if /runner/image-archive.tar exists
-  command: "podman load -i /etc/quay-install/image-archive.tar"
+  command: "podman load -i {{ quay_root }}/image-archive.tar"
   when: p.stat.exists and local_install == "false"

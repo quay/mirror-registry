@@ -30,7 +30,9 @@ The following flags are also available:
 --quayHostname          The value to set SERVER_HOSTNAME in the Quay config.yaml. This defaults to <targetHostname>:8443
 --initPassword          The password of the init user created during Quay installation.
 --sslCert               The path to the SSL certificate Quay should use
+--sslCheckSkip          Whether or not to check the certificate hostname against the SERVER_HOSTNAME in config.yaml.
 --sslKey                The path to the SSL key
+--quayRoot          -r  The folder where quay persistent data are saved. This defaults to /etc/quay-install
 --verbose           -v  Show debug logs and ansible playbook outputs
 ```
 
@@ -55,7 +57,7 @@ This command will make the following changes to your machine
 - generate trusted SSH keys in case the deployment target is the local host (required since the installer is ansible-based)
 - Pulls Quay, Redis, and Postgres containers from quay.io (if using online installer)
 - Sets up systemd files on host machine to ensure that container runtimes are persistent
-- Creates `/etc/quay-install` contains install files, local storage, and config bundle.
+- Creates the folder defined by `--quayRoot` (default: `/etc/quay-install`) contains install files, local storage, and config bundle.
 - Installs Quay and creates an initial user called `init` with an auto-generated password
 - Access credentials are printed at the end of the install routine
 
@@ -91,8 +93,9 @@ To uninstall Quay from a remote host, run the following command:
 $ ./openshift-mirror-registry uninstall -v --targetHostname some.remote.host.com --targetUsername someuser -k ~/.ssh/my_ssh_key
 ```
 
-This command will delete the `/etc/quay-install` directory and disable all systemd services set up by Quay.
+If Quay has been installed with `--quayRoot` the same option needs to be used during the uninstall.
 
+This command will delete the permanent data directory and disable all systemd services set up by Quay.
 
 ## Local DNS resolution
 
@@ -115,13 +118,17 @@ $ ssh-copy-id <targetHostname>
 ```
 ## Compile your own installer
 
-To compile the openshift-mirror-registry.tar.gz for distribution, run the following command:
+To compile the openshift-mirror-registry.tar.gz for distribution you need `ansible-runner` installed.
+
+You can build the installer running the following command:
 
 ```console
 $ git clone https://github.com/quay/openshift-mirror-registry.git
 $ cd openshift-mirror-registry
 $ make build-online-zip # OR make build-offline-zip
 ```
+
+**NOTE:** the build process pulls an image from registry.redhat.io, you may need to run `sudo podman login registry.redhat.io` before starting the build.
 
 This will generate a `openshift-mirror-registry.tar.gz` which contains this README.md, the `openshift-mirror-registry` binary, and the `image-archive.tar` (if using offline installer) which contains the images required to set up Quay.
 

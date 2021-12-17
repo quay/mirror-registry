@@ -1,25 +1,25 @@
 - name: Create necessary directory for Quay local storage
   ansible.builtin.file:
-    path: /etc/quay-install/quay-storage
+    path: "{{ quay_root }}/quay-storage"
     state: directory
     recurse: yes
 
 - name: Create necessary directory for Quay config bundle
   ansible.builtin.file:
-    path: /etc/quay-install/quay-config
+    path: "{{ quay_root }}/quay-config"
     state: directory
     recurse: yes
 
 - name: Set permissions on local storage directory
   ansible.posix.acl:
-    path: /etc/quay-install/quay-storage
+    path: "{{ quay_root }}/quay-storage"
     entry: u:1001:-wx
     state: present
 
 - name: Copy Quay config.yaml file
   template:
     src: ../templates/config.yaml.j2
-    dest: /etc/quay-install/quay-config/config.yaml
+    dest: "{{ quay_root }}/quay-config/config.yaml"
 
 - name: Check if SSL Cert exists
   stat:
@@ -38,10 +38,10 @@
     - name: Create CSR
       template:
         src: ../templates/req.j2
-        dest: /etc/quay-install/quay-config/req
+        dest: "{{ quay_root }}/quay-config/req"
 
     - name: Creating self-signed cert
-      command: "openssl req -new -nodes -x509 -days 365 -keyout /etc/quay-install/quay-config/ssl.key -out /etc/quay-install/quay-config/ssl.cert -config /etc/quay-install/quay-config/req"
+      command: "openssl req -new -nodes -x509 -days 365 -keyout {{ quay_root }}/quay-config/ssl.key -out {{ quay_root }}/quay-config/ssl.cert -config {{ quay_root }}/quay-config/req"
   when: (ssl_cert.stat.exists == False) and (ssl_key.stat.exists == False)
 
 - name: Copy SSL Certs
@@ -49,26 +49,26 @@
     - name: Copy SSL certificate
       copy:
         src: /runner/certs/quay.cert
-        dest: /etc/quay-install/quay-config/ssl.cert
+        dest: "{{ quay_root }}/quay-config/ssl.cert"
 
     - name: Copy SSL key
       copy:
         src: /runner/certs/quay.key
-        dest: /etc/quay-install/quay-config/ssl.key
+        dest: "{{ quay_root }}/quay-config/ssl.key"
   when: (ssl_cert.stat.exists == True) and (ssl_key.stat.exists == True)
 
 - name: Set certificate permissions
   block:
     - name: Set permissions for key
       ansible.builtin.file:
-        path: /etc/quay-install/quay-config/ssl.key
+        path: "{{ quay_root }}/quay-config/ssl.key"
         mode: u=rw,g=r,o=r
         owner: root
         group: root
 
     - name: Set permissions for cert
       ansible.builtin.file:
-        path: /etc/quay-install/quay-config/ssl.cert
+        path: "{{ quay_root }}/quay-config/ssl.cert"
         mode: u=rw,g=r,o=r
         owner: root
         group: root

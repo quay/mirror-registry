@@ -8,7 +8,7 @@
     - name: Delete Install Directory
       file:
         state: absent
-        path: /etc/quay-install/
+        path: "{{ quay_root }}"
 
     - name: Just force systemd to re-execute itself (2.8 and above)
       ansible.builtin.systemd:

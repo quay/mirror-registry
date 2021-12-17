@@ -1,9 +1,10 @@
 include .env
+ANSIBLE-BUILDER := $(shell which ansible-builder)
 
 all:
 
 build-ansible-ee:
-	sudo ansible-builder build --container-runtime podman --file ansible-runner/execution-environment.yml --context ansible-runner/context --tag quay.io/quay/openshift-mirror-registry-ee
+	sudo $(ANSIBLE-BUILDER) build --container-runtime podman --file ansible-runner/execution-environment.yml --context ansible-runner/context --tag quay.io/quay/openshift-mirror-registry-ee
 	sudo podman save \
 	quay.io/quay/openshift-mirror-registry-ee \
 	> execution-environment.tar
