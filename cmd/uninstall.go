@@ -27,7 +27,7 @@ func init() {
 	uninstallCmd.Flags().StringVarP(&targetHostname, "targetHostname", "H", "localhost", "The hostname of the target you wish to install Quay to. This defaults to localhost")
 	uninstallCmd.Flags().StringVarP(&targetUsername, "targetUsername", "u", os.Getenv("USER"), "The user you wish to ssh into your remote with. This defaults to the current username")
 	uninstallCmd.Flags().BoolVarP(&askBecomePass, "askBecomePass", "", false, "Whether or not to ask for sudo password during SSH connection.")
-	uninstallCmd.Flags().StringVarP(&quayRoot, "quayRoot", "r", "", "The folder where quay persistent data are saved. This defaults to /etc/quay-install")
+	uninstallCmd.Flags().StringVarP(&quayRoot, "quayRoot", "r", "/etc/quay-install", "The folder where quay persistent data are saved. This defaults to /etc/quay-install")
 	uninstallCmd.Flags().StringVarP(&additionalArgs, "additionalArgs", "", "", "Additional arguments you would like to append to the ansible-playbook call. Used mostly for development.")
 
 }
@@ -48,11 +48,6 @@ func uninstall() {
 	var askBecomePassFlag string
 	if askBecomePass {
 		askBecomePassFlag = "-K"
-	}
-
-	// Set quayRoot if not already set
-	if quayRoot == "" {
-		quayRoot = "/etc/quay-install"
 	}
 
 	log.Printf("Running uninstall playbook. This may take some time. To see playbook output run the installer with -v (verbose) flag.")

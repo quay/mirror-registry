@@ -83,7 +83,7 @@ func init() {
 
 	installCmd.Flags().StringVarP(&imageArchivePath, "image-archive", "i", "", "An archive containing images")
 	installCmd.Flags().BoolVarP(&askBecomePass, "askBecomePass", "", false, "Whether or not to ask for sudo password during SSH connection.")
-	installCmd.Flags().StringVarP(&quayRoot, "quayRoot", "r", "", "The folder where quay persistent data are saved. This defaults to /etc/quay-install")
+	installCmd.Flags().StringVarP(&quayRoot, "quayRoot", "r", "/etc/quay-install", "The folder where quay persistent data are saved. This defaults to /etc/quay-install")
 	installCmd.Flags().StringVarP(&additionalArgs, "additionalArgs", "", "", "Additional arguments you would like to append to the ansible-playbook call. Used mostly for development.")
 
 }
@@ -167,11 +167,6 @@ func install() {
 	// Add port if not present
 	if !strings.Contains(quayHostname, ":") {
 		quayHostname = quayHostname + ":8443"
-	}
-
-    // Set quayRoot if not already set
-	if quayRoot == "" {
-		quayRoot = "/etc/quay-install"
 	}
 
 	// Set askBecomePass flag if true
