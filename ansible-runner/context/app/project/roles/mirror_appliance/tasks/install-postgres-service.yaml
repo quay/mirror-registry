@@ -15,9 +15,15 @@
     src: ../templates/postgres.service.j2
     dest: /etc/systemd/system/quay-postgres.service
 
+- name: Check if Postgres image is loaded
+  command: podman inspect --type=image {{ postgres_image }}
+  register: pg
+  ignore_errors: yes
+
 - name: Pull Postgres image
   containers.podman.podman_image:
     name: "{{ postgres_image }}"
+  when: pg.rc != 0
 
 - name: Start Postgres service
   systemd:

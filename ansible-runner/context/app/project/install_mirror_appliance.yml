@@ -5,7 +5,7 @@
   tags:
     - quay
   vars:
-    yum_packages:
+    dnf_packages:
       - podman
   roles:
     - mirror_appliance

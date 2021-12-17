@@ -1,2 +1,1 @@
-ansible
-numpy
+ansible==5.0.1
