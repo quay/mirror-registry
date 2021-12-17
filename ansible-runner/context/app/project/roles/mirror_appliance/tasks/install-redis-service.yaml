@@ -3,9 +3,15 @@
     src: ../templates/redis.service.j2
     dest: /etc/systemd/system/quay-redis.service
 
+- name: Check if Redis image is loaded
+  command: podman inspect --type=image {{ redis_image }}
+  register: r
+  ignore_errors: yes
+
 - name: Pull Redis image
   containers.podman.podman_image:
     name: "{{ redis_image }}"
+  when: r.rc != 0
 
 - name: Start Redis service
   systemd:

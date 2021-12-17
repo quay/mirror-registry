@@ -15,13 +15,18 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// These variables are set during compilation time
+// These variables are set at build time via ldflags
+var eeImage string
+var pauseImage string
 var quayImage string
 var redisImage string
 var postgresImage string
 
 // imageArchivePath is the optional location of the OCI image archive containing required install images
 var imageArchivePath string
+
+// executableDir is the optional location of the OCI image archive containing unpacked required install images
+var executableDir string
 
 // sshKey is the optional location of the SSH key you would like to use to connect to your host.
 var sshKey string
@@ -47,7 +52,7 @@ var initPassword string
 // quayHostname is the value to set SERVER_HOSTNAME in the Quay config.yaml
 var quayHostname string
 
-// askBecomePass holds whether or not to ask for sudo password during SSH connection
+// askBecomePass holds whether or not to ask for password during SSH connection
 var askBecomePass bool
 
 // quayRoot is the directory where all the data are stored
@@ -93,6 +98,8 @@ func install() {
 	var err error
 	log.Printf("Install has begun")
 
+	log.Debug("Ansible Execution Environment Image: " + eeImage)
+	log.Debug("Redis Image: " + pauseImage)
 	log.Debug("Quay Image: " + quayImage)
 	log.Debug("Redis Image: " + redisImage)
 	log.Debug("Postgres Image: " + postgresImage)
@@ -133,13 +140,65 @@ func install() {
 		imageArchiveMountFlag = fmt.Sprintf("-v %s:/runner/image-archive.tar", imageArchivePath)
 		log.Info("Found image archive at " + imageArchivePath)
 		if isLocalInstall() {
-			log.Printf("Loading image archive from %s", imageArchivePath)
-			cmd := exec.Command("sudo", "podman", "load", "-i", imageArchivePath)
+			log.Printf("Unpacking image archive from %s", imageArchivePath)
+			cmd := exec.Command("tar", "-xvf", imageArchivePath)
 			if verbose {
 				cmd.Stderr = os.Stderr
 				cmd.Stdout = os.Stdout
 			}
 			err = cmd.Run()
+			check(err)
+
+			// Load Pause image
+			pauseArchivePath := path.Join(path.Dir(executableDir), "pause.tar")
+			log.Printf("Loading pause image archive from %s", pauseArchivePath)
+			statement := getImageMetadata("pause", pauseImage, pauseArchivePath)
+			pauseImport := exec.Command("/bin/bash", "-c", statement)
+			if verbose {
+				pauseImport.Stderr = os.Stderr
+				pauseImport.Stdout = os.Stdout
+			}
+			log.Debug("Importing Pause with command: ", pauseImport)
+			err = pauseImport.Run()
+			check(err)
+
+			// Load Redis image
+			redisArchivePath := path.Join(path.Dir(executableDir), "redis.tar")
+			log.Printf("Loading redis image archive from %s", redisArchivePath)
+			statement = getImageMetadata("redis", redisImage, redisArchivePath)
+			redisImport := exec.Command("/bin/bash", "-c", statement)
+			if verbose {
+				redisImport.Stderr = os.Stderr
+				redisImport.Stdout = os.Stdout
+			}
+			log.Debug("Importing Redis with command: ", redisImport)
+			err = redisImport.Run()
+			check(err)
+
+			// Load Postgres image
+			postgresArchivePath := path.Join(path.Dir(executableDir), "postgres.tar")
+			log.Printf("Loading postgres image archive from %s", postgresArchivePath)
+			statement = getImageMetadata("postgres", postgresImage, postgresArchivePath)
+			postgresImport := exec.Command("/bin/bash", "-c", statement)
+			if verbose {
+				postgresImport.Stderr = os.Stderr
+				postgresImport.Stdout = os.Stdout
+			}
+			log.Debug("Importing Postgres with command: ", postgresImport)
+			err = postgresImport.Run()
+			check(err)
+
+			// Load Quay image
+			quayArchivePath := path.Join(path.Dir(executableDir), "quay.tar")
+			log.Printf("Loading Quay image archive from %s", quayArchivePath)
+			statement = getImageMetadata("quay", quayImage, quayArchivePath)
+			quayImport := exec.Command("/bin/bash", "-c", statement)
+			if verbose {
+				quayImport.Stderr = os.Stderr
+				quayImport.Stdout = os.Stdout
+			}
+			log.Debug("Importing Quay with command: ", quayImport)
+			err = quayImport.Run()
 			check(err)
 		}
 		log.Infof("Attempting to set SELinux rules on image archive")
