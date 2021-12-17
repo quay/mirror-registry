@@ -10,3 +10,6 @@ execution-environment.tar
 quay-aioi
 openshift-mirror-registry*
 local-testing
+ansible-runner/context/Dockerfile
+venv 
+.DS_STORE
