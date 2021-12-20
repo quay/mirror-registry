@@ -4,8 +4,5 @@
   hosts: all
   tags:
     - quay
-  vars:
-    dnf_packages:
-      - podman
   roles:
     - mirror_appliance

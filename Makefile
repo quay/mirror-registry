@@ -17,10 +17,5 @@ build-offline-zip:
 	sudo podman run --name omr-offline-${RELEASE_VERSION} omr-offline:${RELEASE_VERSION}
 	sudo podman cp omr-offline-${RELEASE_VERSION}:/openshift-mirror-registry.tar.gz .
 
-release:
-	git add .
-	git commit -m "release: Release Version ${RELEASE_VERSION}"
-	git push
-
 clean:
 	rm -rf openshift-mirror-registry* image-archive.tar

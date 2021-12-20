@@ -123,6 +123,12 @@ jobs:
       - name: Extract tarfile
         run: tar -xf openshift-mirror-registry.tar.gz
 
+      - name: Install podman
+        run: ssh jonathan@quay 'sudo subscription-manager refresh; sudo yum -y install podman'
+
+      - name: Log into podman for registry.redhat.io
+        run: "sudo podman login -u ${{ secrets.REGISTRY_USERNAME }} -p ${{ secrets.REGISTRY_PASSWORD }} registry.redhat.io"
+
       - name: Install Registry
         run: ./openshift-mirror-registry install -u jonathan -H quay -v --initPassword password -k /home/runner/.ssh/id_rsa
 

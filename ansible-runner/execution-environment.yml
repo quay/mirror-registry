@@ -6,7 +6,6 @@ build_arg_defaults:
 
 dependencies:
   galaxy: requirements.yml
-  python: requirements.txt
 
 additional_build_steps:
   append:
