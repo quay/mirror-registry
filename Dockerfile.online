@@ -17,12 +17,13 @@ WORKDIR /cli
 
 # Create CLI
 ENV EE_IMAGE=quay.io/quay/openshift-mirror-registry-ee:latest
-ENV QUAY_IMAGE=quay.io/projectquay/quay
-ENV REDIS_IMAGE=docker.io/centos/redis-5-centos8
-ENV POSTGRES_IMAGE=docker.io/centos/postgresql-10-centos8
+ENV QUAY_IMAGE=registry.redhat.io/quay/quay-rhel8:v3.6.1
+ENV REDIS_IMAGE=registry.redhat.io/rhel8/redis-6:1-25
+ENV POSTGRES_IMAGE=registry.redhat.io/rhel8/postgresql-10:1-161
+ENV PAUSE_IMAGE=registry.access.redhat.com/ubi8/pause:latest
 
 RUN go build -v \
-    -ldflags "-X github.com/quay/openshift-mirror-registry/cmd.eeImage=${EE_IMAGE} -X github.com/quay/openshift-mirror-registry/cmd.quayImage=${QUAY_IMAGE} -X github.com/quay/openshift-mirror-registry/cmd.redisImage=${REDIS_IMAGE} -X github.com/quay/openshift-mirror-registry/cmd.postgresImage=${POSTGRES_IMAGE}" \
+    -ldflags "-X github.com/quay/openshift-mirror-registry/cmd.eeImage=${EE_IMAGE} -X github.com/quay/openshift-mirror-registry/cmd.pauseImage=${PAUSE_IMAGE} -X github.com/quay/openshift-mirror-registry/cmd.quayImage=${QUAY_IMAGE} -X github.com/quay/openshift-mirror-registry/cmd.redisImage=${REDIS_IMAGE} -X github.com/quay/openshift-mirror-registry/cmd.postgresImage=${POSTGRES_IMAGE}" \
     -o openshift-mirror-registry
 
 # Create Ansible Execution Environment
@@ -40,8 +41,7 @@ FROM $EE_BUILDER_IMAGE as builder
 
 COPY --from=galaxy /usr/share/ansible /usr/share/ansible
 
-ADD ansible-runner/context/_build/requirements.txt requirements.txt
-RUN ansible-builder introspect --sanitize --user-pip=requirements.txt --write-bindep=/tmp/src/bindep.txt --write-pip=/tmp/src/requirements.txt
+RUN ansible-builder introspect --sanitize --write-bindep=/tmp/src/bindep.txt --write-pip=/tmp/src/requirements.txt
 RUN assemble
 
 FROM $EE_BASE_IMAGE as ansible
