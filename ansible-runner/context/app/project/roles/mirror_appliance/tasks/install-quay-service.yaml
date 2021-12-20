@@ -87,6 +87,8 @@
   containers.podman.podman_image:
     name: "{{ quay_image }}"
   when: q.rc != 0
+  retries: 5
+  delay: 5
 
 - name: Start Quay service
   systemd:

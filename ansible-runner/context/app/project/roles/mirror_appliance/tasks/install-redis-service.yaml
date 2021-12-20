@@ -12,6 +12,8 @@
   containers.podman.podman_image:
     name: "{{ redis_image }}"
   when: r.rc != 0
+  retries: 5
+  delay: 5
 
 - name: Start Redis service
   systemd:
