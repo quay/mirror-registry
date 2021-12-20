@@ -142,7 +142,7 @@ jobs:
         run: ssh jonathan@quay 'sudo subscription-manager refresh; sudo yum -y install podman'
 
       - name: Log into podman for registry.redhat.io
-        run: "sudo podman login -u ${{ secrets.REGISTRY_USERNAME }} -p ${{ secrets.REGISTRY_PASSWORD }} registry.redhat.io"
+        run: ssh jonathan@quay "sudo podman login -u ${{ secrets.REGISTRY_USERNAME }} -p ${{ secrets.REGISTRY_PASSWORD }} registry.redhat.io"
         if: matrix.installer-type == 'online'
 
       - name: Install Registry
@@ -238,7 +238,7 @@ jobs:
         run: ssh jonathan@quay 'sudo subscription-manager refresh; sudo yum -y install podman'
 
       - name: Log into podman for registry.redhat.io
-        run: "sudo podman login -u ${{ secrets.REGISTRY_USERNAME }} -p ${{ secrets.REGISTRY_PASSWORD }} registry.redhat.io"
+        run: ssh jonathan@quay "sudo podman login -u ${{ secrets.REGISTRY_USERNAME }} -p ${{ secrets.REGISTRY_PASSWORD }} registry.redhat.io"
         if: matrix.installer-type == 'online'
 
       - name: Disable outbound network traffic
