@@ -24,6 +24,8 @@
   containers.podman.podman_image:
     name: "{{ postgres_image }}"
   when: pg.rc != 0
+  retries: 5
+  delay: 5
 
 - name: Start Postgres service
   systemd:
