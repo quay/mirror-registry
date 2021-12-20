@@ -1,29 +1,41 @@
 name: "Terraform"
 
 on:
-  push:
-    branches:
-      - master
-      - omr-*
   pull_request_target:
     types: [labeled]
     branches:
       - master
       - omr-*
+  # Allows us to run release manually from the Actions tab
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release'     
+        required: true
+
+concurrency: 
+  group: limit-to-one
 
 jobs:
   build-install-zip:
     name: "Build Installer"
     runs-on: ubuntu-latest
-    if: contains(github.event.pull_request.labels.*.name, 'ok-to-test')
+    if: contains(github.event.pull_request.labels.*.name, 'ok-to-test')  || github.event.inputs.version
     strategy:
       matrix:
         installer-type: ["online", "offline"]
     steps:
-      - name: Checkout
+      # Checkout source branch for testing
+      - name: Checkout PR
         uses: actions/checkout@v2
+        if: contains(github.event.pull_request.labels.*.name, 'ok-to-test')
         with:
           ref: ${{ github.event.pull_request.head.sha }}
+
+      # Checkout target branch for release build
+      - name: Checkout 
+        uses: actions/checkout@v2
+        if: github.event.inputs.version
 
       - name: Set up Go 1.x
         uses: actions/setup-go@v2
@@ -59,6 +71,7 @@ jobs:
     name: "Remote Install"
     needs: ["build-install-zip"]
     runs-on: ubuntu-latest
+    if: contains(github.event.pull_request.labels.*.name, 'ok-to-test') # Skip on release
     strategy:
       fail-fast: false
       matrix:
@@ -132,6 +145,7 @@ jobs:
     name: "Local Install"
     needs: ["build-install-zip"]
     runs-on: ubuntu-latest
+    if: contains(github.event.pull_request.labels.*.name, 'ok-to-test') # Skip on release
     strategy:
       fail-fast: false
       matrix:
@@ -225,9 +239,9 @@ jobs:
 
   publish-release:
     name: "Publish Release"
-    needs: ["build-install-zip", "test-remote-install", "test-local-install"]
+    needs: ["build-install-zip"]
     runs-on: ubuntu-latest
-    if: startsWith(github.event.head_commit.message, 'release:')
+    if: github.event.inputs.version 
     steps:
       - name: Checkout
         uses: actions/checkout@v2
@@ -246,18 +260,12 @@ jobs:
       - name: Rename online tarfile
         run: mv openshift-mirror-registry.tar.gz openshift-mirror-registry-online.tar.gz
 
-      - name: Get release version
-        uses: jungwinter/split@v1
-        id: version
-        with:
-          msg: ${{ github.event.head_commit.message }}
-
       - uses: ncipollo/release-action@v1
         with:
           artifacts: "*.tar.gz,README.md"
           allowUpdates: true
           prerelease: true
           commit: master
-          name: ${{ steps.version.outputs._3 }}
-          tag: ${{ steps.version.outputs._3 }}
+          name: ${{ github.event.inputs.version }}
+          tag: ${{ github.event.inputs.version }}
           token: ${{ secrets.GITHUB_TOKEN }}
