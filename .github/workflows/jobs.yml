@@ -105,6 +105,21 @@ jobs:
         env:
           SSH_KEY: ${{ secrets.TF_VAR_SSH_PRIVATE_KEY }}
 
+      - name: Write SSH Key
+        run: |
+          mkdir -p ~/.ssh/
+          echo "$SSH_KEY" > ~/.ssh/staging.key
+          chmod 600 ~/.ssh/staging.key
+          cat >>~/.ssh/config <<END
+          Host quay
+            HostName quay
+            User jonathan
+            IdentityFile ~/.ssh/staging.key
+            StrictHostKeyChecking no
+          END
+        env:
+          SSH_KEY: ${{ secrets.TF_VAR_SSH_PRIVATE_KEY }}
+
       - name: Initialize VM
         uses: ./.github/actions/setup-terraform
         with:
@@ -128,6 +143,7 @@ jobs:
 
       - name: Log into podman for registry.redhat.io
         run: "sudo podman login -u ${{ secrets.REGISTRY_USERNAME }} -p ${{ secrets.REGISTRY_PASSWORD }} registry.redhat.io"
+        if: matrix.installer-type == 'online'
 
       - name: Install Registry
         run: ./openshift-mirror-registry install -u jonathan -H quay -v --initPassword password -k /home/runner/.ssh/id_rsa
@@ -220,6 +236,10 @@ jobs:
 
       - name: Install podman
         run: ssh jonathan@quay 'sudo subscription-manager refresh; sudo yum -y install podman'
+
+      - name: Log into podman for registry.redhat.io
+        run: "sudo podman login -u ${{ secrets.REGISTRY_USERNAME }} -p ${{ secrets.REGISTRY_PASSWORD }} registry.redhat.io"
+        if: matrix.installer-type == 'online'
 
       - name: Disable outbound network traffic
         run: ssh jonathan@quay 'sudo firewall-cmd --direct --add-rule ipv4 filter OUTPUT 0 -m state --state ESTABLISHED,RELATED -j ACCEPT; sudo firewall-cmd --direct --add-rule ipv4 filter OUTPUT 1 -p tcp -m tcp --dport=22 -j ACCEPT; sudo firewall-cmd --direct --add-rule ipv4 filter OUTPUT 1 -p tcp -m tcp --dport=8443 -j ACCEPT; sudo firewall-cmd --direct --add-rule ipv4 filter OUTPUT 2 -j DROP'
