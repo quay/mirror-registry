@@ -245,7 +245,7 @@ func install() {
 		if err != nil {
 			check(errors.New("Unable to get absolute path of " + sslKey))
 		}
-		sslCertKeyFlag = fmt.Sprintf("-v %s:/runner/certs/quay.cert:Z -v %s:/runner/certs/quay.key:Z", sslCertAbs, sslKeyAbs)
+		sslCertKeyFlag = fmt.Sprintf(" -v %s:/runner/certs/quay.cert:Z -v %s:/runner/certs/quay.key:Z", sslCertAbs, sslKeyAbs)
 	}
 
 	// Run playbook
