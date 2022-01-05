@@ -155,7 +155,7 @@ jobs:
           pull-secret: ${{ secrets.PULL_SECRET }}
 
       - name: Uninstall Registry
-        run: ./openshift-mirror-registry uninstall -u jonathan -H quay -v -k /home/runner/.ssh/id_rsa
+        run: ./openshift-mirror-registry uninstall -u jonathan -H quay --autoApprove -v -k /home/runner/.ssh/id_rsa
 
       - name: Terraform Destroy
         run: terraform destroy --auto-approve
@@ -255,7 +255,7 @@ jobs:
           pull-secret: ${{ secrets.PULL_SECRET }}
 
       - name: Uninstall Quay
-        run: ssh jonathan@quay './openshift-mirror-registry uninstall -v'
+        run: ssh jonathan@quay './openshift-mirror-registry uninstall --autoApprove -v'
 
       - name: Terraform Destroy
         run: terraform destroy --auto-approve

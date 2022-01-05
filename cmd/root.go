@@ -178,10 +178,7 @@ func setSELinux(path string) {
 
 func pathExists(path string) bool {
 	_, err := os.Stat(path)
-	if !os.IsNotExist(err) {
-		return true
-	}
-	return false
+	return !os.IsNotExist(err)
 }
 
 func check(err error) {

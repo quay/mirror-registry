@@ -9,6 +9,7 @@
       file:
         state: absent
         path: "{{ quay_root }}"
+      when: auto_approve|bool == true
 
     - name: Just force systemd to re-execute itself (2.8 and above)
       ansible.builtin.systemd:
