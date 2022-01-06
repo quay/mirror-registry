@@ -9,6 +9,9 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// autoApprove controls whether or not to prompt user
+var autoApprove bool
+
 // uninstallCmd represents the uninstall command
 var uninstallCmd = &cobra.Command{
 	Use:   "uninstall",
@@ -29,13 +32,22 @@ func init() {
 	uninstallCmd.Flags().BoolVarP(&askBecomePass, "askBecomePass", "", false, "Whether or not to ask for sudo password during SSH connection.")
 	uninstallCmd.Flags().StringVarP(&quayRoot, "quayRoot", "r", "/etc/quay-install", "The folder where quay persistent data are saved. This defaults to /etc/quay-install")
 	uninstallCmd.Flags().StringVarP(&additionalArgs, "additionalArgs", "", "", "Additional arguments you would like to append to the ansible-playbook call. Used mostly for development.")
-
+	uninstallCmd.Flags().BoolVarP(&autoApprove, "autoApprove", "", false, "Skips interactive approval")
 }
 
 func uninstall() {
 
 	var err error
 	log.Printf("Uninstall has begun")
+
+	if !autoApprove {
+		question := fmt.Sprintf("Are you sure want to delete quayRoot directory %s? [y/n]", quayRoot)
+		fmt.Println(question)
+		autoApprove = getApproval(question)
+		if !autoApprove {
+			log.Info("Skipping deletion of quayRoot.")
+		}
+	}
 
 	// Load execution environment
 	err = loadExecutionEnvironment()
@@ -63,8 +75,8 @@ func uninstall() {
 		`--quiet `+
 		`--name ansible_runner_instance `+
 		`quay.io/quay/openshift-mirror-registry-ee `+
-		`ansible-playbook -i %s@%s, --private-key /runner/env/ssh_key uninstall_mirror_appliance.yml -e "quay_root=%s" %s %s`,
-		sshKey, targetUsername, strings.Split(targetHostname, ":")[0], quayRoot, askBecomePassFlag, additionalArgs)
+		`ansible-playbook -i %s@%s, --private-key /runner/env/ssh_key uninstall_mirror_appliance.yml -e "quay_root=%s auto_approve=%t" %s %s`,
+		sshKey, targetUsername, strings.Split(targetHostname, ":")[0], quayRoot, autoApprove, askBecomePassFlag, additionalArgs)
 
 	log.Debug("Running command: " + podmanCmd)
 	cmd := exec.Command("bash", "-c", podmanCmd)

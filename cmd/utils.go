@@ -1,5 +1,10 @@
 package cmd
 
+import (
+	"fmt"
+	"strings"
+)
+
 // getImageMetadata provides the metadata needed for a corresponding image
 func getImageMetadata(app, imageName, archivePath string) string {
 	var statement string
@@ -88,4 +93,23 @@ func getImageMetadata(app, imageName, archivePath string) string {
 	}
 
 	return statement
+}
+
+// checkInput validates user input against available options
+func getApproval(question string) bool {
+	var response string
+	_, err := fmt.Scanln(&response)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	switch strings.ToLower(response) {
+	case "y":
+		return true
+	case "n":
+		return false
+	default:
+		fmt.Println("Invalid input.", question)
+		return getApproval(question)
+	}
 }

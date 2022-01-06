@@ -275,6 +275,6 @@ func install() {
 	err = cmd.Run()
 	check(err)
 
-	log.Printf("Quay installed successfully, permament data are stored in %s", quayRoot)
+	log.Printf("Quay installed successfully, permanent data are stored in %s", quayRoot)
 	log.Printf("Quay is available at %s with credentials (init, %s)", "https://"+quayHostname, initPassword)
 }
