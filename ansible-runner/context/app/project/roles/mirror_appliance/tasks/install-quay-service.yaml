@@ -35,13 +35,31 @@
 
 - name: Create SSL Certs
   block:
-    - name: Create CSR
+    - name: Create necessary directory for Quay rootCA files
+      ansible.builtin.file:
+        path: "{{ quay_root }}/quay-rootCA"
+        state: directory
+        recurse: yes
+        
+    - name: Create OpenSSL Config
       template:
         src: ../templates/req.j2
-        dest: "{{ quay_root }}/quay-config/req"
+        dest: "{{ quay_root }}/quay-config/openssl.cnf"
 
-    - name: Creating self-signed cert
-      command: "openssl req -new -nodes -x509 -days 365 -keyout {{ quay_root }}/quay-config/ssl.key -out {{ quay_root }}/quay-config/ssl.cert -config {{ quay_root }}/quay-config/req"
+    - name: Create root CA key
+      command: "openssl genrsa -out {{ quay_root }}/quay-rootCA/rootCA.key 2048"
+
+    - name: Create root CA pem
+      command: "openssl req -x509 -new -config {{ quay_root }}/quay-config/openssl.cnf -nodes -key {{ quay_root }}/quay-rootCA/rootCA.key -sha256 -days 1024 -out {{ quay_root }}/quay-rootCA/rootCA.pem"
+
+    - name: Create ssl key
+      command: "openssl genrsa -out {{ quay_root }}/quay-config/ssl.key 2048"
+
+    - name: Create CSR
+      command: "openssl req -new -key {{ quay_root }}/quay-config/ssl.key -out {{ quay_root }}/quay-config/ssl.csr -subj \"/CN=quay-enterprise\" -config {{ quay_root }}/quay-config/openssl.cnf"
+
+    - name: Create self-signed cert
+      command: "openssl x509 -req -in {{ quay_root }}/quay-config/ssl.csr -CA {{ quay_root }}/quay-rootCA/rootCA.pem -CAkey {{ quay_root }}/quay-rootCA/rootCA.key -CAcreateserial -out {{ quay_root }}/quay-config/ssl.cert -days 356 -extensions v3_req -extfile {{ quay_root }}/quay-config/openssl.cnf"
   when: (ssl_cert.stat.exists == False) and (ssl_key.stat.exists == False)
 
 - name: Copy SSL Certs
