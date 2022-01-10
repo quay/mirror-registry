@@ -50,7 +50,7 @@
       command: "openssl genrsa -out {{ quay_root }}/quay-rootCA/rootCA.key 2048"
 
     - name: Create root CA pem
-      command: "openssl req -x509 -new -config {{ quay_root }}/quay-config/openssl.cnf -nodes -key {{ quay_root }}/quay-rootCA/rootCA.key -sha256 -days 1024 -out {{ quay_root }}/quay-rootCA/rootCA.pem"
+      command: "openssl req -x509 -new -config {{ quay_root }}/quay-config/openssl.cnf -nodes -key {{ quay_root }}/quay-rootCA/rootCA.key -sha256 -days 1024 -out {{ quay_root }}/quay-rootCA/rootCA.pem -addext basicConstraints=critical,CA:TRUE,pathlen:1"
 
     - name: Create ssl key
       command: "openssl genrsa -out {{ quay_root }}/quay-config/ssl.key 2048"
@@ -60,6 +60,12 @@
 
     - name: Create self-signed cert
       command: "openssl x509 -req -in {{ quay_root }}/quay-config/ssl.csr -CA {{ quay_root }}/quay-rootCA/rootCA.pem -CAkey {{ quay_root }}/quay-rootCA/rootCA.key -CAcreateserial -out {{ quay_root }}/quay-config/ssl.cert -days 356 -extensions v3_req -extfile {{ quay_root }}/quay-config/openssl.cnf"
+
+    - name: Create chain cert
+      ansible.builtin.shell: cat {{ quay_root }}/quay-config/ssl.cert {{ quay_root }}/quay-rootCA/rootCA.pem > {{ quay_root }}/quay-config/chain.cert
+
+    - name: Replace ssl cert with chain cert
+      command: mv --force {{ quay_root }}/quay-config/chain.cert {{ quay_root }}/quay-config/ssl.cert
   when: (ssl_cert.stat.exists == False) and (ssl_key.stat.exists == False)
 
 - name: Copy SSL Certs
