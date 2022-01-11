@@ -1,11 +1,11 @@
-name: "Terraform"
+name: "Release"
 
 on:
   pull_request_target:
     types: [labeled]
     branches:
-      - master
-      - omr-*
+      - main
+      - mirror-registry-*
   # Allows us to run release manually from the Actions tab
   workflow_dispatch:
     inputs:
