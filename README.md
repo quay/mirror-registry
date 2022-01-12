@@ -1,5 +1,6 @@
 # Mirror Registry
 
+
 This application will allow user to easily install Quay and its required components using a simple CLI tool. The purpose is to provide a registry to hold a mirror of OpenShift images.
 
 ## Pre-Requisites
