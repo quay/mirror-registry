@@ -197,7 +197,7 @@ func init() {
 
 var (
 	rootCmd = &cobra.Command{
-		Use: "openshift-mirror-registry",
+		Use: "mirror-registry",
 		PersistentPreRun: func(cmd *cobra.Command, args []string) {
 			if verbose {
 				log.SetLevel(logrus.DebugLevel)

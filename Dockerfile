@@ -16,15 +16,15 @@ COPY . /cli
 WORKDIR /cli
 
 # Create CLI
-ENV EE_IMAGE=quay.io/quay/openshift-mirror-registry-ee:latest
+ENV EE_IMAGE=quay.io/quay/mirror-registry-ee:latest
 ENV QUAY_IMAGE=registry.redhat.io/quay/quay-rhel8:v3.6.1
 ENV REDIS_IMAGE=registry.redhat.io/rhel8/redis-6:1-25
 ENV POSTGRES_IMAGE=registry.redhat.io/rhel8/postgresql-10:1-161
 ENV PAUSE_IMAGE=registry.access.redhat.com/ubi8/pause:latest
 
 RUN go build -v \
-	-ldflags "-X github.com/quay/openshift-mirror-registry/cmd.eeImage=${EE_IMAGE} -X github.com/quay/openshift-mirror-registry/cmd.pauseImage=${PAUSE_IMAGE} -X github.com/quay/openshift-mirror-registry/cmd.quayImage=${QUAY_IMAGE} -X github.com/quay/openshift-mirror-registry/cmd.redisImage=${REDIS_IMAGE} -X github.com/quay/openshift-mirror-registry/cmd.postgresImage=${POSTGRES_IMAGE}" \
-	-o openshift-mirror-registry
+	-ldflags "-X github.com/quay/mirror-registry/cmd.eeImage=${EE_IMAGE} -X github.com/quay/mirror-registry/cmd.pauseImage=${PAUSE_IMAGE} -X github.com/quay/mirror-registry/cmd.quayImage=${QUAY_IMAGE} -X github.com/quay/mirror-registry/cmd.redisImage=${REDIS_IMAGE} -X github.com/quay/mirror-registry/cmd.postgresImage=${POSTGRES_IMAGE}" \
+	-o mirror-registry
 
 # Create Ansible Execution Environment
 FROM $EE_BASE_IMAGE as galaxy
@@ -59,7 +59,7 @@ FROM registry.redhat.io/rhel8/redis-6:1-25 as redis
 FROM registry.redhat.io/rhel8/postgresql-10:1-161 as postgres
 FROM registry.access.redhat.com/ubi8/pause:latest as pause
 
-# Create OMR archive
+# Create mirror registry archive
 FROM registry.redhat.io/ubi8:latest AS build
 
 # Import and archive image dependencies
@@ -78,14 +78,14 @@ RUN tar -cvf postgres.tar -C /postgres .
 COPY --from=quay / /quay
 RUN tar -cvf quay.tar -C /quay .
 
-COPY --from=cli /cli/openshift-mirror-registry .
+COPY --from=cli /cli/mirror-registry .
 
 # Bundle quay, redis, postgres, and pause into a single archive
 RUN tar -cvf image-archive.tar quay.tar redis.tar postgres.tar pause.tar
 
-# Bundle OMR archive
-RUN tar -czvf openshift-mirror-registry.tar.gz image-archive.tar execution-environment.tar openshift-mirror-registry
+# Bundle mirror registry archive
+RUN tar -czvf mirror-registry.tar.gz image-archive.tar execution-environment.tar mirror-registry
 
 # Extract bundle to final release image
 FROM registry.redhat.io/ubi8:latest AS release
-COPY --from=build openshift-mirror-registry.tar.gz openshift-mirror-registry.tar.gz
+COPY --from=build mirror-registry.tar.gz mirror-registry.tar.gz

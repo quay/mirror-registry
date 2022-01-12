@@ -263,7 +263,7 @@ func install() {
 		`-e ANSIBLE_CONFIG=/runner/project/ansible.cfg `+
 		`--quiet `+
 		`--name ansible_runner_instance `+
-		`quay.io/quay/openshift-mirror-registry-ee `+
+		fmt.Sprintf("%s ", eeImage)+
 		`ansible-playbook -i %s@%s, --private-key /runner/env/ssh_key -e "init_password=%s quay_image=%s redis_image=%s postgres_image=%s quay_hostname=%s local_install=%s quay_root=%s" install_mirror_appliance.yml %s %s`,
 		sshKey, targetUsername, targetHostname, initPassword, quayImage, redisImage, postgresImage, quayHostname, strconv.FormatBool(isLocalInstall()), quayRoot, askBecomePassFlag, additionalArgs)
 

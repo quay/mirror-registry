@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/quay/openshift-mirror-registry/cmd"
+	"github.com/quay/mirror-registry/cmd"
 )
 
 func main() {

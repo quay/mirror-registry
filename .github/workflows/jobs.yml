@@ -63,8 +63,8 @@ jobs:
       - name: Upload tarfile
         uses: actions/upload-artifact@v2
         with:
-          name: openshift-mirror-registry-${{ matrix.installer-type }}-installer
-          path: openshift-mirror-registry.tar.gz
+          name: mirror-registry-${{ matrix.installer-type }}-installer
+          path: mirror-registry.tar.gz
           retention-days: 1
 
   test-remote-install:
@@ -133,10 +133,10 @@ jobs:
       - name: Download tarfile
         uses: actions/download-artifact@v2
         with:
-          name: openshift-mirror-registry-${{ matrix.installer-type }}-installer
+          name: mirror-registry-${{ matrix.installer-type }}-installer
 
       - name: Extract tarfile
-        run: tar -xf openshift-mirror-registry.tar.gz
+        run: tar -xf mirror-registry.tar.gz
 
       - name: Install podman
         run: ssh jonathan@quay 'sudo subscription-manager refresh; sudo yum -y install podman'
@@ -146,7 +146,7 @@ jobs:
         if: matrix.installer-type == 'online'
 
       - name: Install Registry
-        run: ./openshift-mirror-registry install -u jonathan -H quay -v --initPassword password -k /home/runner/.ssh/id_rsa
+        run: ./mirror-registry install -u jonathan -H quay -v --initPassword password -k /home/runner/.ssh/id_rsa
 
       - name: Mirror Images
         uses: ./.github/actions/mirror
@@ -155,7 +155,7 @@ jobs:
           pull-secret: ${{ secrets.PULL_SECRET }}
 
       - name: Uninstall Registry
-        run: ./openshift-mirror-registry uninstall -u jonathan -H quay --autoApprove -v -k /home/runner/.ssh/id_rsa
+        run: ./mirror-registry uninstall -u jonathan -H quay --autoApprove -v -k /home/runner/.ssh/id_rsa
 
       - name: Terraform Destroy
         run: terraform destroy --auto-approve
@@ -229,10 +229,10 @@ jobs:
       - name: Download tarfile
         uses: actions/download-artifact@v2
         with:
-          name: openshift-mirror-registry-${{ matrix.installer-type }}-installer
+          name: mirror-registry-${{ matrix.installer-type }}-installer
 
       - name: SCP tarball to VM
-        run: scp openshift-mirror-registry.tar.gz jonathan@quay:~/openshift-mirror-registry.tar.gz
+        run: scp mirror-registry.tar.gz jonathan@quay:~/mirror-registry.tar.gz
 
       - name: Install podman
         run: ssh jonathan@quay 'sudo subscription-manager refresh; sudo yum -y install podman'
@@ -246,7 +246,7 @@ jobs:
         if: matrix.installer-type == 'offline'
 
       - name: Install Registry
-        run: ssh jonathan@quay 'tar -xf openshift-mirror-registry.tar.gz; ./openshift-mirror-registry install -v --quayHostname quay:8443 --initPassword password'
+        run: ssh jonathan@quay 'tar -xf mirror-registry.tar.gz; ./mirror-registry install -v --quayHostname quay:8443 --initPassword password'
 
       - name: Mirror Images
         uses: ./.github/actions/mirror
@@ -255,7 +255,7 @@ jobs:
           pull-secret: ${{ secrets.PULL_SECRET }}
 
       - name: Uninstall Quay
-        run: ssh jonathan@quay './openshift-mirror-registry uninstall --autoApprove -v'
+        run: ssh jonathan@quay './mirror-registry uninstall --autoApprove -v'
 
       - name: Terraform Destroy
         run: terraform destroy --auto-approve
@@ -275,16 +275,16 @@ jobs:
       - name: Download offline tarfile
         uses: actions/download-artifact@v2
         with:
-          name: openshift-mirror-registry-offline-installer
+          name: mirror-registry-offline-installer
       - name: Rename offline tarfile
-        run: mv openshift-mirror-registry.tar.gz openshift-mirror-registry-offline.tar.gz
+        run: mv mirror-registry.tar.gz mirror-registry-offline.tar.gz
 
       - name: Download online tarfile
         uses: actions/download-artifact@v2
         with:
-          name: openshift-mirror-registry-online-installer
+          name: mirror-registry-online-installer
       - name: Rename online tarfile
-        run: mv openshift-mirror-registry.tar.gz openshift-mirror-registry-online.tar.gz
+        run: mv mirror-registry.tar.gz mirror-registry-online.tar.gz
 
       - uses: ncipollo/release-action@v1
         with:

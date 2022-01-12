@@ -1,4 +1,4 @@
-module github.com/quay/openshift-mirror-registry
+module github.com/quay/mirror-registry
 
 go 1.16
 
