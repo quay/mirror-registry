@@ -1,4 +1,4 @@
-# OpenShift Mirror Registry
+# Mirror Registry
 
 This application will allow user to easily install Quay and its required components using a simple CLI tool. The purpose is to provide a registry to hold a mirror of OpenShift images.
 
@@ -12,7 +12,7 @@ This application will allow user to easily install Quay and its required compone
 
 ## Installation
 
-Download one of the installer package from our [releases](https://github.com/quay/openshift-mirror-registry/releases) page:
+Download one of the installer package from our [releases](https://github.com/quay/mirror-registry/releases) page:
 
 - offline version (contains all required images to run Quay)
 - online version (additional container images to run Quay and Postgres will be downloaded by the installer)
@@ -22,7 +22,7 @@ Download one of the installer package from our [releases](https://github.com/qua
 To install Quay on your local host with your current user account, run the following command:
 
 ```console
-$ ./openshift-mirror-registry install
+$ ./mirror-registry install
 ```
 The following flags are also available:
 
@@ -51,7 +51,7 @@ You can provide your ssh private key to the installer CLI with the `--ssh-key` f
 To install Quay on a remote host, run the following command:
 
 ```console
-$ ./openshift-mirror-registry install -v --targetHostname some.remote.host.com --targetUsername someuser -k ~/.ssh/my_ssh_key --quayHostname some.remote.host.com
+$ ./mirror-registry install -v --targetHostname some.remote.host.com --targetUsername someuser -k ~/.ssh/my_ssh_key --quayHostname some.remote.host.com
 ```
 
 Behind the scenes, Ansible is using `ssh -i ~/.ssh/my_ssh_key someuser@some.remote.host.com` as the target to run its playbooks.
@@ -90,13 +90,13 @@ $ podman pull quay:8443/init/busybox:latest --tls-verify=false
 To uninstall Quay from localhost, run the following command:
 
 ```console
-$ sudo ./openshift-mirror-registry uninstall -v
+$ sudo ./mirror-registry uninstall -v
 ```
 
 To uninstall Quay from a remote host, run the following command:
 
 ```console
-$ ./openshift-mirror-registry uninstall -v --targetHostname some.remote.host.com --targetUsername someuser -k ~/.ssh/my_ssh_key
+$ ./mirror-registry uninstall -v --targetHostname some.remote.host.com --targetUsername someuser -k ~/.ssh/my_ssh_key
 ```
 
 **Note**: If Quay has been installed with `--quayRoot` the same option needs to be specified at uninstall.
@@ -124,25 +124,25 @@ $ ssh-copy-id <targetHostname>
 ```
 ## Compile your own installer
 
-To compile the `openshift-mirror-registry.tar.gz` for distribution you need only `podman` and `make` installed.
+To compile the `mirror-registry.tar.gz` for distribution you need only `podman` and `make` installed.
 
 **NOTE:** The build process pulls images from registry.redhat.io, you may need to run `sudo podman login registry.redhat.io` before starting the build.
 
 You can build the installer running the following command:
 
 ```console
-$ git clone https://github.com/quay/openshift-mirror-registry.git
-$ cd openshift-mirror-registry
+$ git clone https://github.com/quay/mirror-registry.git
+$ cd mirror-registry
 $ make build-online-zip # OR make build-offline-zip
 ```
 
-This will generate a `openshift-mirror-registry.tar.gz` which contains the `openshift-mirror-registry` binary, the `image-archive.tar` and the `execution-environment.tar` (if using offline installer). These archives contain all images required to set up Quay.
+This will generate a `mirror-registry.tar.gz` which contains the `mirror-registry` binary, the `image-archive.tar` and the `execution-environment.tar` (if using offline installer). These archives contain all images required to set up Quay.
 
 Once generated, you may untar this file on your desired host machine for installation. You may use the following command:
 
 ```console
-mkdir openshift-mirror-registry
-tar -xzvf openshift-mirror-registry.tar.gz -C openshift-mirror-registry
+mkdir mirror-registry
+tar -xzvf mirror-registry.tar.gz -C mirror-registry
 ```
 
 **NOTE** This command may take some time to complete depending on host resources. 

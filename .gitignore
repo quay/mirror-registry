@@ -8,7 +8,7 @@ ansible/context
 image-archive.tar
 execution-environment.tar
 quay-aioi
-openshift-mirror-registry*
+mirror-registry*
 local-testing
 ansible-runner/context/Dockerfile
 venv 
