@@ -12,6 +12,9 @@ on:
       version:
         description: 'Version to release'     
         required: true
+      commit:
+        description: 'Commit to release'     
+        required: true
 
 concurrency: 
   group: limit-to-one
@@ -267,7 +270,7 @@ jobs:
     name: "Publish Release"
     needs: ["build-install-zip"]
     runs-on: ubuntu-latest
-    if: github.event.inputs.version 
+    if: github.event.inputs.version && github.event.inputs.commit
     steps:
       - name: Checkout
         uses: actions/checkout@v2
@@ -291,7 +294,7 @@ jobs:
           artifacts: "*.tar.gz,README.md"
           allowUpdates: true
           prerelease: true
-          commit: master
+          commit: ${{ github.event.inputs.commit }}
           name: ${{ github.event.inputs.version }}
           tag: ${{ github.event.inputs.version }}
           token: ${{ secrets.GITHUB_TOKEN }}
