@@ -58,6 +58,9 @@ var askBecomePass bool
 // quayRoot is the directory where all the data are stored
 var quayRoot string
 
+// noTTY allows to disable tty in podman invocation
+var noTTY bool
+
 // additionalArgs are arguments that you would like to append to the end of the ansible-playbook call (used mostly for development)
 var additionalArgs string
 
@@ -89,6 +92,7 @@ func init() {
 	installCmd.Flags().StringVarP(&imageArchivePath, "image-archive", "i", "", "An archive containing images")
 	installCmd.Flags().BoolVarP(&askBecomePass, "askBecomePass", "", false, "Whether or not to ask for sudo password during SSH connection.")
 	installCmd.Flags().StringVarP(&quayRoot, "quayRoot", "r", "/etc/quay-install", "The folder where quay persistent data are saved. This defaults to /etc/quay-install")
+	installCmd.Flags().BoolVarP(&noTTY, "noTTY", "", false, "Whether or not to disable tty during podman invocation")
 	installCmd.Flags().StringVarP(&additionalArgs, "additionalArgs", "", "", "Additional arguments you would like to append to the ansible-playbook call. Used mostly for development.")
 
 }
@@ -248,11 +252,20 @@ func install() {
 		sslCertKeyFlag = fmt.Sprintf(" -v %s:/runner/certs/quay.cert:Z -v %s:/runner/certs/quay.key:Z", sslCertAbs, sslKeyAbs)
 	}
 
+	// Set TTY flag
+	var TTYFlag string
+	if noTTY {
+		TTYFlag = ""
+	} else {
+		TTYFlag = "--tty"
+	}
+
 	// Run playbook
 	log.Printf("Running install playbook. This may take some time. To see playbook output run the installer with -v (verbose) flag.")
 	podmanCmd := fmt.Sprintf(`sudo podman run `+
-		`--rm --interactive --tty `+
-		`--workdir /runner/project `+
+		`--rm --interactive `+
+		TTYFlag+
+		` --workdir /runner/project `+
 		`--net host `+
 		imageArchiveMountFlag+ // optional image archive flag
 		sslCertKeyFlag+ // optional ssl cert/key flag
