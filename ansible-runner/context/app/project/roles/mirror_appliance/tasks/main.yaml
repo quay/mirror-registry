@@ -16,6 +16,10 @@
 - name: Install Redis Service
   include_tasks: install-redis-service.yaml
 
+- name: Install Haproxy Service
+  include_tasks: install-haproxy-service.yaml
+  when: ipv6
+
 - name: Install Quay Service
   include_tasks: install-quay-service.yaml
 

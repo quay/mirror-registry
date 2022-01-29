@@ -61,6 +61,9 @@ var quayRoot string
 // additionalArgs are arguments that you would like to append to the end of the ansible-playbook call (used mostly for development)
 var additionalArgs string
 
+// ipv6 holds whether or not to deploy haproxy for IPV6 access
+var ipv6 bool
+
 // installCmd represents the validate command
 var installCmd = &cobra.Command{
 	Use:   "install",
@@ -90,7 +93,6 @@ func init() {
 	installCmd.Flags().BoolVarP(&askBecomePass, "askBecomePass", "", false, "Whether or not to ask for sudo password during SSH connection.")
 	installCmd.Flags().StringVarP(&quayRoot, "quayRoot", "r", "/etc/quay-install", "The folder where quay persistent data are saved. This defaults to /etc/quay-install")
 	installCmd.Flags().StringVarP(&additionalArgs, "additionalArgs", "", "", "Additional arguments you would like to append to the ansible-playbook call. Used mostly for development.")
-
 }
 
 func install() {
@@ -248,6 +250,9 @@ func install() {
 		sslCertKeyFlag = fmt.Sprintf(" -v %s:/runner/certs/quay.cert:Z -v %s:/runner/certs/quay.key:Z", sslCertAbs, sslKeyAbs)
 	}
 
+	// Set IPV6 if necessary
+	ipv6 = checkIPV6()
+
 	// Run playbook
 	log.Printf("Running install playbook. This may take some time. To see playbook output run the installer with -v (verbose) flag.")
 	podmanCmd := fmt.Sprintf(`sudo podman run `+
@@ -264,8 +269,8 @@ func install() {
 		`--quiet `+
 		`--name ansible_runner_instance `+
 		fmt.Sprintf("%s ", eeImage)+
-		`ansible-playbook -i %s@%s, --private-key /runner/env/ssh_key -e "init_password=%s quay_image=%s redis_image=%s postgres_image=%s quay_hostname=%s local_install=%s quay_root=%s" install_mirror_appliance.yml %s %s`,
-		sshKey, targetUsername, targetHostname, initPassword, quayImage, redisImage, postgresImage, quayHostname, strconv.FormatBool(isLocalInstall()), quayRoot, askBecomePassFlag, additionalArgs)
+		`ansible-playbook -i %s@%s, --private-key /runner/env/ssh_key -e "init_password=%s quay_image=%s redis_image=%s postgres_image=%s quay_hostname=%s local_install=%s quay_root=%s ipv6=%s" install_mirror_appliance.yml %s %s`,
+		sshKey, targetUsername, targetHostname, initPassword, quayImage, redisImage, postgresImage, quayHostname, strconv.FormatBool(isLocalInstall()), quayRoot, ipv6, askBecomePassFlag, additionalArgs)
 
 	log.Debug("Running command: " + podmanCmd)
 	cmd := exec.Command("bash", "-c", podmanCmd)

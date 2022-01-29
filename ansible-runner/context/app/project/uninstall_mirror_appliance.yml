@@ -15,6 +15,15 @@
       ansible.builtin.systemd:
         daemon_reexec: yes
 
+    - name: Stop Haproxy service
+      systemd:
+        name: quay-haproxy.service
+        enabled: no
+        daemon_reload: yes
+        state: stopped
+        force: yes
+      when: ipv6
+
     - name: Stop Postgres service
       systemd:
         name: quay-postgres.service

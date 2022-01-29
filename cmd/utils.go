@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"net"
 	"os"
 	"os/exec"
 	"path"
@@ -287,4 +288,31 @@ func getApproval(question string) bool {
 		fmt.Println("Invalid input.", question)
 		return getApproval(question)
 	}
+}
+
+func checkIPV6() bool {
+	var ip string
+	interfaces, err := net.Interfaces()
+	if err != nil {
+		return false
+	}
+	for _, i := range interfaces {
+		if i.Name == "lo" {
+			continue
+		}
+		byNameInterface, err := net.InterfaceByName(i.Name)
+		if err != nil {
+			return false
+		}
+		addresses, err := byNameInterface.Addrs()
+		for _, v := range addresses {
+			ip = v.String()
+			if strings.HasPrefix(ip, "fe80:") {
+				continue
+			} else if strings.Contains(ip, ":") {
+				return true
+			}
+		}
+	}
+	return false
 }

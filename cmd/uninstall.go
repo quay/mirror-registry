@@ -12,6 +12,9 @@ import (
 // autoApprove controls whether or not to prompt user
 var autoApprove bool
 
+// ipv6 holds whether or not to remove haproxy needed for IPV6
+var ipv6 bool
+
 // uninstallCmd represents the uninstall command
 var uninstallCmd = &cobra.Command{
 	Use:   "uninstall",
@@ -62,6 +65,9 @@ func uninstall() {
 		askBecomePassFlag = "-K"
 	}
 
+	// Set IPV6 if necessary
+	ipv6 = checkIPV6()
+
 	log.Printf("Running uninstall playbook. This may take some time. To see playbook output run the installer with -v (verbose) flag.")
 	podmanCmd := fmt.Sprintf(`sudo podman run `+
 		`--rm --interactive --tty `+
@@ -75,8 +81,8 @@ func uninstall() {
 		`--quiet `+
 		`--name ansible_runner_instance `+
 		fmt.Sprintf("%s ", eeImage)+
-		`ansible-playbook -i %s@%s, --private-key /runner/env/ssh_key uninstall_mirror_appliance.yml -e "quay_root=%s auto_approve=%t" %s %s`,
-		sshKey, targetUsername, strings.Split(targetHostname, ":")[0], quayRoot, autoApprove, askBecomePassFlag, additionalArgs)
+		`ansible-playbook -i %s@%s, --private-key /runner/env/ssh_key uninstall_mirror_appliance.yml -e "quay_root=%s ipv6=%s auto_approve=%t" %s %s`,
+		sshKey, targetUsername, strings.Split(targetHostname, ":")[0], quayRoot, ipv6, autoApprove, askBecomePassFlag, additionalArgs)
 
 	log.Debug("Running command: " + podmanCmd)
 	cmd := exec.Command("bash", "-c", podmanCmd)

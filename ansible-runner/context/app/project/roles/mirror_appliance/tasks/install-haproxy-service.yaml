@@ -1,0 +1,28 @@
+- name: Copy Haproxy config file
+  template:
+    src: ../templates/haproxy.cfg.j2
+    dest: /etc/quay-install/haproxy.cfg
+
+- name: Copy Haproxy systemd service file
+  template:
+    src: ../templates/haproxy.service.j2
+    dest: /etc/systemd/system/quay-haproxy.service
+
+- name: Check if Haproxy image is loaded
+  command: podman inspect --type=image {{ haproxy_image }}
+  register: r
+  ignore_errors: yes
+
+- name: Pull Haproxy image
+  containers.podman.podman_image:
+    name: "{{ haproxy_image }}"
+  when: r.rc != 0
+  retries: 5
+  delay: 5
+
+- name: Start Haproxy service
+  systemd:
+    name: quay-haproxy.service
+    enabled: yes
+    daemon_reload: yes
+    state: started
