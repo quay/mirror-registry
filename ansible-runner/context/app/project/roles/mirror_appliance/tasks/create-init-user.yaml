@@ -5,5 +5,5 @@
     validate_certs: no
     return_content: yes
     body_format: json
-    body: '{ "username": "init", "password": "{{ init_password }}", "email": "init@quay.io", "access_token": "true" }'
+    body: '{ "username": "{{ init_user }}", "password": "{{ init_password }}", "email": "init@quay.io", "access_token": "true" }'
   register: result

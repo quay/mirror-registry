@@ -46,6 +46,9 @@ var targetHostname string
 // targetUsername is the name of the user on the target host to connect with SSH
 var targetUsername string
 
+// initUser is the initial username.
+var initUser string
+
 // initPassword is the password of the initial user.
 var initPassword string
 
@@ -83,6 +86,7 @@ func init() {
 	installCmd.Flags().StringVarP(&sslKey, "sslKey", "", "", "The path to the SSL key Quay should use")
 	installCmd.Flags().BoolVarP(&sslCheckSkip, "sslCheckSkip", "", false, "Whether or not to check the certificate hostname against the SERVER_HOSTNAME in config.yaml.")
 
+	installCmd.Flags().StringVarP(&initUser, "initUser", "", "init", "The password of the initial user. This defaults to init.")
 	installCmd.Flags().StringVarP(&initPassword, "initPassword", "", "", "The password of the initial user. If not specified, this will be randomly generated.")
 	installCmd.Flags().StringVarP(&quayHostname, "quayHostname", "", "", "The value to set SERVER_HOSTNAME in the Quay config.yaml. This defaults to <targetHostname>:8443")
 
@@ -264,8 +268,8 @@ func install() {
 		`--quiet `+
 		`--name ansible_runner_instance `+
 		fmt.Sprintf("%s ", eeImage)+
-		`ansible-playbook -i %s@%s, --private-key /runner/env/ssh_key -e "init_password=%s quay_image=%s redis_image=%s postgres_image=%s quay_hostname=%s local_install=%s quay_root=%s" install_mirror_appliance.yml %s %s`,
-		sshKey, targetUsername, targetHostname, initPassword, quayImage, redisImage, postgresImage, quayHostname, strconv.FormatBool(isLocalInstall()), quayRoot, askBecomePassFlag, additionalArgs)
+		`ansible-playbook -i %s@%s, --private-key /runner/env/ssh_key -e "init_user=%s init_password=%s quay_image=%s redis_image=%s postgres_image=%s quay_hostname=%s local_install=%s quay_root=%s" install_mirror_appliance.yml %s %s`,
+		sshKey, targetUsername, targetHostname, initUser, initPassword, quayImage, redisImage, postgresImage, quayHostname, strconv.FormatBool(isLocalInstall()), quayRoot, askBecomePassFlag, additionalArgs)
 
 	log.Debug("Running command: " + podmanCmd)
 	cmd := exec.Command("bash", "-c", podmanCmd)
@@ -276,5 +280,5 @@ func install() {
 	check(err)
 
 	log.Printf("Quay installed successfully, permanent data are stored in %s", quayRoot)
-	log.Printf("Quay is available at %s with credentials (init, %s)", "https://"+quayHostname, initPassword)
+	log.Printf("Quay is available at %s with credentials (%s, %s)", "https://"+quayHostname, initUser, initPassword)
 }
