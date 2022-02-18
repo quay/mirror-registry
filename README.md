@@ -86,7 +86,7 @@ $ podman push quay:8443/init/busybox:latest --tls-verify=false
 $ podman pull quay:8443/init/busybox:latest --tls-verify=false
 ```
 
-Prior to push any images to quay:8443/init/busybox, in this case you must create the repository "busybox" in the Quay console.
+Prior to pushing quay:8443/init/busybox, you must create the repository "busybox" in the Quay console. In future versions of mirror registry this will be created automatically.
 
 ## Uninstall
 
