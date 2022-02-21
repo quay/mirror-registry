@@ -80,10 +80,13 @@ $ podman login -u init -p <password> --tls-verify=false quay:8443
 After logging in, you can run commands such as:
 
 ```console
-$ podman tag docker.io/library/busybox:latest quay:8080/init/busybox:latest
+$ podman pull docker.io/library/busybox:latest
+$ podman tag docker.io/library/busybox:latest quay:8443/init/busybox:latest
 $ podman push quay:8443/init/busybox:latest --tls-verify=false
 $ podman pull quay:8443/init/busybox:latest --tls-verify=false
 ```
+
+Prior to pushing quay:8443/init/busybox, you must create the repository "busybox" in the Quay console. In future versions of mirror registry this will be created automatically.
 
 ## Uninstall
 
