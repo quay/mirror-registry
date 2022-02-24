@@ -103,7 +103,7 @@ func install() {
 	log.Printf("Install has begun")
 
 	log.Debug("Ansible Execution Environment Image: " + eeImage)
-	log.Debug("Redis Image: " + pauseImage)
+	log.Debug("Pause Image: " + pauseImage)
 	log.Debug("Quay Image: " + quayImage)
 	log.Debug("Redis Image: " + redisImage)
 	log.Debug("Postgres Image: " + postgresImage)
