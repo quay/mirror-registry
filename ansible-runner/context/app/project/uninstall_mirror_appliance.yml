@@ -39,6 +39,14 @@
         state: stopped
         force: yes
 
+    - name: Stop Quay Pod service
+      systemd:
+        name: quay-pod.service
+        enabled: no
+        daemon_reload: yes
+        state: stopped
+        force: yes
+
     - name: Delete pod
       containers.podman.podman_pod:
         name: quay-pod

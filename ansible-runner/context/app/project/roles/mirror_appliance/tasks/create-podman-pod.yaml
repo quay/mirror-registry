@@ -1,6 +1,0 @@
-- name: Starting Pod with ports 80 and 443 exposed
-  containers.podman.podman_pod:
-    name: quay-pod
-    state: started
-    ports:
-      - '{{ quay_hostname.split(":")[1] if (":" in quay_hostname) else "8443" }}:8443'

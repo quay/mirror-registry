@@ -1,0 +1,27 @@
+[Unit]
+Description=Infra Container for Quay
+Wants=network.target
+After=network-online.target
+Before=quay-postgres.service quay-redis.service
+
+[Service]
+Type=simple
+RemainAfterExit=yes
+TimeoutStartSec=5m
+ExecStartPre=-/bin/rm -f %t/%n-pid %t/%n-pod-id
+ExecStart=/usr/bin/podman pod create \
+    --name quay-pod \
+    --infra-image {{ pause_image }} \
+    --publish {{ quay_hostname.split(":")[1] if (":" in quay_hostname) else "8443" }}:8443 \
+    --pod-id-file %t/%n-pod-id \
+    --replace
+ExecStop=-/usr/bin/podman pod stop --ignore --pod-id-file %t/%n-pod-id -t 10
+ExecStopPost=-/usr/bin/podman pod rm --ignore -f --pod-id-file %t/%n-pod-id
+PIDFile=%t/%n-pid
+KillMode=none
+Restart=always
+RestartSec=30
+
+[Install]
+WantedBy=multi-user.target default.target
+

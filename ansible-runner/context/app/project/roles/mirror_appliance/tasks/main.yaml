@@ -4,8 +4,8 @@
 - name: Set SELinux Rules
   include_tasks: set-selinux-rules.yaml
 
-- name: Create Podman Pod
-  include_tasks: create-podman-pod.yaml
+- name: Install Quay Pod Service
+  include_tasks: install-pod-service.yaml
 
 - name: Autodetect Image Archive
   include_tasks: autodetect-image-archive.yaml
