@@ -1,0 +1,11 @@
+- name: "Upgrade Mirror Appliance"
+  gather_facts: yes
+  become: true
+  hosts: all
+  tags:
+    - quay
+  tasks:
+    - name: upgrade_mirror_appliance
+      import_role:
+        name: mirror_appliance
+        tasks_from: upgrade

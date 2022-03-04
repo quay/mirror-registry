@@ -1,8 +1,4 @@
 ---
-redis_image: "registry.redhat.io/rhel8/redis-6:1-25"
-postgres_image: "registry.redhat.io/rhel8/postgresql-10:1-161"
-quay_image: "registry.redhat.io/quay/quay-rhel8:v3.6.1"
-pause_image: "registry.access.redhat.com/ubi8/pause:latest"
 quay_hostname: "quay:8443"
 quay_root: "/etc/quay-install"
 auto_approve: "false"

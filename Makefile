@@ -8,12 +8,30 @@ build-golang-executable:
 	-o mirror-registry;
 
 build-online-zip: 
-	sudo podman build -t mirror-registry-online:${RELEASE_VERSION} --file Dockerfile.online . 
+	sudo podman build \
+		-t mirror-registry-online:${RELEASE_VERSION} \
+		--build-arg QUAY_IMAGE=${QUAY_IMAGE} \
+		--build-arg EE_IMAGE=${EE_IMAGE} \
+		--build-arg EE_BASE_IMAGE=${EE_BASE_IMAGE} \
+		--build-arg EE_BUILDER_IMAGE=${EE_BUILDER_IMAGE} \
+		--build-arg POSTGRES_IMAGE=${POSTGRES_IMAGE} \
+		--build-arg REDIS_IMAGE=${REDIS_IMAGE} \
+		--build-arg PAUSE_IMAGE=${PAUSE_IMAGE} \
+		--file Dockerfile.online . 
 	sudo podman run --name mirror-registry-online-${RELEASE_VERSION} mirror-registry-online:${RELEASE_VERSION}
 	sudo podman cp mirror-registry-online-${RELEASE_VERSION}:/mirror-registry.tar.gz .
 
 build-offline-zip: 
-	sudo podman build -t mirror-registry-offline:${RELEASE_VERSION} --file Dockerfile .
+	sudo podman build \
+		-t mirror-registry-offline:${RELEASE_VERSION} \
+		--build-arg QUAY_IMAGE=${QUAY_IMAGE} \
+		--build-arg EE_IMAGE=${EE_IMAGE} \
+		--build-arg EE_BASE_IMAGE=${EE_BASE_IMAGE} \
+		--build-arg EE_BUILDER_IMAGE=${EE_BUILDER_IMAGE} \
+		--build-arg POSTGRES_IMAGE=${POSTGRES_IMAGE} \
+		--build-arg REDIS_IMAGE=${REDIS_IMAGE} \
+		--build-arg PAUSE_IMAGE=${PAUSE_IMAGE} \
+		--file Dockerfile .
 	sudo podman run --name mirror-registry-offline-${RELEASE_VERSION} mirror-registry-offline:${RELEASE_VERSION}
 	sudo podman cp mirror-registry-offline-${RELEASE_VERSION}:/mirror-registry.tar.gz .
 

@@ -78,7 +78,7 @@ func init() {
 	// Add install command
 	rootCmd.AddCommand(installCmd)
 
-	installCmd.Flags().StringVarP(&targetHostname, "targetHostname", "H", os.Getenv("HOST"), "The hostname of the target you wish to install Quay to. This defaults to $HOST")
+	installCmd.Flags().StringVarP(&targetHostname, "targetHostname", "H", getFQDN(), "The hostname of the target you wish to install Quay to. This defaults to $HOST")
 	installCmd.Flags().StringVarP(&targetUsername, "targetUsername", "u", os.Getenv("USER"), "The user on the target host which will be used for SSH. This defaults to $USER")
 	installCmd.Flags().StringVarP(&sshKey, "ssh-key", "k", os.Getenv("HOME")+"/.ssh/quay_installer", "The path of your ssh identity key. This defaults to ~/.ssh/quay_installer")
 
@@ -268,8 +268,8 @@ func install() {
 		`--quiet `+
 		`--name ansible_runner_instance `+
 		fmt.Sprintf("%s ", eeImage)+
-		`ansible-playbook -i %s@%s, --private-key /runner/env/ssh_key -e "init_user=%s init_password=%s quay_image=%s redis_image=%s postgres_image=%s quay_hostname=%s local_install=%s quay_root=%s" install_mirror_appliance.yml %s %s`,
-		sshKey, targetUsername, targetHostname, initUser, initPassword, quayImage, redisImage, postgresImage, quayHostname, strconv.FormatBool(isLocalInstall()), quayRoot, askBecomePassFlag, additionalArgs)
+		`ansible-playbook -i %s@%s, --private-key /runner/env/ssh_key -e "init_user=%s init_password=%s quay_image=%s redis_image=%s postgres_image=%s pause_image=%s quay_hostname=%s local_install=%s quay_root=%s" install_mirror_appliance.yml %s %s`,
+		sshKey, targetUsername, targetHostname, initUser, initPassword, quayImage, redisImage, postgresImage, pauseImage, quayHostname, strconv.FormatBool(isLocalInstall()), quayRoot, askBecomePassFlag, additionalArgs)
 
 	log.Debug("Running command: " + podmanCmd)
 	cmd := exec.Command("bash", "-c", podmanCmd)
@@ -279,6 +279,6 @@ func install() {
 	err = cmd.Run()
 	check(err)
 
-	log.Printf("Quay installed successfully, permanent data are stored in %s", quayRoot)
+	log.Printf("Quay installed successfully, permanent data is stored in %s", quayRoot)
 	log.Printf("Quay is available at %s with credentials (%s, %s)", "https://"+quayHostname, initUser, initPassword)
 }

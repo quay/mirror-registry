@@ -1,8 +1,20 @@
-ARG EE_BASE_IMAGE=registry.redhat.io/ansible-automation-platform-20-early-access/ee-minimal-rhel8
-ARG EE_BUILDER_IMAGE=registry.redhat.io/ansible-automation-platform-20-early-access/ansible-builder-rhel8:2.0.0-15
+ARG QUAY_IMAGE=${QUAY_IMAGE}
+ARG EE_IMAGE=${EE_IMAGE}
+ARG EE_BASE_IMAGE=${EE_BASE_IMAGE}
+ARG EE_BUILDER_IMAGE=${EE_BUILDER_IMAGE}
+ARG POSTGRES_IMAGE=${POSTGRES_IMAGE}
+ARG REDIS_IMAGE=${REDIS_IMAGE}
+ARG PAUSE_IMAGE=${PAUSE_IMAGE}
 
 # Create Go CLI
 FROM registry.redhat.io/ubi8:latest AS cli
+
+# Need to duplicate these, otherwise they won't be available to the stage
+ARG QUAY_IMAGE=${QUAY_IMAGE}
+ARG EE_IMAGE=${EE_IMAGE}
+ARG POSTGRES_IMAGE=${POSTGRES_IMAGE}
+ARG REDIS_IMAGE=${REDIS_IMAGE}
+ARG PAUSE_IMAGE=${PAUSE_IMAGE}
 
 ENV GOROOT=/usr/local/go
 ENV PATH=$GOPATH/bin:$GOROOT/bin:$PATH 
@@ -16,11 +28,11 @@ COPY . /cli
 WORKDIR /cli
 
 # Create CLI
-ENV EE_IMAGE=quay.io/quay/mirror-registry-ee:latest
-ENV QUAY_IMAGE=registry.redhat.io/quay/quay-rhel8:v3.6.1
-ENV REDIS_IMAGE=registry.redhat.io/rhel8/redis-6:1-25
-ENV POSTGRES_IMAGE=registry.redhat.io/rhel8/postgresql-10:1-161
-ENV PAUSE_IMAGE=registry.access.redhat.com/ubi8/pause:latest
+ENV EE_IMAGE=${EE_IMAGE}
+ENV QUAY_IMAGE=${QUAY_IMAGE}
+ENV REDIS_IMAGE=${REDIS_IMAGE}
+ENV POSTGRES_IMAGE=${POSTGRES_IMAGE}
+ENV PAUSE_IMAGE=${PAUSE_IMAGE}
 
 RUN go build -v \
 	-ldflags "-X github.com/quay/mirror-registry/cmd.eeImage=${EE_IMAGE} -X github.com/quay/mirror-registry/cmd.pauseImage=${PAUSE_IMAGE} -X github.com/quay/mirror-registry/cmd.quayImage=${QUAY_IMAGE} -X github.com/quay/mirror-registry/cmd.redisImage=${REDIS_IMAGE} -X github.com/quay/mirror-registry/cmd.postgresImage=${POSTGRES_IMAGE}" \
@@ -54,7 +66,7 @@ RUN /output/install-from-bindep && rm -rf /output/wheels
 COPY ansible-runner/context/app /runner
 
 # Pull in Quay dependencies
-FROM registry.redhat.io/quay/quay-rhel8:v3.6.1 as quay
+FROM registry.redhat.io/quay/quay-rhel8:v3.6.2 as quay
 FROM registry.redhat.io/rhel8/redis-6:1-25 as redis
 FROM registry.redhat.io/rhel8/postgresql-10:1-161 as postgres
 FROM registry.access.redhat.com/ubi8/pause:latest as pause
