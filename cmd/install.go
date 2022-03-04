@@ -78,7 +78,7 @@ func init() {
 	// Add install command
 	rootCmd.AddCommand(installCmd)
 
-	installCmd.Flags().StringVarP(&targetHostname, "targetHostname", "H", os.Getenv("HOST"), "The hostname of the target you wish to install Quay to. This defaults to $HOST")
+	installCmd.Flags().StringVarP(&targetHostname, "targetHostname", "H", getFQDN(), "The hostname of the target you wish to install Quay to. This defaults to $HOST")
 	installCmd.Flags().StringVarP(&targetUsername, "targetUsername", "u", os.Getenv("USER"), "The user on the target host which will be used for SSH. This defaults to $USER")
 	installCmd.Flags().StringVarP(&sshKey, "ssh-key", "k", os.Getenv("HOME")+"/.ssh/quay_installer", "The path of your ssh identity key. This defaults to ~/.ssh/quay_installer")
 
@@ -279,6 +279,6 @@ func install() {
 	err = cmd.Run()
 	check(err)
 
-	log.Printf("Quay installed successfully, permanent data are stored in %s", quayRoot)
+	log.Printf("Quay installed successfully, permanent data is stored in %s", quayRoot)
 	log.Printf("Quay is available at %s with credentials (%s, %s)", "https://"+quayHostname, initUser, initPassword)
 }

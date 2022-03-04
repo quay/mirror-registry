@@ -1,0 +1,17 @@
+- name: Autodetect Image Archive
+  include_tasks: autodetect-image-archive.yaml
+
+- name: Upgrade Quay Pod Service
+  include_tasks: upgrade-pod-service.yaml
+
+- name: Upgrade Postgres Service
+  include_tasks: upgrade-postgres-service.yaml
+
+- name: Upgrade Redis Service
+  include_tasks: upgrade-redis-service.yaml
+
+- name: Upgrade Quay Service
+  include_tasks: upgrade-quay-service.yaml
+
+- name: Wait for Quay
+  include_tasks: wait-for-quay.yaml

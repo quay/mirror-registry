@@ -7,3 +7,4 @@
     body_format: json
     body: '{ "username": "{{ init_user }}", "password": "{{ init_password }}", "email": "init@quay.io", "access_token": "true" }'
   register: result
+  ignore_errors: true # temp hack to test out upgrades

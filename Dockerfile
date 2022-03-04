@@ -17,7 +17,7 @@ WORKDIR /cli
 
 # Create CLI
 ENV EE_IMAGE=quay.io/quay/mirror-registry-ee:latest
-ENV QUAY_IMAGE=registry.redhat.io/quay/quay-rhel8:v3.6.1
+ENV QUAY_IMAGE=registry.redhat.io/quay/quay-rhel8:v3.6.2
 ENV REDIS_IMAGE=registry.redhat.io/rhel8/redis-6:1-25
 ENV POSTGRES_IMAGE=registry.redhat.io/rhel8/postgresql-10:1-161
 ENV PAUSE_IMAGE=registry.access.redhat.com/ubi8/pause:latest
@@ -54,7 +54,7 @@ RUN /output/install-from-bindep && rm -rf /output/wheels
 COPY ansible-runner/context/app /runner
 
 # Pull in Quay dependencies
-FROM registry.redhat.io/quay/quay-rhel8:v3.6.1 as quay
+FROM registry.redhat.io/quay/quay-rhel8:v3.6.2 as quay
 FROM registry.redhat.io/rhel8/redis-6:1-25 as redis
 FROM registry.redhat.io/rhel8/postgresql-10:1-161 as postgres
 FROM registry.access.redhat.com/ubi8/pause:latest as pause

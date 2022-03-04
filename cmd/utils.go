@@ -10,6 +10,8 @@ import (
 	"os/exec"
 	"path"
 	"strings"
+
+	"github.com/Showmax/go-fqdn"
 )
 
 func loadExecutionEnvironment() error {
@@ -43,7 +45,7 @@ func loadExecutionEnvironment() error {
 }
 
 func isLocalInstall() bool {
-	if targetHostname == "localhost" && targetUsername == os.Getenv("USER") {
+	if targetHostname == "localhost" || targetHostname == getFQDN() && targetUsername == os.Getenv("USER") {
 		log.Infof("Detected an installation to localhost")
 		return true
 	}
@@ -287,4 +289,12 @@ func getApproval(question string) bool {
 		fmt.Println("Invalid input.", question)
 		return getApproval(question)
 	}
+}
+
+func getFQDN() string {
+	fqdn, err := fqdn.FqdnHostname()
+	if err != nil {
+		log.Fatal(err)
+	}
+	return fqdn
 }
