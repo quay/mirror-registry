@@ -157,6 +157,9 @@ jobs:
           quay-hostname: "quay:8443"
           pull-secret: ${{ secrets.PULL_SECRET }}
 
+      - name: Upgrade Registry
+        run: ./mirror-registry upgrade -u jonathan -H quay -v --initPassword password -k /home/runner/.ssh/id_rsa
+
       - name: Uninstall Registry
         run: ./mirror-registry uninstall -u jonathan -H quay --autoApprove -v -k /home/runner/.ssh/id_rsa
 
@@ -257,6 +260,9 @@ jobs:
           quay-hostname: "quay:8443"
           pull-secret: ${{ secrets.PULL_SECRET }}
 
+      - name: Upgrade Quay
+        run: ssh jonathan@quay './mirror-registry upgrade -v'
+
       - name: Uninstall Quay
         run: ssh jonathan@quay './mirror-registry uninstall --autoApprove -v'
 
@@ -264,115 +270,6 @@ jobs:
         run: terraform destroy --auto-approve
         shell: bash
         working-directory: ".github/workflows/local-${{ matrix.installer-type }}-installer"
-        if: always()
-
-  test-upgrade:
-    name: "Upgrade"
-    needs: ["build-install-zip"]
-    runs-on: ubuntu-latest
-    if: contains(github.event.pull_request.labels.*.name, 'ok-to-test') # Skip on release
-    env:
-      GOOGLE_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
-      TF_VAR_SSH_PUBLIC_KEY: ${{ secrets.TF_VAR_SSH_PUBLIC_KEY }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v2
-
-      - name: Install oc
-        uses: redhat-actions/oc-installer@v1
-        with:
-          oc_version: "4.6"
-
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v1
-        with:
-          # terraform_version: 0.13.0:
-          cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
-          terraform_wrapper: false
-
-      - name: Install SSH Key
-        uses: webfactory/ssh-agent@v0.5.2
-        with:
-          ssh-private-key: ${{ secrets.TF_VAR_SSH_PRIVATE_KEY }}
-
-      - name: Write SSH Key
-        run: 'echo "$SSH_KEY" > /home/runner/.ssh/id_rsa'
-        env:
-          SSH_KEY: ${{ secrets.TF_VAR_SSH_PRIVATE_KEY }}
-
-      - name: Write SSH Key
-        run: |
-          mkdir -p ~/.ssh/
-          echo "$SSH_KEY" > ~/.ssh/staging.key
-          chmod 600 ~/.ssh/staging.key
-          cat >>~/.ssh/config <<END
-          Host quay
-            HostName quay
-            User jonathan
-            IdentityFile ~/.ssh/staging.key
-            StrictHostKeyChecking no
-          END
-        env:
-          SSH_KEY: ${{ secrets.TF_VAR_SSH_PRIVATE_KEY }}
-
-      - name: Initialize VM
-        uses: ./.github/actions/setup-terraform
-        with:
-          terraform-context: ".github/workflows/upgrade"
-
-      - name: Wait for VM
-        uses: jakejarvis/wait-action@master
-        with:
-          time: "60s"
-
-      - name: Download current version
-        uses: robinraju/release-downloader@v1.3
-        with:
-          repository: "quay/mirror-registry"
-          latest: true
-          fileName: "mirror-registry-offline.tar.gz"
-
-      - name: Download upgrade release
-        uses: actions/download-artifact@v2
-        with:
-          name: mirror-registry-offline-installer
-
-      - name: SCP current release to VM
-        run: scp mirror-registry-offline.tar.gz jonathan@quay:~/mirror-registry-current.tar.gz
-
-      - name: SCP upgrade tarball to VM
-        run: scp mirror-registry.tar.gz jonathan@quay:~/mirror-registry-upgrade.tar.gz
-
-      - name: Install podman
-        run: ssh jonathan@quay 'sudo subscription-manager refresh; sudo yum -y install podman'
-
-      - name: Log into podman for registry.redhat.io
-        run: ssh jonathan@quay "sudo podman login -u ${{ secrets.REGISTRY_USERNAME }} -p ${{ secrets.REGISTRY_PASSWORD }} registry.redhat.io"
-        if: matrix.installer-type == 'online'
-
-      - name: Disable outbound network traffic
-        run: ssh jonathan@quay 'sudo firewall-cmd --direct --add-rule ipv4 filter OUTPUT 0 -m state --state ESTABLISHED,RELATED -j ACCEPT; sudo firewall-cmd --direct --add-rule ipv4 filter OUTPUT 1 -p tcp -m tcp --dport=22 -j ACCEPT; sudo firewall-cmd --direct --add-rule ipv4 filter OUTPUT 1 -p tcp -m tcp --dport=8443 -j ACCEPT; sudo firewall-cmd --direct --add-rule ipv4 filter OUTPUT 2 -j DROP'
-        if: matrix.installer-type == 'offline'
-
-      - name: Install Registry
-        run: ssh jonathan@quay 'tar -xf mirror-registry-current.tar.gz; ./mirror-registry install -v --quayHostname quay:8443 --initPassword password'
-
-      - name: Mirror Images
-        uses: ./.github/actions/mirror
-        with:
-          quay-hostname: "quay:8443"
-          pull-secret: ${{ secrets.PULL_SECRET }}
-
-      - name: Upgrade
-        run: ssh jonathan@quay 'tar -xf mirror-registry-upgrade.tar.gz; ./mirror-registry upgrade -v --quayHostname quay:8443'
-
-      - name: Uninstall Quay
-        run: ssh jonathan@quay './mirror-registry uninstall --autoApprove -v'
-
-      - name: Terraform Destroy
-        run: terraform destroy --auto-approve
-        shell: bash
-        working-directory: ".github/workflows/upgrade"
         if: always()
 
   publish-release:
