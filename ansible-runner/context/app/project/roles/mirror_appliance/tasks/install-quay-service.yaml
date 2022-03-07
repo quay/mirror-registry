@@ -119,4 +119,4 @@
     name: quay-app.service
     enabled: yes
     daemon_reload: yes
-    state: started
+    state: restarted
