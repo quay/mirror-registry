@@ -158,7 +158,7 @@ jobs:
           pull-secret: ${{ secrets.PULL_SECRET }}
 
       - name: Upgrade Registry
-        run: ./mirror-registry upgrade -u jonathan -H quay -v --initPassword password -k /home/runner/.ssh/id_rsa
+        run: ./mirror-registry upgrade -u jonathan -H quay -v -k /home/runner/.ssh/id_rsa
 
       - name: Uninstall Registry
         run: ./mirror-registry uninstall -u jonathan -H quay --autoApprove -v -k /home/runner/.ssh/id_rsa
