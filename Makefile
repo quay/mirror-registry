@@ -10,6 +10,7 @@ build-golang-executable:
 build-online-zip: 
 	sudo podman build \
 		-t mirror-registry-online:${RELEASE_VERSION} \
+		--build-arg RELEASE_VERSION=${RELEASE_VERSION} \
 		--build-arg QUAY_IMAGE=${QUAY_IMAGE} \
 		--build-arg EE_IMAGE=${EE_IMAGE} \
 		--build-arg EE_BASE_IMAGE=${EE_BASE_IMAGE} \
@@ -24,6 +25,7 @@ build-online-zip:
 build-offline-zip: 
 	sudo podman build \
 		-t mirror-registry-offline:${RELEASE_VERSION} \
+		--build-arg RELEASE_VERSION=${RELEASE_VERSION} \
 		--build-arg QUAY_IMAGE=${QUAY_IMAGE} \
 		--build-arg EE_IMAGE=${EE_IMAGE} \
 		--build-arg EE_BASE_IMAGE=${EE_BASE_IMAGE} \

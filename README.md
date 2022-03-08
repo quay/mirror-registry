@@ -88,6 +88,20 @@ $ podman pull quay:8443/init/busybox:latest --tls-verify=false
 
 Prior to pushing quay:8443/init/busybox, you must create the repository "busybox" in the Quay console. In future versions of mirror registry this will be created automatically.
 
+## Upgrade
+
+To upgrade Quay from localhost, run the following command:
+
+```console
+$ sudo ./mirror-registry upgrade -v
+```
+
+To upgrade Quay from a remote host, run the following command:
+
+```console
+$ ./mirror-registry upgrade -v --targetHostname some.remote.host.com --targetUsername someuser -k ~/.ssh/my_ssh_key
+```
+
 ## Uninstall
 
 To uninstall Quay from localhost, run the following command:

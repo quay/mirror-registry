@@ -64,7 +64,7 @@ var quayRoot string
 // additionalArgs are arguments that you would like to append to the end of the ansible-playbook call (used mostly for development)
 var additionalArgs string
 
-// installCmd represents the validate command
+// installCmd represents the install command
 var installCmd = &cobra.Command{
 	Use:   "install",
 	Short: "Install Quay and its required dependencies.",
