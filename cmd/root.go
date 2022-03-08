@@ -17,13 +17,17 @@ var log = &logrus.Logger{
 // verbose is the optional command that will display INFO logs
 var verbose bool
 
+// version is an optional command that will display the current release version
+var releaseVersion string
+
 func init() {
 	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "Display verbose logs")
 }
 
 var (
 	rootCmd = &cobra.Command{
-		Use: "mirror-registry",
+		Use:     "mirror-registry",
+		Version: releaseVersion,
 		PersistentPreRun: func(cmd *cobra.Command, args []string) {
 			if verbose {
 				log.SetLevel(logrus.DebugLevel)
