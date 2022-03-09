@@ -4,7 +4,7 @@ This application will allow user to easily install Quay and its required compone
 
 ## Pre-Requisites
 
-- RHEL 8 or Fedora machine with `podman v3.3`  installed
+- RHEL 8 or Fedora machine with `podman v3.3` and `openssl` installed
 - Fully qualified domain name for the Quay service (must resolve via DNS, or at least [/etc/hosts](#local-dns-resolution))
 - Passwordless `sudo` access on the target host (rootless install tbd)
 - Key-based SSH connectivity on the target host (will be set up automatically for local installs, in case of remote hosts see [here](#generate-ssh-keys))
@@ -89,7 +89,6 @@ $ podman pull quay:8443/init/busybox:latest --tls-verify=false
 Prior to pushing quay:8443/init/busybox, you must create the repository "busybox" in the Quay console. In future versions of mirror registry this will be created automatically.
 
 ## Upgrade
-
 To upgrade Quay from localhost, run the following command:
 
 ```console
@@ -102,8 +101,9 @@ To upgrade Quay from a remote host, run the following command:
 $ ./mirror-registry upgrade -v --targetHostname some.remote.host.com --targetUsername someuser -k ~/.ssh/my_ssh_key
 ```
 
-## Uninstall
+**Note**: If Quay has been installed with `--quayHostname` or `--quayRoot` the same options need to be specified at upgrade. The upgrade process does not currently detect previous installations or configurations.
 
+## Uninstall
 To uninstall Quay from localhost, run the following command:
 
 ```console
