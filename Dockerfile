@@ -69,10 +69,10 @@ RUN /output/install-from-bindep && rm -rf /output/wheels
 COPY ansible-runner/context/app /runner
 
 # Pull in Quay dependencies
-FROM registry.redhat.io/quay/quay-rhel8:v3.6.2 as quay
-FROM registry.redhat.io/rhel8/redis-6:1-25 as redis
-FROM registry.redhat.io/rhel8/postgresql-10:1-161 as postgres
-FROM registry.access.redhat.com/ubi8/pause:latest as pause
+FROM $QUAY_IMAGE as quay
+FROM $REDIS_IMAGE as redis
+FROM $POSTGRES_IMAGE as postgres
+FROM $PAUSE_IMAGE as pause
 
 # Create mirror registry archive
 FROM registry.redhat.io/ubi8:latest AS build
