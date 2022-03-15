@@ -86,7 +86,7 @@ func init() {
 	installCmd.Flags().StringVarP(&sslKey, "sslKey", "", "", "The path to the SSL key Quay should use")
 	installCmd.Flags().BoolVarP(&sslCheckSkip, "sslCheckSkip", "", false, "Whether or not to check the certificate hostname against the SERVER_HOSTNAME in config.yaml.")
 
-	installCmd.Flags().StringVarP(&initUser, "initUser", "", "init", "The password of the initial user. This defaults to init.")
+	installCmd.Flags().StringVarP(&initUser, "initUser", "", "init", "The username of the initial user. This defaults to init.")
 	installCmd.Flags().StringVarP(&initPassword, "initPassword", "", "", "The password of the initial user. If not specified, this will be randomly generated.")
 	installCmd.Flags().StringVarP(&quayHostname, "quayHostname", "", "", "The value to set SERVER_HOSTNAME in the Quay config.yaml. This defaults to <targetHostname>:8443")
 
