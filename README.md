@@ -28,7 +28,8 @@ The following flags are also available:
 
 ```
 --autoApprove           A boolean value that disables interactive prompts. Will automatically delete quayRoot directory on uninstall. This defaults to false.
---initPassword          The password of the init user created during Quay installation.
+--initPassword          The password of the init user created during Quay installation. If not specified, this will be randomly generated.
+--initUser              The username of the init user created during Quay installation. This defaults to init.
 --quayHostname          The value to set SERVER_HOSTNAME in the Quay config.yaml. This defaults to <targetHostname>:8443.
 --quayRoot          -r  The folder where quay persistent data are saved. This defaults to /etc/quay-install.
 --ssh-key           -k  The path of your ssh identity key. This defaults to ~/.ssh/quay_installer.
