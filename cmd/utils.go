@@ -215,6 +215,7 @@ func getImageMetadata(app, imageName, archivePath string) string {
 					--change 'ENV REDIS_VERSION=6' \
 					--change 'ENV CONTAINER_SCRIPTS_PATH=/usr/share/container-scripts/redis' \
 					--change 'ENV REDIS_PREFIX=/usr' \
+					--change 'ENV REDIS_CONF=/etc/redis.conf' \
 					--change 'ENTRYPOINT=["container-entrypoint"]' \
 					--change 'USER=1001' \
 					--change 'WORKDIR=/opt/app-root/src' \
@@ -253,6 +254,7 @@ func getImageMetadata(app, imageName, archivePath string) string {
 					--change 'ENV LANG=en_US.utf8' \
 					--change 'ENV QUAYDIR=/quay-registry' \
 					--change 'ENV QUAYCONF=/quay-registry/conf' \
+					--change 'ENV QUAYRUN=/quay-registry/conf' \
 					--change 'ENV QUAYPATH=.' \
 					--change 'ENV container=oci' \
 					--change 'ENTRYPOINT=["dumb-init","--","/quay-registry/quay-entrypoint.sh"]' \
