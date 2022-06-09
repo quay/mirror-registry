@@ -254,6 +254,7 @@ func install() {
 
 	// Run playbook
 	log.Printf("Running install playbook. This may take some time. To see playbook output run the installer with -v (verbose) flag.")
+	quayVersion := strings.Split(quayImage, ":")[1]
 	podmanCmd := fmt.Sprintf(`sudo podman run `+
 		`--rm --interactive --tty `+
 		`--workdir /runner/project `+
@@ -268,8 +269,8 @@ func install() {
 		`--quiet `+
 		`--name ansible_runner_instance `+
 		fmt.Sprintf("%s ", eeImage)+
-		`ansible-playbook -i %s@%s, --private-key /runner/env/ssh_key -e "init_user=%s init_password=%s quay_image=%s redis_image=%s postgres_image=%s pause_image=%s quay_hostname=%s local_install=%s quay_root=%s" install_mirror_appliance.yml %s %s`,
-		sshKey, targetUsername, targetHostname, initUser, initPassword, quayImage, redisImage, postgresImage, pauseImage, quayHostname, strconv.FormatBool(isLocalInstall()), quayRoot, askBecomePassFlag, additionalArgs)
+		`ansible-playbook -i %s@%s, --private-key /runner/env/ssh_key -e "init_user=%s init_password=%s quay_image=%s quay_version=%s redis_image=%s postgres_image=%s pause_image=%s quay_hostname=%s local_install=%s quay_root=%s" install_mirror_appliance.yml %s %s`,
+		sshKey, targetUsername, targetHostname, initUser, initPassword, quayImage, quayVersion, redisImage, postgresImage, pauseImage, quayHostname, strconv.FormatBool(isLocalInstall()), quayRoot, askBecomePassFlag, additionalArgs)
 
 	log.Debug("Running command: " + podmanCmd)
 	cmd := exec.Command("bash", "-c", podmanCmd)

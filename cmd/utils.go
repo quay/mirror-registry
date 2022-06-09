@@ -244,6 +244,7 @@ func getImageMetadata(app, imageName, archivePath string) string {
 					- ` + imageName + ` < ` + archivePath
 	case "quay":
 		// quay.io
+		quayVersion := strings.Split(imageName, ":")[1]
 		statement = `sudo /usr/bin/podman image import \
 					--change 'ENV PATH=/.local/bin/:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin' \
 					--change 'ENV RED_HAT_QUAY=true' \
@@ -256,6 +257,7 @@ func getImageMetadata(app, imageName, archivePath string) string {
 					--change 'ENV QUAYCONF=/quay-registry/conf' \
 					--change 'ENV QUAYRUN=/quay-registry/conf' \
 					--change 'ENV QUAYPATH=.' \
+					--change 'ENV QUAY_VERSION=` + quayVersion + `' \
 					--change 'ENV container=oci' \
 					--change 'ENTRYPOINT=["dumb-init","--","/quay-registry/quay-entrypoint.sh"]' \
 					--change 'WORKDIR=/quay-registry' \
