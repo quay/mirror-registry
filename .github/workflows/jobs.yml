@@ -57,11 +57,11 @@ jobs:
       - name: Install ansible builder
         run: sudo pip install ansible-builder
 
-      - name: Log into podman for registry.redhat.io
-        run: "sudo podman login -u ${{ secrets.REGISTRY_USERNAME }} -p ${{ secrets.REGISTRY_PASSWORD }} registry.redhat.io"
+      - name: Log into docker for registry.redhat.io
+        run: "sudo docker login -u ${{ secrets.REGISTRY_USERNAME }} -p ${{ secrets.REGISTRY_PASSWORD }} registry.redhat.io"
 
       - name: Build tarfile
-        run: make build-${{ matrix.installer-type }}-zip
+        run: CLIENT=docker make build-${{ matrix.installer-type }}-zip
 
       - name: Upload tarfile
         uses: actions/upload-artifact@v2
