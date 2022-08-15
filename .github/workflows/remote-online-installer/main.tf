@@ -26,7 +26,7 @@ resource "google_compute_network" "vpc_network_remote_online_install" {
 
 resource "google_compute_instance" "vm_instance_remote_online_install" {
   name         = "mirror-ci-rhel-remote-online-install"
-  machine_type = "e2-standard-8"
+  machine_type = "e2-standard-16"
 
   boot_disk {
     initialize_params {
