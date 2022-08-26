@@ -39,6 +39,7 @@ The following flags are also available:
 --targetHostname    -H  The hostname of the target you wish to install Quay to. This defaults to $HOST.
 --targetUsername    -u  The user on the target host which will be used for SSH. This defaults to $USER
 --verbose           -v  Show debug logs and ansible playbook outputs
+--no-color          -c  Force disabling colored output
 ```
 
 **Note**: You may need to modify the value for `--quayHostname` in case the public DNS name of your system is different from its local hostname.
