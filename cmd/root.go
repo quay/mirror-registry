@@ -17,11 +17,15 @@ var log = &logrus.Logger{
 // verbose is the optional command that will display INFO logs
 var verbose bool
 
+// noColor is the optional flag for controlling ANSI sequence output
+var noColor bool
+
 // version is an optional command that will display the current release version
 var releaseVersion string
 
 func init() {
 	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "Display verbose logs")
+	rootCmd.PersistentFlags().BoolVarP(&noColor, "no-color", "c", false, "Control colored output")
 }
 
 var (
@@ -41,7 +45,7 @@ var (
 // Execute executes the root command.
 func Execute() error {
 	log.SetFormatter(&logrus.TextFormatter{
-		ForceColors:     true,
+		DisableColors:   noColor,
 		TimestampFormat: "2006-01-02 15:04:05",
 		FullTimestamp:   true,
 	})

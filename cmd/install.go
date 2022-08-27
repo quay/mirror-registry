@@ -266,6 +266,7 @@ func install() {
 		`-e RUNNER_ONLY_FAILED_EVENTS=False `+
 		`-e ANSIBLE_HOST_KEY_CHECKING=False `+
 		`-e ANSIBLE_CONFIG=/runner/project/ansible.cfg `+
+		fmt.Sprintf("-e ANSIBLE_NOCOLOR=%t ", noColor)+
 		`--quiet `+
 		`--name ansible_runner_instance `+
 		fmt.Sprintf("%s ", eeImage)+
