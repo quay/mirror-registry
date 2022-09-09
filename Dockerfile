@@ -8,7 +8,7 @@ ARG REDIS_IMAGE=${REDIS_IMAGE}
 ARG PAUSE_IMAGE=${PAUSE_IMAGE}
 
 # Create Go CLI
-FROM registry.redhat.io/ubi8:latest AS cli
+FROM registry.access.redhat.com/ubi8:latest AS cli
 
 # Need to duplicate these, otherwise they won't be available to the stage
 ARG RELEASE_VERSION=${RELEASE_VERSION}
@@ -75,7 +75,7 @@ FROM $POSTGRES_IMAGE as postgres
 FROM $PAUSE_IMAGE as pause
 
 # Create mirror registry archive
-FROM registry.redhat.io/ubi8:latest AS build
+FROM registry.access.redhat.com/ubi8:latest AS build
 
 # Import and archive image dependencies
 COPY --from=pause / /pause
@@ -102,5 +102,5 @@ RUN tar -cvf image-archive.tar quay.tar redis.tar postgres.tar pause.tar
 RUN tar -czvf mirror-registry.tar.gz image-archive.tar execution-environment.tar mirror-registry
 
 # Extract bundle to final release image
-FROM registry.redhat.io/ubi8:latest AS release
+FROM registry.access.redhat.com/ubi8:latest AS release
 COPY --from=build mirror-registry.tar.gz mirror-registry.tar.gz

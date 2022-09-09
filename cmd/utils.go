@@ -10,8 +10,6 @@ import (
 	"os/exec"
 	"path"
 	"strings"
-
-	"github.com/Showmax/go-fqdn"
 )
 
 func loadExecutionEnvironment() error {
@@ -296,9 +294,11 @@ func getApproval(question string) bool {
 }
 
 func getFQDN() string {
-	fqdn, err := fqdn.FqdnHostname()
+	fqdn, err := exec.Command("hostname", "-f").Output()
 	if err != nil {
-		log.Fatal(err)
+		errorMessage := "Failed to automatically acquire host FQDN, please set manually with --targetHostname. "
+		log.Fatal(errorMessage, err)
 	}
-	return fqdn
+
+	return strings.TrimSuffix(string(fqdn), "\n")
 }
