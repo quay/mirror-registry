@@ -31,6 +31,7 @@ resource "google_compute_instance" "vm_instance_local_online_install" {
   boot_disk {
     initialize_params {
       image = "rhel-8"
+      size = "100"
     }
   }
 
