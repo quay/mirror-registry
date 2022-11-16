@@ -189,8 +189,7 @@ func getImageMetadata(app, imageName, archivePath string) string {
 		statement = `sudo /usr/bin/podman image import \
 					--change 'ENV PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin' \
 					--change 'ENV container=oci' \
-					--change 'ENTRYPOINT=["sleep"]' \
-					--change 'CMD=["infinity"]' \
+					--change 'ENTRYPOINT=["/pause"]' \
 					- ` + imageName + ` < ` + archivePath
 	case "ansible":
 		statement = `sudo /usr/bin/podman image import \
