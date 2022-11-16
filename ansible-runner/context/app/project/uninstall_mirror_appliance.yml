@@ -5,19 +5,10 @@
   tags:
     - quay
   tasks:
-    - name: Delete Install Directory
-      file:
-        state: absent
-        path: "{{ quay_root }}"
-      when: auto_approve|bool == true
 
-    - name: Just force systemd to re-execute itself (2.8 and above)
-      ansible.builtin.systemd:
-        daemon_reexec: yes
-
-    - name: Stop Postgres service
+    - name: Stop Quay service
       systemd:
-        name: quay-postgres.service
+        name: quay-app.service
         enabled: no
         daemon_reload: yes
         state: stopped
@@ -31,9 +22,9 @@
         state: stopped
         force: yes
 
-    - name: Stop Quay service
+    - name: Stop Postgres service
       systemd:
-        name: quay-app.service
+        name: quay-postgres.service
         enabled: no
         daemon_reload: yes
         state: stopped
@@ -51,3 +42,23 @@
       containers.podman.podman_pod:
         name: quay-pod
         state: absent
+
+    - name: Delete Install Directory
+      file:
+        state: absent
+        path: "{{ quay_root }}"
+      when: auto_approve|bool == true
+
+    - name: Cleanup systemd unit files
+      file:
+        state: absent
+        path: "/etc/systemd/system/{{ item }}"
+      loop:
+        - quay-pod.service
+        - quay-postgres.service
+        - quay-redis.service
+        - quay-app.service
+
+    - name: Just force systemd to reread configs (2.4 and above)
+      ansible.builtin.systemd:
+        daemon_reload: yes
