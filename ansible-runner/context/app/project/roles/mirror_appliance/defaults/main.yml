@@ -1,4 +1,6 @@
 ---
 quay_hostname: "quay:8443"
-quay_root: "/etc/quay-install"
+quay_root: "$HOME/quay-install"
+quay_storage: "quay-storage"
+pg_storage: "pg-storage"
 auto_approve: "false"

@@ -1,6 +1,5 @@
 - name: "Upgrade Mirror Appliance"
   gather_facts: yes
-  become: true
   hosts: all
   tags:
     - quay

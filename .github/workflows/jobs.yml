@@ -54,11 +54,15 @@ jobs:
               dep ensure
           fi
 
+      - name: Log into docker for registry.redhat.io
+        uses: docker/login-action@v2
+        with:
+          registry: registry.redhat.io
+          username: ${{ secrets.REGISTRY_USERNAME }}
+          password: ${{ secrets.REGISTRY_PASSWORD }}
+
       - name: Install ansible builder
         run: sudo pip install ansible-builder
-
-      - name: Log into docker for registry.redhat.io
-        run: "sudo docker login -u ${{ secrets.REGISTRY_USERNAME }} -p ${{ secrets.REGISTRY_PASSWORD }} registry.redhat.io"
 
       - name: Build tarfile
         run: CLIENT=docker make build-${{ matrix.installer-type }}-zip
@@ -103,12 +107,14 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.TF_VAR_SSH_PRIVATE_KEY }}
 
-      - name: Write SSH Key
-        run: 'echo "$SSH_KEY" > /home/runner/.ssh/id_rsa'
+      - name: Write SSH Key id_rsa
+        run: |
+          echo "$SSH_KEY" > /home/runner/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
         env:
           SSH_KEY: ${{ secrets.TF_VAR_SSH_PRIVATE_KEY }}
 
-      - name: Write SSH Key
+      - name: Write SSH Key staging.key
         run: |
           mkdir -p ~/.ssh/
           echo "$SSH_KEY" > ~/.ssh/staging.key
@@ -140,12 +146,15 @@ jobs:
 
       - name: Extract tarfile
         run: tar -xf mirror-registry.tar.gz
+      
+      - name: Add quay to /etc/hosts
+        run: ssh jonathan@quay 'sudo echo "127.0.0.1 quay" >> /etc/hosts'
 
       - name: Install podman
         run: ssh jonathan@quay 'sudo subscription-manager refresh; sudo yum -y install podman'
 
       - name: Log into podman for registry.redhat.io
-        run: ssh jonathan@quay "sudo podman login -u ${{ secrets.REGISTRY_USERNAME }} -p ${{ secrets.REGISTRY_PASSWORD }} registry.redhat.io"
+        run: ssh jonathan@quay "podman login -u ${{ secrets.REGISTRY_USERNAME }} -p ${{ secrets.REGISTRY_PASSWORD }} registry.redhat.io"
         if: matrix.installer-type == 'online'
 
       - name: Install Registry
@@ -202,12 +211,14 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.TF_VAR_SSH_PRIVATE_KEY }}
 
-      - name: Write SSH Key
-        run: 'echo "$SSH_KEY" > /home/runner/.ssh/id_rsa'
+      - name: Write SSH Key id_rsa
+        run: |
+          echo "$SSH_KEY" > /home/runner/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
         env:
           SSH_KEY: ${{ secrets.TF_VAR_SSH_PRIVATE_KEY }}
 
-      - name: Write SSH Key
+      - name: Write SSH Key staging.key
         run: |
           mkdir -p ~/.ssh/
           echo "$SSH_KEY" > ~/.ssh/staging.key
@@ -240,11 +251,14 @@ jobs:
       - name: SCP tarball to VM
         run: scp mirror-registry.tar.gz jonathan@quay:~/mirror-registry.tar.gz
 
+      - name: Add quay to /etc/hosts
+        run: ssh jonathan@quay 'sudo echo "127.0.0.1 quay" >> /etc/hosts'
+
       - name: Install podman
         run: ssh jonathan@quay 'sudo subscription-manager refresh; sudo yum -y install podman'
 
       - name: Log into podman for registry.redhat.io
-        run: ssh jonathan@quay "sudo podman login -u ${{ secrets.REGISTRY_USERNAME }} -p ${{ secrets.REGISTRY_PASSWORD }} registry.redhat.io"
+        run: ssh jonathan@quay "podman login -u ${{ secrets.REGISTRY_USERNAME }} -p ${{ secrets.REGISTRY_PASSWORD }} registry.redhat.io"
         if: matrix.installer-type == 'online'
 
       - name: Disable outbound network traffic

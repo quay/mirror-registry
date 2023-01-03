@@ -11,7 +11,7 @@ ExecStartPre=-/bin/rm -f %t/%n-pid %t/%n-cid
 ExecStart=/usr/bin/podman run \
     --name quay-app \
     -v {{ quay_root }}/quay-config:/quay-registry/conf/stack:Z \
-    -v {{ quay_root }}/quay-storage:/datastorage:Z \
+    -v {{ quay_storage }}:/datastorage:Z \
     --pod=quay-pod \
     --conmon-pidfile %t/%n-pid \
     --cidfile %t/%n-cid \

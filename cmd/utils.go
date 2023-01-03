@@ -186,14 +186,14 @@ func getImageMetadata(app, imageName, archivePath string) string {
 
 	switch app {
 	case "pause":
-		statement = `sudo /usr/bin/podman image import \
+		statement = `/usr/bin/podman image import \
 					--change 'ENV PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin' \
 					--change 'ENV container=oci' \
 					--change 'ENTRYPOINT=["sleep"]' \
 					--change 'CMD=["infinity"]' \
 					- ` + imageName + ` < ` + archivePath
 	case "ansible":
-		statement = `sudo /usr/bin/podman image import \
+		statement = `/usr/bin/podman image import \
 					--change 'ENV PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin' \
 					--change 'ENV HOME=/home/runner' \
 					--change 'ENV container=oci' \
@@ -204,7 +204,7 @@ func getImageMetadata(app, imageName, archivePath string) string {
 					--change 'CMD ["ansible-runner", "run", "/runner"]' \
 					- ` + imageName + ` < ` + archivePath
 	case "redis":
-		statement = `sudo /usr/bin/podman image import \
+		statement = `/usr/bin/podman image import \
 					--change 'ENV PATH=/opt/app-root/src/bin:/opt/app-root/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin' \
 					--change 'ENV container=oci' \
 					--change 'ENV STI_SCRIPTS_URL=image:///usr/libexec/s2i' \
@@ -224,7 +224,7 @@ func getImageMetadata(app, imageName, archivePath string) string {
 					--change 'CMD ["run-redis"]' \
 					- ` + imageName + ` < ` + archivePath
 	case "postgres":
-		statement = `sudo /usr/bin/podman image import \
+		statement = `/usr/bin/podman image import \
 					--change 'ENV PATH=/opt/app-root/src/bin:/opt/app-root/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin' \
 					--change 'ENV STI_SCRIPTS_URL=image:///usr/libexec/s2i' \
 					--change 'ENV STI_SCRIPTS_PATH=/usr/libexec/s2i' \
@@ -245,7 +245,7 @@ func getImageMetadata(app, imageName, archivePath string) string {
 	case "quay":
 		// quay.io
 		quayVersion := strings.Split(imageName, ":")[1]
-		statement = `sudo /usr/bin/podman image import \
+		statement = `/usr/bin/podman image import \
 					--change 'ENV PATH=/.local/bin/:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin' \
 					--change 'ENV RED_HAT_QUAY=true' \
 					--change 'ENV PYTHON_VERSION=3.8' \

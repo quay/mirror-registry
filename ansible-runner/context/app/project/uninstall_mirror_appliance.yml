@@ -1,6 +1,5 @@
 - name: "Uninstall Mirror Appliance"
   gather_facts: yes
-  become: true
   hosts: all
   tags:
     - quay
@@ -13,6 +12,7 @@
         daemon_reload: yes
         state: stopped
         force: yes
+        scope: user
 
     - name: Stop Redis service
       systemd:
@@ -21,6 +21,7 @@
         daemon_reload: yes
         state: stopped
         force: yes
+        scope: user
 
     - name: Stop Postgres service
       systemd:
@@ -29,6 +30,7 @@
         daemon_reload: yes
         state: stopped
         force: yes
+        scope: user
 
     - name: Stop Quay Pod service
       systemd:
@@ -37,6 +39,7 @@
         daemon_reload: yes
         state: stopped
         force: yes
+        scope: user
 
     - name: Delete pod
       containers.podman.podman_pod:
@@ -49,10 +52,36 @@
         path: "{{ quay_root }}"
       when: auto_approve|bool == true
 
+    - name: Create Quay Storage named volume
+      containers.podman.podman_volume:
+          state: absent
+          name: quay-storage
+      when: auto_approve|bool == true and quay_storage == "pg-storage"
+
+    - name: Delete Postgres Storage named volume
+      containers.podman.podman_volume:
+          state: absent
+          name: pg-storage
+      when: auto_approve|bool == true and pg_storage == "pg-storage"
+
+    - name: Delete necessary directory for Quay local storage
+      ansible.builtin.file:
+        path: "{{ quay_storage }}"
+        state: absent
+      become: yes
+      when: auto_approve|bool == true and quay_storage.startswith('/')
+
+    - name: Delete necessary directory for Postgres persistent data
+      ansible.builtin.file:
+        path: "{{ pg_storage }}"
+        state: absent
+      become: yes
+      when: auto_approve|bool == true and pg_storage.startswith('/')
+
     - name: Cleanup systemd unit files
       file:
         state: absent
-        path: "/etc/systemd/system/{{ item }}"
+        path: "$HOME/.config/systemd/user/{{ item }}"
       loop:
         - quay-pod.service
         - quay-postgres.service
@@ -62,3 +91,4 @@
     - name: Just force systemd to reread configs (2.4 and above)
       ansible.builtin.systemd:
         daemon_reload: yes
+        scope: user

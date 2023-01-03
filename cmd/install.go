@@ -58,8 +58,14 @@ var quayHostname string
 // askBecomePass holds whether or not to ask for password during SSH connection
 var askBecomePass bool
 
-// quayRoot is the directory where all the data are stored
+// quayRoot is the directory where all the quay config data is stored
 var quayRoot string
+
+// quayStorage is the directory where all the Quay data is stored
+var quayStorage string
+
+// pgStorage is the directory where all the Postgres data is stored
+var pgStorage string
 
 // additionalArgs are arguments that you would like to append to the end of the ansible-playbook call (used mostly for development)
 var additionalArgs string
@@ -92,7 +98,9 @@ func init() {
 
 	installCmd.Flags().StringVarP(&imageArchivePath, "image-archive", "i", "", "An archive containing images")
 	installCmd.Flags().BoolVarP(&askBecomePass, "askBecomePass", "", false, "Whether or not to ask for sudo password during SSH connection.")
-	installCmd.Flags().StringVarP(&quayRoot, "quayRoot", "r", "/etc/quay-install", "The folder where quay persistent data are saved. This defaults to /etc/quay-install")
+	installCmd.Flags().StringVarP(&quayRoot, "quayRoot", "r", "$HOME/quay-install", "The folder where quay persistent data are saved. This defaults to $HOME/quay-install")
+	installCmd.Flags().StringVarP(&quayStorage, "quayStorage", "", "quay-storage", "The folder where quay persistent storage data is saved. This defaults to a Podman named volume 'quay-storage'. Root is required to uninstall.")
+	installCmd.Flags().StringVarP(&pgStorage, "pgStorage", "", "pg-storage", "The folder where postgres persistent storage data is saved. This defaults to a Podman named volume 'pg-storage'. Root is required to uninstall.")
 	installCmd.Flags().StringVarP(&additionalArgs, "additionalArgs", "", "", "Additional arguments you would like to append to the ansible-playbook call. Used mostly for development.")
 
 }
@@ -255,7 +263,7 @@ func install() {
 	// Run playbook
 	log.Printf("Running install playbook. This may take some time. To see playbook output run the installer with -v (verbose) flag.")
 	quayVersion := strings.Split(quayImage, ":")[1]
-	podmanCmd := fmt.Sprintf(`sudo podman run `+
+	podmanCmd := fmt.Sprintf(`podman run `+
 		`--rm --interactive --tty `+
 		`--workdir /runner/project `+
 		`--net host `+
@@ -270,8 +278,8 @@ func install() {
 		`--quiet `+
 		`--name ansible_runner_instance `+
 		fmt.Sprintf("%s ", eeImage)+
-		`ansible-playbook -i %s@%s, --private-key /runner/env/ssh_key -e "init_user=%s init_password=%s quay_image=%s quay_version=%s redis_image=%s postgres_image=%s pause_image=%s quay_hostname=%s local_install=%s quay_root=%s" install_mirror_appliance.yml %s %s`,
-		sshKey, targetUsername, targetHostname, initUser, initPassword, quayImage, quayVersion, redisImage, postgresImage, pauseImage, quayHostname, strconv.FormatBool(isLocalInstall()), quayRoot, askBecomePassFlag, additionalArgs)
+		`ansible-playbook -i %s@%s, --private-key /runner/env/ssh_key -e "init_user=%s init_password=%s quay_image=%s quay_version=%s redis_image=%s postgres_image=%s pause_image=%s quay_hostname=%s local_install=%s quay_root=%s quay_storage=%s pg_storage=%s" install_mirror_appliance.yml %s %s`,
+		sshKey, targetUsername, targetHostname, initUser, initPassword, quayImage, quayVersion, redisImage, postgresImage, pauseImage, quayHostname, strconv.FormatBool(isLocalInstall()), quayRoot, quayStorage, pgStorage, askBecomePassFlag, additionalArgs)
 
 	log.Debug("Running command: " + podmanCmd)
 	cmd := exec.Command("bash", "-c", podmanCmd)
@@ -281,6 +289,6 @@ func install() {
 	err = cmd.Run()
 	check(err)
 
-	log.Printf("Quay installed successfully, permanent data is stored in %s", quayRoot)
+	log.Printf("Quay installed successfully, config data is stored in %s", quayRoot)
 	log.Printf("Quay is available at %s with credentials (%s, %s)", "https://"+quayHostname, initUser, initPassword)
 }

@@ -30,7 +30,9 @@ func init() {
 	uninstallCmd.Flags().StringVarP(&targetHostname, "targetHostname", "H", "localhost", "The hostname of the target you wish to install Quay to. This defaults to localhost")
 	uninstallCmd.Flags().StringVarP(&targetUsername, "targetUsername", "u", os.Getenv("USER"), "The user you wish to ssh into your remote with. This defaults to the current username")
 	uninstallCmd.Flags().BoolVarP(&askBecomePass, "askBecomePass", "", false, "Whether or not to ask for sudo password during SSH connection.")
-	uninstallCmd.Flags().StringVarP(&quayRoot, "quayRoot", "r", "/etc/quay-install", "The folder where quay persistent data are saved. This defaults to /etc/quay-install")
+	uninstallCmd.Flags().StringVarP(&quayRoot, "quayRoot", "r", "$HOME/quay-install", "The folder where quay persistent data are saved. This defaults to $HOME/quay-install")
+	uninstallCmd.Flags().StringVarP(&quayStorage, "quayStorage", "", "quay-storage", "The folder where quay persistent storage data is saved. This defaults to a Podman named volume 'quay-storage'. Root is required to uninstall.")
+	uninstallCmd.Flags().StringVarP(&pgStorage, "pgStorage", "", "pg-storage", "The folder where postgres persistent storage data is saved. This defaults to a Podman named volume 'pg-storage'. Root is required to uninstall.")
 	uninstallCmd.Flags().StringVarP(&additionalArgs, "additionalArgs", "", "", "Additional arguments you would like to append to the ansible-playbook call. Used mostly for development.")
 	uninstallCmd.Flags().BoolVarP(&autoApprove, "autoApprove", "", false, "Skips interactive approval")
 }
@@ -41,7 +43,7 @@ func uninstall() {
 	log.Printf("Uninstall has begun")
 
 	if !autoApprove {
-		question := fmt.Sprintf("Are you sure want to delete quayRoot directory %s? [y/n]", quayRoot)
+		question := fmt.Sprintf("Are you sure want to delete quayRoot directory %s and all storage data? [y/n]", quayRoot)
 		fmt.Println(question)
 		autoApprove = getApproval(question)
 		if !autoApprove {
@@ -63,7 +65,7 @@ func uninstall() {
 	}
 
 	log.Printf("Running uninstall playbook. This may take some time. To see playbook output run the installer with -v (verbose) flag.")
-	podmanCmd := fmt.Sprintf(`sudo podman run `+
+	podmanCmd := fmt.Sprintf(`podman run `+
 		`--rm --interactive --tty `+
 		`--workdir /runner/project `+
 		`--net host `+
@@ -76,8 +78,8 @@ func uninstall() {
 		`--quiet `+
 		`--name ansible_runner_instance `+
 		fmt.Sprintf("%s ", eeImage)+
-		`ansible-playbook -i %s@%s, --private-key /runner/env/ssh_key uninstall_mirror_appliance.yml -e "quay_root=%s auto_approve=%t" %s %s`,
-		sshKey, targetUsername, strings.Split(targetHostname, ":")[0], quayRoot, autoApprove, askBecomePassFlag, additionalArgs)
+		`ansible-playbook -i %s@%s, --private-key /runner/env/ssh_key uninstall_mirror_appliance.yml -e "quay_root=%s quay_storage=%s pg_storage=%s auto_approve=%t" %s %s`,
+		sshKey, targetUsername, strings.Split(targetHostname, ":")[0], quayRoot, quayStorage, pgStorage, autoApprove, askBecomePassFlag, additionalArgs)
 
 	log.Debug("Running command: " + podmanCmd)
 	cmd := exec.Command("bash", "-c", podmanCmd)

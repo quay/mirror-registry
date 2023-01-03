@@ -35,7 +35,9 @@ func init() {
 
 	upgradeCmd.Flags().StringVarP(&imageArchivePath, "image-archive", "i", "", "An archive containing images")
 	upgradeCmd.Flags().BoolVarP(&askBecomePass, "askBecomePass", "", false, "Whether or not to ask for sudo password during SSH connection.")
-	upgradeCmd.Flags().StringVarP(&quayRoot, "quayRoot", "r", "/etc/quay-install", "The folder where quay persistent data are saved. This defaults to /etc/quay-install")
+	upgradeCmd.Flags().StringVarP(&quayRoot, "quayRoot", "r", "$HOME/quay-install", "The folder where quay persistent data are saved. This defaults to $HOME/quay-install")
+	upgradeCmd.Flags().StringVarP(&quayStorage, "quayStorage", "", "quay-storage", "The folder where quay persistent storage data is saved. This defaults to a Podman named volume 'quay-storage'. Root is required to uninstall.")
+	upgradeCmd.Flags().StringVarP(&pgStorage, "pgStorage", "", "pg-storage", "The folder where postgres persistent storage data is saved. This defaults to a Podman named volume 'pg-storage'. Root is required to uninstall.")
 	upgradeCmd.Flags().StringVarP(&additionalArgs, "additionalArgs", "", "", "Additional arguments you would like to append to the ansible-playbook call. Used mostly for development.")
 
 }
@@ -174,7 +176,7 @@ func upgrade() {
 	// Run playbook
 	log.Printf("Running upgrade playbook. This may take some time. To see playbook output run the installer with -v (verbose) flag.")
 	quayVersion := strings.Split(quayImage, ":")[1]
-	podmanCmd := fmt.Sprintf(`sudo podman run `+
+	podmanCmd := fmt.Sprintf(`podman run `+
 		`--rm --interactive --tty `+
 		`--workdir /runner/project `+
 		`--net host `+
@@ -188,8 +190,8 @@ func upgrade() {
 		`--quiet `+
 		`--name ansible_runner_instance `+
 		fmt.Sprintf("%s ", eeImage)+
-		`ansible-playbook -i %s@%s, --private-key /runner/env/ssh_key -e "quay_image=%s quay_version=%s redis_image=%s postgres_image=%s pause_image=%s quay_hostname=%s local_install=%s quay_root=%s" upgrade_mirror_appliance.yml %s %s`,
-		sshKey, targetUsername, targetHostname, quayImage, quayVersion, redisImage, postgresImage, pauseImage, quayHostname, strconv.FormatBool(isLocalInstall()), quayRoot, askBecomePassFlag, additionalArgs)
+		`ansible-playbook -i %s@%s, --private-key /runner/env/ssh_key -e "quay_image=%s quay_version=%s redis_image=%s postgres_image=%s pause_image=%s quay_hostname=%s local_install=%s quay_root=%s quay_storage=%s pg_storage=%s" upgrade_mirror_appliance.yml %s %s`,
+		sshKey, targetUsername, targetHostname, quayImage, quayVersion, redisImage, postgresImage, pauseImage, quayHostname, strconv.FormatBool(isLocalInstall()), quayRoot, quayStorage, pgStorage, askBecomePassFlag, additionalArgs)
 
 	log.Debug("Running command: " + podmanCmd)
 	cmd := exec.Command("bash", "-c", podmanCmd)

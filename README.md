@@ -6,7 +6,6 @@ This application will allow user to easily install Quay and its required compone
 
 - RHEL 8 or Fedora machine with `podman v3.3` and `openssl` installed
 - Fully qualified domain name for the Quay service (must resolve via DNS, or at least [/etc/hosts](#local-dns-resolution))
-- Passwordless `sudo` access on the target host (rootless install tbd)
 - Key-based SSH connectivity on the target host (will be set up automatically for local installs, in case of remote hosts see [here](#generate-ssh-keys))
 - `make` (only if [compiling](#compile-your-own-installer) your own installer)
 
@@ -31,7 +30,9 @@ The following flags are also available:
 --initPassword          The password of the init user created during Quay installation. If not specified, this will be randomly generated.
 --initUser              The username of the init user created during Quay installation. This defaults to init.
 --quayHostname          The value to set SERVER_HOSTNAME in the Quay config.yaml. This defaults to <targetHostname>:8443.
---quayRoot          -r  The folder where quay persistent data are saved. This defaults to /etc/quay-install.
+--quayRoot          -r  The folder where quay persistent quay config data is saved. This defaults to $HOME/quay-install.
+--quayStorage           The folder where quay persistent storage data is saved. This defaults to a Podman named volume 'quay-storage'. Root is required to uninstall.
+--pgStorage             The folder where postgres persistent storage data is saved. This defaults to a Podman named volume 'pg-storage'. Root is required to uninstall.
 --ssh-key           -k  The path of your ssh identity key. This defaults to ~/.ssh/quay_installer.
 --sslCert               The path to the SSL certificate Quay should use.
 --sslCheckSkip          Whether or not to check the certificate hostname against the SERVER_HOSTNAME in config.yaml.
@@ -65,7 +66,7 @@ This command will make the following changes to your machine
 - Generate trusted SSH keys, if not supplied, in case the deployment target is the local host (required since the installer is ansible-based)
 - Pulls Quay, Redis, and Postgres images from `registry.redhat.io` (if using online installer)
 - Sets up systemd files on host machine to ensure that container runtimes are persistent
-- Creates the folder defined by `--quayRoot` (default: `/etc/quay-install`) contains install files, local storage, and config bundle.
+- Creates the folder defined by `--quayRoot` (default: `$HOME/quay-install`) contains install files, local storage, and config bundle.
 - Installs Quay and creates an initial user called `init` with an auto-generated password
 - Access credentials are printed at the end of the install routine
 
