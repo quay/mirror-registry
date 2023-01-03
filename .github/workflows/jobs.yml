@@ -148,7 +148,7 @@ jobs:
         run: tar -xf mirror-registry.tar.gz
       
       - name: Add quay to /etc/hosts
-        run: ssh jonathan@quay 'sudo echo "127.0.0.1 quay" >> /etc/hosts'
+        run: ssh jonathan@quay 'echo "127.0.0.1 quay" | sudo tee -a /etc/hosts'
 
       - name: Install podman
         run: ssh jonathan@quay 'sudo subscription-manager refresh; sudo yum -y install podman'
@@ -252,7 +252,7 @@ jobs:
         run: scp mirror-registry.tar.gz jonathan@quay:~/mirror-registry.tar.gz
 
       - name: Add quay to /etc/hosts
-        run: ssh jonathan@quay 'sudo echo "127.0.0.1 quay" >> /etc/hosts'
+        run: ssh jonathan@quay 'echo "127.0.0.1 quay" | sudo tee -a /etc/hosts'
 
       - name: Install podman
         run: ssh jonathan@quay 'sudo subscription-manager refresh; sudo yum -y install podman'
