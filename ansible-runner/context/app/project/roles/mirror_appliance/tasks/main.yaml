@@ -24,3 +24,6 @@
 
 - name: Create init user
   include_tasks: create-init-user.yaml
+
+- name: Enable lingering for systemd user processes
+  command: "loginctl enable-linger"

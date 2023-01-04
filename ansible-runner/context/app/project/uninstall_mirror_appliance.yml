@@ -46,12 +46,6 @@
         name: quay-pod
         state: absent
 
-    - name: Delete Install Directory
-      file:
-        state: absent
-        path: "{{ quay_root }}"
-      when: auto_approve|bool == true
-
     - name: Create Quay Storage named volume
       containers.podman.podman_volume:
           state: absent
@@ -77,6 +71,12 @@
         state: absent
       become: yes
       when: auto_approve|bool == true and pg_storage.startswith('/')
+
+    - name: Delete Install Directory
+      file:
+        state: absent
+        path: "{{ quay_root }}"
+      when: auto_approve|bool == true
 
     - name: Cleanup systemd unit files
       file:
