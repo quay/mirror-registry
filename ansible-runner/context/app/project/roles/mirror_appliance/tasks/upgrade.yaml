@@ -1,3 +1,9 @@
+- name: Install Dependencies
+  include_tasks: install-deps.yaml
+
+- name: Set SELinux Rules
+  include_tasks: set-selinux-rules.yaml
+
 - name: Autodetect Image Archive
   include_tasks: autodetect-image-archive.yaml
 
