@@ -1,0 +1,37 @@
+- name: Check for old installation
+  local_action: stat path=/etc/systemd/system/quay-app.service
+  register: p
+  become: true
+
+- name: Stop Quay service
+  systemd:
+    name: quay-app.service
+    enabled: no
+    daemon_reload: yes
+    state: stopped
+    force: yes
+  when: p.stat.exists
+
+- name: Stop Redis service
+  systemd:
+    name: quay-redis.service
+    enabled: no
+    daemon_reload: yes
+    state: stopped
+    force: yes
+  when: p.stat.exists
+
+- name: Stop Postgres service
+  systemd:
+    name: quay-postgres.service
+    enabled: no
+    daemon_reload: yes
+    state: stopped
+    force: yes
+  when: p.stat.exists
+
+- name: Delete pod
+  containers.podman.podman_pod:
+    name: quay-pod
+    state: absent
+  when: p.stat.exists
