@@ -1,3 +1,12 @@
+- name: Install Dependencies
+  include_tasks: install-deps.yaml
+
+- name: Set SELinux Rules
+  include_tasks: set-selinux-rules.yaml
+
+- name: Autodetect root or rootless from previous install
+  include_tasks: migrate-pre-1_3_0.yaml
+
 - name: Autodetect Image Archive
   include_tasks: autodetect-image-archive.yaml
 
