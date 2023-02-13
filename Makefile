@@ -23,6 +23,7 @@ build-online-zip:
 		--file Dockerfile.online . 
 	$(CLIENT) run --name mirror-registry-online-${RELEASE_VERSION} mirror-registry-online:${RELEASE_VERSION}
 	$(CLIENT) cp mirror-registry-online-${RELEASE_VERSION}:/mirror-registry.tar.gz .
+	$(CLIENT) rm mirror-registry-online-${RELEASE_VERSION}
 
 build-offline-zip: 
 	$(CLIENT) build \
@@ -38,6 +39,7 @@ build-offline-zip:
 		--file Dockerfile .
 	$(CLIENT) run --name mirror-registry-offline-${RELEASE_VERSION} mirror-registry-offline:${RELEASE_VERSION}
 	$(CLIENT) cp mirror-registry-offline-${RELEASE_VERSION}:/mirror-registry.tar.gz .
+	$(CLIENT) rm mirror-registry-offline-${RELEASE_VERSION}
 
 clean:
 	rm -rf mirror-registry* image-archive.tar
