@@ -30,7 +30,7 @@ func init() {
 	uninstallCmd.Flags().StringVarP(&targetHostname, "targetHostname", "H", "localhost", "The hostname of the target you wish to install Quay to. This defaults to localhost")
 	uninstallCmd.Flags().StringVarP(&targetUsername, "targetUsername", "u", os.Getenv("USER"), "The user you wish to ssh into your remote with. This defaults to the current username")
 	uninstallCmd.Flags().BoolVarP(&askBecomePass, "askBecomePass", "", false, "Whether or not to ask for sudo password during SSH connection.")
-	uninstallCmd.Flags().StringVarP(&quayRoot, "quayRoot", "r", "$HOME/quay-install", "The folder where quay persistent data are saved. This defaults to $HOME/quay-install")
+	uninstallCmd.Flags().StringVarP(&quayRoot, "quayRoot", "r", "~/quay-install", "The folder where quay persistent data are saved. This defaults to ~/quay-install")
 	uninstallCmd.Flags().StringVarP(&quayStorage, "quayStorage", "", "quay-storage", "The folder where quay persistent storage data is saved. This defaults to a Podman named volume 'quay-storage'. Root is required to uninstall.")
 	uninstallCmd.Flags().StringVarP(&pgStorage, "pgStorage", "", "pg-storage", "The folder where postgres persistent storage data is saved. This defaults to a Podman named volume 'pg-storage'. Root is required to uninstall.")
 	uninstallCmd.Flags().StringVarP(&additionalArgs, "additionalArgs", "", "", "Additional arguments you would like to append to the ansible-playbook call. Used mostly for development.")

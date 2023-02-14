@@ -100,7 +100,7 @@
 - name: Copy Quay systemd service file
   template:
     src: ../templates/quay.service.j2
-    dest: $HOME/.config/systemd/user/quay-app.service
+    dest: "{{ systemd_unit_dir }}/quay-app.service"
 
 - name: Check if Quay image is loaded
   command: podman inspect --type=image {{ quay_image }}
@@ -125,4 +125,4 @@
     enabled: yes
     daemon_reload: yes
     state: restarted
-    scope: user
+    scope: "{{ systemd_scope }}"

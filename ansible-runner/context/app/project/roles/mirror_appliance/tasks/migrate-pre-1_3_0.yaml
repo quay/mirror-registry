@@ -1,37 +1,92 @@
-- name: Check for old installation
-  local_action: stat path=/etc/systemd/system/quay-app.service
-  register: p
-  become: true
+- name: Check for old quay-storage
+  stat:
+    path: /etc/quay-install/quay-storage
+  register: stat_quay_storage
+  when: 'ansible_user_uid == 0 and quay_storage == "quay-storage"'
 
-- name: Stop Quay service
-  systemd:
-    name: quay-app.service
-    enabled: no
-    daemon_reload: yes
-    state: stopped
-    force: yes
-  when: p.stat.exists
+- name: Migrate quay-storage
+  block:
+  - name: Stop Quay service
+    systemd:
+      name: quay-app.service
+      state: stopped
+      scope: "{{ systemd_scope }}"
 
-- name: Stop Redis service
-  systemd:
-    name: quay-redis.service
-    enabled: no
-    daemon_reload: yes
-    state: stopped
-    force: yes
-  when: p.stat.exists
+  - name: Create temporary data-only container for quay-storage
+    containers.podman.podman_container:
+      name: quay-copy
+      image: "{{ pause_image }}"
+      state: present
+      volumes:
+      - "{{ quay_storage }}:/data"
 
-- name: Stop Postgres service
-  systemd:
-    name: quay-postgres.service
-    enabled: no
-    daemon_reload: yes
-    state: stopped
-    force: yes
-  when: p.stat.exists
+  - name: Copy data to quay-storage volume
+    command: podman cp /etc/quay-install/quay-storage/. quay-copy:/data
 
-- name: Delete pod
-  containers.podman.podman_pod:
-    name: quay-pod
-    state: absent
-  when: p.stat.exists
+  - name: Delete temporary container
+    containers.podman.podman_container:
+      name: quay-copy
+      state: absent
+
+  - name: Delete /etc/quay-install/quay-storage
+    file:
+      path: /etc/quay-install/quay-storage
+      state: absent
+  when: 'ansible_user_uid == 0 and quay_storage == "quay-storage" and stat_quay_storage.stat.exists'
+
+- name: Check for old pg-storage
+  stat:
+    path: /etc/quay-install/pg-data
+  register: stat_pg_storage
+  when: 'ansible_user_uid == 0 and pg_storage == "pg-storage"'
+
+- name: Migrate pg-storage
+  block:
+  - name: Stop Postgres service
+    systemd:
+      name: quay-postgres.service
+      state: stopped
+      scope: "{{ systemd_scope }}"
+
+  - name: Create temporary data-only container for pg-storage
+    containers.podman.podman_container:
+      name: quay-copy
+      image: "{{ postgres_image }}"
+      user: root
+      state: present
+      entrypoint: /bin/sh
+      command:
+      - -ec
+      - ls -al /data; chown -R postgres:postgres /data
+      volumes:
+      - "{{ pg_storage }}:/data"
+
+  - name: Copy data to pg-storage volume
+    command: podman cp /etc/quay-install/pg-data/. quay-copy:/data
+
+  - name: Fix permissions
+    command: "podman start -a quay-copy"
+
+  - name: Delete temporary container
+    containers.podman.podman_container:
+      name: quay-copy
+      state: absent
+
+  - name: Delete /etc/quay-install/pg-data
+    file:
+      path: /etc/quay-install/pg-data
+      state: absent
+  when: 'ansible_user_uid == 0 and pg_storage == "pg-storage" and stat_pg_storage.stat.exists'
+
+- name: Check for old Quay root /etc/quay-install
+  stat:
+    path: /etc/quay-install
+  register: stat_quay_root
+  when: 'ansible_user_uid == 0 and quay_root == "~/quay-install"'
+
+- name: Migrate Quay root
+  command: "mv /etc/quay-install {{ quay_root }}"
+  args:
+    removes: /etc/quay-install
+    creates: "{{ quay_root }}"
+  when: 'ansible_user_uid == 0 and quay_root == "~/quay-install" and stat_quay_root.stat.exists'

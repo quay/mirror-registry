@@ -1,7 +1,7 @@
 - name: Copy Redis systemd service file
   template:
     src: ../templates/redis.service.j2
-    dest: $HOME/.config/systemd/user/quay-redis.service
+    dest: "{{ systemd_unit_dir }}/quay-redis.service"
 
 - name: Check if Redis image is loaded
   command: podman inspect --type=image {{ redis_image }}
@@ -21,4 +21,4 @@
     enabled: yes
     daemon_reload: yes
     state: restarted
-    scope: user
+    scope: "{{ systemd_scope }}"

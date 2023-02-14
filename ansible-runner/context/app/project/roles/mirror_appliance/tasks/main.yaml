@@ -1,3 +1,6 @@
+- name: Expand variables
+  include_tasks: expand-vars.yaml
+
 - name: Install Dependencies
   include_tasks: install-deps.yaml
 
@@ -27,3 +30,4 @@
 
 - name: Enable lingering for systemd user processes
   command: "loginctl enable-linger"
+  when: ansible_user_uid != 0

@@ -12,7 +12,7 @@
         daemon_reload: yes
         state: stopped
         force: yes
-        scope: user
+        scope: "{{ systemd_scope }}"
 
     - name: Stop Redis service
       systemd:
@@ -21,7 +21,7 @@
         daemon_reload: yes
         state: stopped
         force: yes
-        scope: user
+        scope: "{{ systemd_scope }}"
 
     - name: Stop Postgres service
       systemd:
@@ -30,7 +30,7 @@
         daemon_reload: yes
         state: stopped
         force: yes
-        scope: user
+        scope: "{{ systemd_scope }}"
 
     - name: Stop Quay Pod service
       systemd:
@@ -39,7 +39,7 @@
         daemon_reload: yes
         state: stopped
         force: yes
-        scope: user
+        scope: "{{ systemd_scope }}"
 
     - name: Delete pod
       containers.podman.podman_pod:
@@ -81,7 +81,7 @@
     - name: Cleanup systemd unit files
       file:
         state: absent
-        path: "$HOME/.config/systemd/user/{{ item }}"
+        path: "{{ systemd_unit_dir }}/{{ item }}"
       loop:
         - quay-pod.service
         - quay-postgres.service
@@ -91,4 +91,4 @@
     - name: Just force systemd to reread configs (2.4 and above)
       ansible.builtin.systemd:
         daemon_reload: yes
-        scope: user
+        scope: "{{ systemd_scope }}"

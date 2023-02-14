@@ -1,3 +1,6 @@
+- name: Expand variables
+  include_tasks: expand-vars.yaml
+
 - name: Install Dependencies
   include_tasks: install-deps.yaml
 
