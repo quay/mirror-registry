@@ -39,9 +39,7 @@ start-vagrant:
 	vagrant up
 
 stop-vagrant:
-ifeq ($(DEBUG), 1)
-	vagrant halt
-else
+ifneq ($(DEBUG), 1)
 	vagrant destroy -f
 endif
 

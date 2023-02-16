@@ -1,7 +1,7 @@
 - name: Copy Quay Pod systemd service file
   template:
     src: ../templates/pod.service.j2
-    dest: $HOME/.config/systemd/user/quay-pod.service
+    dest: "{{ systemd_unit_dir }}/quay-pod.service"
 
 - name: Check if pod pause image is loaded
   command: podman inspect --type=image {{ pause_image }}
@@ -21,4 +21,4 @@
     enabled: yes
     daemon_reload: yes
     state: restarted
-    scope: user
+    scope: "{{ systemd_scope }}"

@@ -1,4 +1,4 @@
 - name: Create user service directory
   file:
-    path: $HOME/.config/systemd/user
+    path: "{{ systemd_unit_dir }}"
     state: directory
