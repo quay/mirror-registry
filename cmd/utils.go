@@ -93,7 +93,7 @@ func setupLocalSSH() error {
 	}
 
 	log.Infof("Adding key to ~/.ssh/authorized_keys")
-	cmd = exec.Command("bash", "-c", "/bin/echo \""+string(keyFile)+"\" >> ~/.ssh/authorized_keys")
+	cmd = exec.Command("bash", "-c", "umask 066 && /bin/echo \""+string(keyFile)+"\" >> ~/.ssh/authorized_keys")
 	if verbose {
 		cmd.Stderr = os.Stderr
 		cmd.Stdout = os.Stdout
