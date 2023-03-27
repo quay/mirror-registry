@@ -30,18 +30,18 @@ jobs:
     steps:
       # Checkout source branch for testing
       - name: Checkout PR
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         if: contains(github.event.pull_request.labels.*.name, 'ok-to-test')
         with:
           ref: ${{ github.event.pull_request.head.sha }}
 
       # Checkout target branch for release build
       - name: Checkout 
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         if: github.event.inputs.version
 
       - name: Set up Go 1.x
-        uses: actions/setup-go@v2
+        uses: actions/setup-go@v4
         with:
           go-version: ^1.13
         id: go
@@ -68,7 +68,7 @@ jobs:
         run: CLIENT=docker make build-${{ matrix.installer-type }}-zip
 
       - name: Upload tarfile
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: mirror-registry-${{ matrix.installer-type }}-installer
           path: mirror-registry.tar.gz
@@ -88,7 +88,7 @@ jobs:
       TF_VAR_SSH_PUBLIC_KEY: ${{ secrets.TF_VAR_SSH_PUBLIC_KEY }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Install oc
         uses: redhat-actions/oc-installer@v1
@@ -140,7 +140,7 @@ jobs:
           time: "60s"
 
       - name: Download tarfile
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           name: mirror-registry-${{ matrix.installer-type }}-installer
 
@@ -192,7 +192,7 @@ jobs:
       TF_VAR_SSH_PUBLIC_KEY: ${{ secrets.TF_VAR_SSH_PUBLIC_KEY }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Install oc
         uses: redhat-actions/oc-installer@v1
@@ -244,7 +244,7 @@ jobs:
           time: "60s"
 
       - name: Download tarfile
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           name: mirror-registry-${{ matrix.installer-type }}-installer
 
@@ -293,17 +293,17 @@ jobs:
     if: github.event.inputs.version && github.event.inputs.commit
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Download offline tarfile
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           name: mirror-registry-offline-installer
       - name: Rename offline tarfile
         run: mv mirror-registry.tar.gz mirror-registry-offline.tar.gz
 
       - name: Download online tarfile
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           name: mirror-registry-online-installer
       - name: Rename online tarfile
