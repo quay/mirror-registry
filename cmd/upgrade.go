@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -30,6 +31,10 @@ func init() {
 	upgradeCmd.Flags().StringVarP(&targetHostname, "targetHostname", "H", getFQDN(), "The hostname of the target you wish to install Quay to. This defaults to $HOST")
 	upgradeCmd.Flags().StringVarP(&targetUsername, "targetUsername", "u", os.Getenv("USER"), "The user on the target host which will be used for SSH. This defaults to $USER")
 	upgradeCmd.Flags().StringVarP(&sshKey, "ssh-key", "k", os.Getenv("HOME")+"/.ssh/quay_installer", "The path of your ssh identity key. This defaults to ~/.ssh/quay_installer")
+
+	upgradeCmd.Flags().StringVarP(&sslCert, "sslCert", "", "", "The path to the SSL certificate Quay should use")
+	upgradeCmd.Flags().StringVarP(&sslKey, "sslKey", "", "", "The path to the SSL key Quay should use")
+	upgradeCmd.Flags().BoolVarP(&sslCheckSkip, "sslCheckSkip", "", false, "Whether or not to check the certificate hostname against the SERVER_HOSTNAME in config.yaml.")
 
 	upgradeCmd.Flags().StringVarP(&quayHostname, "quayHostname", "", "", "The value to set SERVER_HOSTNAME in the Quay config.yaml. This defaults to <targetHostname>:8443")
 
@@ -61,6 +66,10 @@ func upgrade() {
 	if quayHostname == "" {
 		quayHostname = targetHostname + ":8443"
 	}
+
+	// Load the SSL certificate and the key
+	err = loadCerts(sslCert, sslKey, strings.Split(quayHostname, ":")[0], sslCheckSkip)
+	check(err)
 
 	// Check that SSH key is present, and generate if not
 	err = loadSSHKeys()
@@ -173,6 +182,20 @@ func upgrade() {
 		askBecomePassFlag = "-K"
 	}
 
+	// Set the SSL flag if cert and key are defined
+	var sslCertKeyFlag string
+	if sslCert != "" && sslKey != "" {
+		sslCertAbs, err := filepath.Abs(sslCert)
+		if err != nil {
+			check(errors.New("Unable to get absolute path of " + sslCert))
+		}
+		sslKeyAbs, err := filepath.Abs(sslKey)
+		if err != nil {
+			check(errors.New("Unable to get absolute path of " + sslKey))
+		}
+		sslCertKeyFlag = fmt.Sprintf(" -v %s:/runner/certs/quay.cert:Z -v %s:/runner/certs/quay.key:Z", sslCertAbs, sslKeyAbs)
+	}
+
 	// Run playbook
 	log.Printf("Running upgrade playbook. This may take some time. To see playbook output run the installer with -v (verbose) flag.")
 	quayVersion := strings.Split(quayImage, ":")[1]
@@ -181,6 +204,7 @@ func upgrade() {
 		`--workdir /runner/project `+
 		`--net host `+
 		imageArchiveMountFlag+ // optional image archive flag
+		sslCertKeyFlag+ // optional ssl cert/key flag
 		` -v %s:/runner/env/ssh_key `+
 		`-e RUNNER_OMIT_EVENTS=False `+
 		`-e RUNNER_ONLY_FAILED_EVENTS=False `+
