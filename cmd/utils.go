@@ -244,21 +244,21 @@ func getImageMetadata(app, imageName, archivePath string) string {
 					- ` + imageName + ` < ` + archivePath
 	case "quay":
 		// quay.io
-		quayVersion := strings.Split(imageName, ":")[1]
 		statement = `/usr/bin/podman image import \
-					--change 'ENV PATH=/.local/bin/:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin' \
-					--change 'ENV RED_HAT_QUAY=true' \
-					--change 'ENV PYTHON_VERSION=3.8' \
-					--change 'ENV PYTHON_ROOT=/usr/local/lib/python3.8' \
+					--change 'ENV container=oci' \
+					--change 'ENV PATH=/app/bin/:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin' \
 					--change 'ENV PYTHONUNBUFFERED=1' \
 					--change 'ENV PYTHONIOENCODING=UTF-8' \
-					--change 'ENV LANG=en_US.utf8' \
+					--change 'ENV LC_ALL=C.UTF-8' \
+					--change 'ENV LANG=C.UTF-8' \
 					--change 'ENV QUAYDIR=/quay-registry' \
 					--change 'ENV QUAYCONF=/quay-registry/conf' \
 					--change 'ENV QUAYRUN=/quay-registry/conf' \
-					--change 'ENV QUAYPATH=.' \
-					--change 'ENV QUAY_VERSION=` + quayVersion + `' \
-					--change 'ENV container=oci' \
+					--change 'ENV QUAYPATH=/quay-registry' \
+					--change 'ENV PYTHONUSERBASE=/app' \
+					--change 'ENV PYTHONPATH=/quay-registry' \
+					--change 'ENV TZ=UTC' \
+					--change 'ENV RED_HAT_QUAY=true' \
 					--change 'ENTRYPOINT=["dumb-init","--","/quay-registry/quay-entrypoint.sh"]' \
 					--change 'WORKDIR=/quay-registry' \
 					--change 'EXPOSE=7443' \
