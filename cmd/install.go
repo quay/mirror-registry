@@ -16,7 +16,7 @@ import (
 )
 
 // These variables are set at build time via ldflags
-var eeImage string
+var eeImage string = "REMOVEME"
 var pauseImage string
 var quayImage string
 var redisImage string

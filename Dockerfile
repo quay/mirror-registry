@@ -1,6 +1,5 @@
 ARG RELEASE_VERSION=${RELEASE_VERSION}
 ARG QUAY_IMAGE=${QUAY_IMAGE}
-ARG EE_IMAGE=${EE_IMAGE}
 ARG EE_BASE_IMAGE=${EE_BASE_IMAGE}
 ARG EE_BUILDER_IMAGE=${EE_BUILDER_IMAGE}
 ARG POSTGRES_IMAGE=${POSTGRES_IMAGE}
@@ -13,7 +12,6 @@ FROM registry.access.redhat.com/ubi8:latest AS cli
 # Need to duplicate these, otherwise they won't be available to the stage
 ARG RELEASE_VERSION=${RELEASE_VERSION}
 ARG QUAY_IMAGE=${QUAY_IMAGE}
-ARG EE_IMAGE=${EE_IMAGE}
 ARG POSTGRES_IMAGE=${POSTGRES_IMAGE}
 ARG REDIS_IMAGE=${REDIS_IMAGE}
 ARG PAUSE_IMAGE=${PAUSE_IMAGE}
@@ -31,14 +29,13 @@ WORKDIR /cli
 
 # Create CLI
 ENV RELEASE_VERSION=${RELEASE_VERSION}
-ENV EE_IMAGE=${EE_IMAGE}
 ENV QUAY_IMAGE=${QUAY_IMAGE}
 ENV REDIS_IMAGE=${REDIS_IMAGE}
 ENV POSTGRES_IMAGE=${POSTGRES_IMAGE}
 ENV PAUSE_IMAGE=${PAUSE_IMAGE}
 
 RUN go build -v \
-	-ldflags "-X github.com/quay/mirror-registry/cmd.releaseVersion=${RELEASE_VERSION} -X github.com/quay/mirror-registry/cmd.eeImage=${EE_IMAGE} -X github.com/quay/mirror-registry/cmd.pauseImage=${PAUSE_IMAGE} -X github.com/quay/mirror-registry/cmd.quayImage=${QUAY_IMAGE} -X github.com/quay/mirror-registry/cmd.redisImage=${REDIS_IMAGE} -X github.com/quay/mirror-registry/cmd.postgresImage=${POSTGRES_IMAGE}" \
+	-ldflags "-X github.com/quay/mirror-registry/cmd.releaseVersion=${RELEASE_VERSION} -X github.com/quay/mirror-registry/cmd.pauseImage=${PAUSE_IMAGE} -X github.com/quay/mirror-registry/cmd.quayImage=${QUAY_IMAGE} -X github.com/quay/mirror-registry/cmd.redisImage=${REDIS_IMAGE} -X github.com/quay/mirror-registry/cmd.postgresImage=${POSTGRES_IMAGE}" \
 	-o mirror-registry
 
 # Create Ansible Execution Environment
