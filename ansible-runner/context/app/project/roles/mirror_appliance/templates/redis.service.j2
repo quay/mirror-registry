@@ -15,6 +15,7 @@ ExecStart=/usr/bin/podman run \
     --conmon-pidfile %t/%n-pid \
     --cidfile %t/%n-cid \
     --cgroups=no-conmon \
+    --image-volume=ignore \
     --replace \
     {{ redis_image }}
 

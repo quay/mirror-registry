@@ -11,6 +11,7 @@ ExecStartPre=-/bin/rm -f %t/%n-pid %t/%n-cid
 ExecStart=/usr/bin/podman run \
     --name quay-postgres \
     -v {{ expanded_pg_storage }}:/var/lib/pgsql/data:Z \
+    --image-volume=ignore \
     -e POSTGRESQL_USER=user \
     -e POSTGRESQL_PASSWORD=password \
     -e POSTGRESQL_DATABASE=quay \
