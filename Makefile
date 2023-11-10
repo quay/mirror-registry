@@ -1,6 +1,8 @@
 include .env
 
 CLIENT ?= podman
+# RELEASE_VERSION is overridden in CI as the git tag matching format v[0-9]+.[0-9]+.[0-9]+
+RELEASE_VERSION ?= dev
 
 all:
 
