@@ -303,6 +303,8 @@ jobs:
     name: "Publish Release"
     needs: ["build-install-zip"]
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     if: github.event_name == 'push' || (github.event.inputs.version && github.event.inputs.commit)
     steps:
       - name: Checkout
@@ -331,7 +333,6 @@ jobs:
           commit: ${{ github.event.push.after }}
           name: ${{ github.ref_name }}
           tag: ${{ github.ref_name }}
-          token: ${{ secrets.GITHUB_TOKEN }}
         if: github.event_name == 'push'
 
       - uses: ncipollo/release-action@v1
@@ -342,5 +343,4 @@ jobs:
           commit: ${{ github.event.inputs.commit }}
           name: ${{ github.event.inputs.version }}
           tag: ${{ github.event.inputs.version }}
-          token: ${{ secrets.GITHUB_TOKEN }}
         if: github.event.inputs.version && github.event.inputs.commit
