@@ -13,10 +13,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version to release'     
-        required: true
-      commit:
-        description: 'Commit to release'     
+        description: 'Version to release (tag name)'
         required: true
 
 concurrency: 
@@ -33,14 +30,16 @@ jobs:
     steps:
       # Checkout source branch for testing
       - name: Checkout PR
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         if: contains(github.event.pull_request.labels.*.name, 'ok-to-test')
         with:
           ref: ${{ github.event.pull_request.head.sha }}
 
       # Checkout target branch for release build
       - name: Checkout 
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
+        with:
+          ref: refs/tags/${{ github.event.inputs.version }}
         if: github.event.inputs.version
 
       - name: Set version from tag/branch
@@ -305,7 +304,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-    if: github.event_name == 'push' || (github.event.inputs.version && github.event.inputs.commit)
+    if: github.event_name == 'push' || github.event.inputs.version
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -330,8 +329,6 @@ jobs:
           artifacts: "*.tar.gz,README.md"
           allowUpdates: true
           prerelease: true
-          commit: ${{ github.event.push.after }}
-          name: ${{ github.ref_name }}
           tag: ${{ github.ref_name }}
         if: github.event_name == 'push'
 
@@ -340,7 +337,5 @@ jobs:
           artifacts: "*.tar.gz,README.md"
           allowUpdates: true
           prerelease: true
-          commit: ${{ github.event.inputs.commit }}
-          name: ${{ github.event.inputs.version }}
           tag: ${{ github.event.inputs.version }}
-        if: github.event.inputs.version && github.event.inputs.commit
+        if: github.event.inputs.version
