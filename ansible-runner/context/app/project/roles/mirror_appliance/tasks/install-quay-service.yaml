@@ -17,6 +17,7 @@
 - name: Create necessary directory for Quay config bundle
   ansible.builtin.file:
     path: "{{ quay_root }}/quay-config"
+    mode: 0750
     state: directory
     recurse: yes
 
@@ -24,6 +25,7 @@
   template:
     src: ../templates/config.yaml.j2
     dest: "{{ quay_root }}/quay-config/config.yaml"
+    mode: 0750
 
 - name: Check if SSL Cert exists
   stat:
@@ -42,6 +44,7 @@
     - name: Create necessary directory for Quay rootCA files
       ansible.builtin.file:
         path: "{{ quay_root }}/quay-rootCA"
+        mode: 0750
         state: directory
         recurse: yes
         
