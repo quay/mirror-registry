@@ -1,8 +1,8 @@
 [Unit]
 Description=Quay Container
 Wants=network.target
-After=network-online.target quay-pod.service quay-postgres.service quay-redis.service
-Requires=quay-pod.service quay-postgres.service quay-redis.service
+After=network-online.target quay-pod.service quay-redis.service
+Requires=quay-pod.service quay-redis.service
 
 [Service]
 Type=simple
@@ -11,6 +11,7 @@ ExecStartPre=-/bin/rm -f %t/%n-pid %t/%n-cid
 ExecStart=/usr/bin/podman run \
     --name quay-app \
     -v {{ expanded_quay_root }}/quay-config:/quay-registry/conf/stack:Z \
+    -v {{ expanded_sqlite_storage }}/quay-config:/quay-registry/sqlite/data:Z \    
     -v {{ expanded_quay_storage }}:/datastorage:Z \
     --image-volume=ignore \
     --pod=quay-pod \

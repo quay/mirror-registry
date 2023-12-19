@@ -14,6 +14,22 @@
     state: present
   when: "quay_storage.startswith('/')"
 
+- name: Create necessary directory for Postgres persistent data
+  ansible.builtin.file:
+    path: "{{ pg_storage }}"
+    state: directory
+    recurse: yes
+  when: "pg_storage.startswith('/')"
+
+- name: Set permissions on local storage directory
+  ansible.posix.acl:
+    path: "{{ pg_storage }}"
+    entity: 26
+    etype: user
+    permissions: wx
+    state: present
+  when: "pg_storage.startswith('/')"
+
 - name: Create necessary directory for Quay config bundle
   ansible.builtin.file:
     path: "{{ quay_root }}/quay-config"
@@ -121,6 +137,11 @@
   containers.podman.podman_volume:
       state: present
       name: quay-storage
+
+- name: Create Postgres Storage named volume
+  containers.podman.podman_volume:
+      state: present
+      name: pg-storage
 
 - name: Start Quay service
   systemd:

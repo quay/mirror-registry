@@ -2,7 +2,7 @@
 Description=Infra Container for Quay
 Wants=network.target
 After=network-online.target
-Before=quay-postgres.service quay-redis.service
+Before=quay-redis.service
 
 [Service]
 Type=simple
