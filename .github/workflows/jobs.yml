@@ -1,6 +1,9 @@
 name: "Release"
 
 on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
   pull_request_target:
     types: [labeled]
     branches:
@@ -10,10 +13,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version to release'     
-        required: true
-      commit:
-        description: 'Commit to release'     
+        description: 'Version to release (tag name)'
         required: true
 
 concurrency: 
@@ -23,21 +23,33 @@ jobs:
   build-install-zip:
     name: "Build Installer"
     runs-on: ubuntu-latest
-    if: contains(github.event.pull_request.labels.*.name, 'ok-to-test')  || github.event.inputs.version
+    if: github.event_name == 'push' || contains(github.event.pull_request.labels.*.name, 'ok-to-test') || github.event.inputs.version
     strategy:
       matrix:
         installer-type: ["online", "offline"]
     steps:
       # Checkout source branch for testing
       - name: Checkout PR
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         if: contains(github.event.pull_request.labels.*.name, 'ok-to-test')
         with:
           ref: ${{ github.event.pull_request.head.sha }}
 
       # Checkout target branch for release build
       - name: Checkout 
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
+        with:
+          ref: refs/tags/${{ github.event.inputs.version }}
+        if: github.event.inputs.version
+
+      - name: Set version from tag/branch
+        run: |
+          echo "RELEASE_VERSION=$GITHUB_REF_NAME" >>"$GITHUB_ENV"
+        if: github.event_name == 'push' || contains(github.event.pull_request.labels.*.name, 'ok-to-test')
+
+      - name: Set version from input
+        run: |
+          echo "RELEASE_VERSION=${{ github.event.inputs.version }}" >>"$GITHUB_ENV"
         if: github.event.inputs.version
 
       - name: Set up Go 1.x
@@ -290,7 +302,9 @@ jobs:
     name: "Publish Release"
     needs: ["build-install-zip"]
     runs-on: ubuntu-latest
-    if: github.event.inputs.version && github.event.inputs.commit
+    permissions:
+      contents: write
+    if: github.event_name == 'push' || github.event.inputs.version
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -306,6 +320,7 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           name: mirror-registry-online-installer
+
       - name: Rename online tarfile
         run: mv mirror-registry.tar.gz mirror-registry-online.tar.gz
 
@@ -314,7 +329,13 @@ jobs:
           artifacts: "*.tar.gz,README.md"
           allowUpdates: true
           prerelease: true
-          commit: ${{ github.event.inputs.commit }}
-          name: ${{ github.event.inputs.version }}
+          tag: ${{ github.ref_name }}
+        if: github.event_name == 'push'
+
+      - uses: ncipollo/release-action@v1
+        with:
+          artifacts: "*.tar.gz,README.md"
+          allowUpdates: true
+          prerelease: true
           tag: ${{ github.event.inputs.version }}
-          token: ${{ secrets.GITHUB_TOKEN }}
+        if: github.event.inputs.version
