@@ -36,6 +36,12 @@
       state: present
       name: pg-storage
 
+- name: Create Postgres Password Secret
+  containers.podman.podman_secret:
+    state: present
+    name: pgdb_pass
+    data: "{{ pgdb_password }}"
+
 - name: Start Postgres service
   systemd:
     name: quay-postgres.service
