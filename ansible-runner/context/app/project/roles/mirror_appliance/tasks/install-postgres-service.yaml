@@ -41,6 +41,7 @@
     state: present
     name: pgdb_pass
     data: "{{ pgdb_password }}"
+    skip_existing: true
 
 - name: Start Postgres service
   systemd:
