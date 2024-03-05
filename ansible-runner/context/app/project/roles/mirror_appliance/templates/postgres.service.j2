@@ -13,12 +13,12 @@ ExecStart=/usr/bin/podman run \
     -v {{ expanded_pg_storage }}:/var/lib/pgsql/data:Z \
     --image-volume=ignore \
     -e POSTGRESQL_USER=user \
-    -e POSTGRESQL_PASSWORD=password \
     -e POSTGRESQL_DATABASE=quay \
     --pod=quay-pod \
     --conmon-pidfile %t/%n-pid \
     --cidfile %t/%n-cid \
     --cgroups=no-conmon \
+    --secret=pgdb_pass,type=env,target=POSTGRESQL_PASSWORD \
     --replace \
     {{ postgres_image }}
 

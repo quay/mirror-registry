@@ -1,10 +1,10 @@
 AUTHENTICATION_TYPE: Database
 BUILDLOGS_REDIS:
   host: localhost
-  password: password
+  password: {{ redis_password }}
   port: 6379
-DATABASE_SECRET_KEY: "81541057085600720484162638317561463611194901378275494293746615390984668417511"
-DB_URI: postgresql://user:password@localhost/quay
+DATABASE_SECRET_KEY: {{ database_secret_key }}
+DB_URI: postgresql://user:{{ pgdb_password }}@localhost/quay
 DEFAULT_TAG_EXPIRATION: 2w
 DISTRIBUTED_STORAGE_DEFAULT_LOCATIONS: []
 DISTRIBUTED_STORAGE_PREFERENCE:
@@ -42,7 +42,7 @@ REGISTRY_TITLE: Red Hat Quay
 REGISTRY_TITLE_SHORT: Red Hat Quay
 REPO_MIRROR_SERVER_HOSTNAME: null
 REPO_MIRROR_TLS_VERIFY: false
-SECRET_KEY: "30824339799025335633887256663000123118247018465144108496567331049820667127217"
+SECRET_KEY: {{ secret_key }}
 SECURITY_SCANNER_ISSUER_NAME: security_scanner
 SERVER_HOSTNAME: {{ quay_hostname }}
 SETUP_COMPLETE: true
@@ -60,7 +60,7 @@ USERFILES_LOCATION: default
 USERFILES_PATH: userfiles/
 USER_EVENTS_REDIS:
   host: localhost
-  password: password
+  password: {{ redis_password }}
   port: 6379
 USE_CDN: false
 FEATURE_USER_INITIALIZE: true

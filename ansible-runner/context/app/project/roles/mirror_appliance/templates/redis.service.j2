@@ -10,12 +10,12 @@ TimeoutStartSec=5m
 ExecStartPre=-/bin/rm -f %t/%n-pid %t/%n-cid
 ExecStart=/usr/bin/podman run \
     --name quay-redis \
-    -e REDIS_PASSWORD=password \
     --pod=quay-pod \
     --conmon-pidfile %t/%n-pid \
     --cidfile %t/%n-cid \
     --cgroups=no-conmon \
     --image-volume=ignore \
+    --secret=redis_pass,type=env,target=REDIS_PASSWORD \
     --replace \
     {{ redis_image }}
 
