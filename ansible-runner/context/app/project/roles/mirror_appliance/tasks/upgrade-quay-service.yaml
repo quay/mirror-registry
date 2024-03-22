@@ -1,3 +1,80 @@
+- name: Check if SSL Cert exists
+  stat:
+    path: /runner/certs/quay.cert
+  delegate_to: localhost
+  register: ssl_cert
+
+- name: Check if SSL Key exists
+  stat:
+    path: /runner/certs/quay.key
+  delegate_to: localhost
+  register: ssl_key
+
+- name: Check if mirror registry created SSL Cert
+  shell: "openssl x509 -in {{ quay_root }}/quay-rootCA/rootCA.pem -noout -text | grep 'O = Quay'"
+  register: ssl_cert_owner
+  ignore_errors: true
+
+- name: Create SSL Certs
+  block:
+    - name: Create necessary directory for Quay rootCA files
+      ansible.builtin.file:
+        path: "{{ quay_root }}/quay-rootCA"
+        state: directory
+        recurse: yes
+        
+    - name: Create OpenSSL Config
+      template:
+        src: ../templates/req.j2
+        dest: "{{ quay_root }}/quay-config/openssl.cnf"
+
+    - name: Create root CA key
+      command: "openssl genrsa -out {{ quay_root }}/quay-rootCA/rootCA.key 2048"
+
+    - name: Create root CA pem
+      command: "openssl req -x509 -new -config {{ quay_root }}/quay-config/openssl.cnf -nodes -key {{ quay_root }}/quay-rootCA/rootCA.key -sha256 -days 1024 -out {{ quay_root }}/quay-rootCA/rootCA.pem -addext basicConstraints=critical,CA:TRUE,pathlen:1"
+
+    - name: Create ssl key
+      command: "openssl genrsa -out {{ quay_root }}/quay-config/ssl.key 2048"
+
+    - name: Create CSR
+      command: "openssl req -new -key {{ quay_root }}/quay-config/ssl.key -out {{ quay_root }}/quay-config/ssl.csr -subj \"/CN=quay-enterprise\" -config {{ quay_root }}/quay-config/openssl.cnf"
+
+    - name: Create self-signed cert
+      command: "openssl x509 -req -in {{ quay_root }}/quay-config/ssl.csr -CA {{ quay_root }}/quay-rootCA/rootCA.pem -CAkey {{ quay_root }}/quay-rootCA/rootCA.key -CAcreateserial -out {{ quay_root }}/quay-config/ssl.cert -days 356 -extensions v3_req -extfile {{ quay_root }}/quay-config/openssl.cnf"
+
+    - name: Create chain cert
+      ansible.builtin.shell: cat {{ quay_root }}/quay-config/ssl.cert {{ quay_root }}/quay-rootCA/rootCA.pem > {{ quay_root }}/quay-config/chain.cert
+
+    - name: Replace ssl cert with chain cert
+      command: mv --force {{ quay_root }}/quay-config/chain.cert {{ quay_root }}/quay-config/ssl.cert
+  when: (ssl_cert_owner.rc == 0)
+
+- name: Copy SSL Certs
+  block:
+    - name: Copy SSL certificate
+      copy:
+        src: /runner/certs/quay.cert
+        dest: "{{ quay_root }}/quay-config/ssl.cert"
+
+    - name: Copy SSL key
+      copy:
+        src: /runner/certs/quay.key
+        dest: "{{ quay_root }}/quay-config/ssl.key"
+  when: (ssl_cert.stat.exists == True) and (ssl_key.stat.exists == True) and (ssl_cert_owner.rc == 1)
+
+- name: Set certificate permissions
+  block:
+    - name: Set permissions for key
+      ansible.builtin.file:
+        path: "{{ quay_root }}/quay-config/ssl.key"
+        mode: u=rw,g=r,o=r
+
+    - name: Set permissions for cert
+      ansible.builtin.file:
+        path: "{{ quay_root }}/quay-config/ssl.cert"
+        mode: u=rw,g=r,o=r
+
 - name: Copy Quay systemd service file
   template:
     src: ../templates/quay.service.j2
@@ -6,7 +83,7 @@
 - name: Check if Quay image is loaded
   command: podman inspect --type=image {{ quay_image }}
   register: q
-  ignore_errors: yes
+  ignore_errors: true
 
 - name: Pull Quay image
   containers.podman.podman_image:
@@ -14,6 +91,11 @@
   when: q.rc != 0
   retries: 5
   delay: 5
+
+- name: Create Quay Storage named volume
+  containers.podman.podman_volume:
+      state: present
+      name: quay-storage
 
 - name: Start Quay service
   systemd:
