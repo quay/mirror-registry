@@ -51,6 +51,16 @@
       name: pg-storage
   when: auto_approve|bool == true and pg_storage == "pg-storage"
 
+- name: Delete Postgres Password Secret
+  containers.podman.podman_secret:
+    state: absent
+    name: pgdb_pass
+
+- name: Delete Redis Password Secret
+  containers.podman.podman_secret:
+    state: absent
+    name: redis_pass
+
 - name: Delete necessary directory for Quay local storage
   ansible.builtin.file:
     path: "{{ quay_storage }}"
