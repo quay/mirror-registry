@@ -10,6 +10,9 @@
 - name: Autodetect root or rootless from previous install
   include_tasks: migrate-pre-1_3_0.yaml
 
+- name: Create podman secrets
+  include_tasks: migrate-pre-1_3_11.yaml
+
 - name: Autodetect Image Archive
   include_tasks: autodetect-image-archive.yaml
 

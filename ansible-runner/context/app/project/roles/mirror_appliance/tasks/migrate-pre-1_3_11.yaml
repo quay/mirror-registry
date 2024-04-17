@@ -1,0 +1,13 @@
+- name: Create Postgres Password Secret
+  containers.podman.podman_secret:
+    state: present
+    name: pgdb_pass
+    data: password
+    skip_existing: true
+
+- name: Create Redis Password Secret
+  containers.podman.podman_secret:
+    state: present
+    name: redis_pass
+    data: password
+    skip_existing: true
