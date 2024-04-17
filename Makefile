@@ -13,6 +13,7 @@ build-golang-executable:
 
 build-online-zip: 
 	$(CLIENT) build \
+		--platform linux/amd64 \
 		-t mirror-registry-online:${RELEASE_VERSION} \
 		--build-arg RELEASE_VERSION=${RELEASE_VERSION} \
 		--build-arg QUAY_IMAGE=${QUAY_IMAGE} \
@@ -29,6 +30,7 @@ build-online-zip:
 
 build-offline-zip: 
 	$(CLIENT) build \
+		--platform linux/amd64 \
 		-t mirror-registry-offline:${RELEASE_VERSION} \
 		--build-arg RELEASE_VERSION=${RELEASE_VERSION} \
 		--build-arg QUAY_IMAGE=${QUAY_IMAGE} \
