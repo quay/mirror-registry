@@ -11,9 +11,8 @@
   ansible.builtin.set_fact:
     quay_config_file: "{{ remote_yaml_file['content'] | b64decode | from_yaml }}"
 
-- name: Set facts for the DATABASE_SECRET_KEY, USER_EVENTS_REDIS['password'] and Postgres password derived from DB_URI only if they are a string and not a jinja2 variable in the config.yaml.
+- name: Set facts for the pre-existing secrets only if they are a string and not a jinja2 variable in the config.yaml.
   ansible.builtin.set_fact:
-    DATABASE_SECRET_KEY : "{{ quay_config_file['DATABASE_SECRET_KEY'] }}"
     REDIS_PASSWORD : "{{ quay_config_file['USER_EVENTS_REDIS']['password'] }}"
     PGDB_PASSWORD : "{{ quay_config_file['DB_URI'].split('@')[0].split(':')[2] }}"
   when: quay_config_file['DATABASE_SECRET_KEY'] is string and quay_config_file['USER_EVENTS_REDIS']['password'] is string and quay_config_file['DB_URI'] is string
