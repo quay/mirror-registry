@@ -15,6 +15,13 @@
   retries: 5
   delay: 5
 
+- name: Create Postgres Password Secret
+  containers.podman.podman_secret:
+    state: present
+    name: pgdb_pass
+    data: "{{ PGDB_PASSWORD }}"
+    skip_existing: true
+
 - name: Start Postgres service
   systemd:
     name: quay-postgres.service

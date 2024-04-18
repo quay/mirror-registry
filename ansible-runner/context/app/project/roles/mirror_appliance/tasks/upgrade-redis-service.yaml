@@ -15,6 +15,13 @@
   retries: 5
   delay: 5
 
+- name: Create Redis Password Secret
+  containers.podman.podman_secret:
+    state: present
+    name: redis_pass
+    data: "{{ REDIS_PASSWORD }}"
+    skip_existing: true
+
 - name: Start Redis service
   systemd:
     name: quay-redis.service
