@@ -75,10 +75,16 @@ FROM $REDIS_IMAGE as redis
 FROM $PAUSE_IMAGE as pause
 
 # Install db sqlite migration cli
-FROM registry.access.redhat.com/ubi8/python-36 AS db-cli
+FROM registry.access.redhat.com/ubi8-minimal AS db-cli
+
+# Install Python 3 and pip
+RUN microdnf update -y && \
+    microdnf install python3 python3-pip -y && \
+    microdnf install gcc-c++ python3-devel -y && \
+    microdnf clean all
 
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip3 install --no-cache-dir -r requirements.txt
 
 # Create mirror registry archive
 FROM registry.access.redhat.com/ubi8:latest AS build

@@ -61,11 +61,23 @@ COPY --from=builder /output/ /output/
 RUN /output/install-from-bindep && rm -rf /output/wheels
 COPY ansible-runner/context/app /runner
 
+# # Install db sqlite migration cli
+# FROM registry.access.redhat.com/ubi8/python-36 AS db-cli
+
+# COPY requirements.txt .
+# RUN pip install --no-cache-dir -r requirements.txt
+
 # Install db sqlite migration cli
-FROM registry.access.redhat.com/ubi8/python-36 AS db-cli
+FROM registry.access.redhat.com/ubi8-minimal AS db-cli
+
+# Install Python 3 and pip
+RUN microdnf update -y && \
+    microdnf install python3 python3-pip -y && \
+    microdnf install gcc-c++ python3-devel -y && \
+    microdnf clean all
 
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip3 install --no-cache-dir -r requirements.txt
 
 # Create mirror registry archive
 FROM registry.redhat.io/ubi8:latest AS build
