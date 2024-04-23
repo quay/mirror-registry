@@ -12,6 +12,9 @@ import (
 	"strings"
 )
 
+// This variable is set at build time via ldflags
+var sqliteImage string
+
 func loadExecutionEnvironment() error {
 
 	// Ensure execution environment is present
@@ -180,6 +183,35 @@ func check(err error) {
 	}
 }
 
+func loadSqliteDBMigrationTool() error {
+	// Ensure execution environment is present
+	executableDir, err := os.Executable()
+	if err != nil {
+		return err
+	}
+	sqliteMigrationToolPath := path.Join(path.Dir(executableDir), "db-cli.tar")
+	if !pathExists(sqliteMigrationToolPath) {
+		return errors.New("Could not find db-cli.tar at " + sqliteMigrationToolPath)
+	}
+	log.Info("Found db-cli tool at " + sqliteMigrationToolPath)
+
+	// Load db-to-sqlite python dep into podman
+	log.Printf("Loading db-to-sqlite migration tool from db-cli.tar")
+	statement := getImageMetadata("sqlite", sqliteImage, sqliteMigrationToolPath)
+	cmd := exec.Command("/bin/bash", "-c", statement)
+	if verbose {
+		cmd.Stderr = os.Stderr
+		cmd.Stdout = os.Stdout
+	}
+	log.Debug("Importing db-to-sqlite migration tool with command: ", cmd)
+
+	err = cmd.Run()
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 // getImageMetadata provides the metadata needed for a corresponding image
 func getImageMetadata(app, imageName, archivePath string) string {
 	var statement string
@@ -191,6 +223,12 @@ func getImageMetadata(app, imageName, archivePath string) string {
 					--change 'ENV container=oci' \
 					--change 'ENTRYPOINT=["sleep"]' \
 					--change 'CMD=["infinity"]' \
+					- ` + imageName + ` < ` + archivePath
+	case "sqlite":
+		statement = `/usr/bin/podman image import \
+					--change 'ENV PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin' \
+					--change 'ENV container=oci' \
+					--change 'CMD=["db-to-sqlite"]' \
 					- ` + imageName + ` < ` + archivePath
 	case "ansible":
 		statement = `/usr/bin/podman image import \

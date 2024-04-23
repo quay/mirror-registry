@@ -1,0 +1,53 @@
+- name: Install db-to-sqlite package
+  pip:
+    name: db-to-sqlite
+
+- name: Get connection string of running PostgreSQL container
+  containers.podman.podman_container_info:
+    name: quay-postgres
+  register: postgres_container_info
+
+- set_fact:
+    postgres_connection_string: "postgresql://{{ postgres_container_info.containers[0].network_settings.ip_address }}:5432/quay"    
+
+- name: Convert PostgreSQL database to SQLite
+  ansible.builtin.command: >
+    db-to-sqlite "{{ postgres_connection_string }}" pg_quay_dump.db --all
+  environment:
+    POSTGRES_PASSWORD: "{{ postgres_password }}"
+
+- name: Stop Quay service
+  systemd:
+    name: quay-app.service
+    enabled: no
+    daemon_reload: yes
+    state: stopped
+    force: yes
+    scope: "{{ systemd_scope }}"
+
+- name: Create Sqlite storage named volume
+  containers.podman.podman_volume:
+      state: present
+      name: sqlite-storage
+
+- name: Copy sqlite database file to sqlite storage volume
+  ansible.builtin.copy:
+    src: pg_quay_dump.db
+    dest: "{{ quay_storage }}:/pg_quay_dump.db"
+
+- name: Stop Postgres service
+  systemd:
+    name: quay-postgres.service
+    enabled: no
+    daemon_reload: yes
+    state: stopped
+    force: yes
+    scope: "{{ systemd_scope }}"
+
+- name: Start Quay service
+  systemd:
+    name: quay-app.service
+    enabled: yes
+    daemon_reload: yes
+    state: restarted
+    scope: "{{ systemd_scope }}"

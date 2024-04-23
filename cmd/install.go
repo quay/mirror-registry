@@ -66,6 +66,9 @@ var quayStorage string
 // sqliteStorage is the directory where all the Quay sqlite data is stored
 var sqliteStorage string
 
+// sqliteStorage is the directory where all the Sqlite data is stored
+var sqliteStorage string
+
 // additionalArgs are arguments that you would like to append to the end of the ansible-playbook call (used mostly for development)
 var additionalArgs string
 
@@ -101,6 +104,8 @@ func init() {
 	installCmd.Flags().StringVarP(&quayStorage, "quayStorage", "", "quay-storage", "The folder where quay persistent storage data is saved. This defaults to a Podman named volume 'quay-storage'. Root is required to uninstall.")
 	installCmd.Flags().StringVarP(&sqliteStorage, "sqliteStorage", "", "sqlite-storage", "The folder where quay sqlite data is saved. This defaults to a Podman named volume 'sqlite-storage'. Root is required to uninstall.")
 	installCmd.Flags().StringVarP(&additionalArgs, "additionalArgs", "", "", "Additional arguments you would like to append to the ansible-playbook call. Used mostly for development.")
+
+	installCmd.Flags().StringVarP(&sqliteStorage, "sqliteStorage", "", "sqlite-storage", "The volume where sqlite persistent storage data is saved. This defaults to a Podman named volume 'sqlite-storage'. Root is required to uninstall.")
 
 }
 

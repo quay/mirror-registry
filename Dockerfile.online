@@ -31,7 +31,7 @@ ENV REDIS_IMAGE=${REDIS_IMAGE}
 ENV PAUSE_IMAGE=${PAUSE_IMAGE}
 
 RUN go build -v \
-    -ldflags "-X github.com/quay/mirror-registry/cmd.releaseVersion=${RELEASE_VERSION} -X github.com/quay/mirror-registry/cmd.eeImage=${EE_IMAGE} -X github.com/quay/mirror-registry/cmd.pauseImage=${PAUSE_IMAGE} -X github.com/quay/mirror-registry/cmd.quayImage=${QUAY_IMAGE} -X github.com/quay/mirror-registry/cmd.redisImage=${REDIS_IMAGE}" \
+    -ldflags "-X github.com/quay/mirror-registry/cmd.releaseVersion=${RELEASE_VERSION} -X github.com/quay/mirror-registry/cmd.eeImage=${EE_IMAGE} -X github.com/quay/mirror-registry/cmd.pauseImage=${PAUSE_IMAGE} -X github.com/quay/mirror-registry/cmd.quayImage=${QUAY_IMAGE} -X github.com/quay/mirror-registry/cmd.redisImage=${REDIS_IMAGE} -X github.com/quay/mirror-registry/cmd.sqliteImage=${DB_TO_SQLITE_IMAGE}" \
     -o mirror-registry
 
 # Create Ansible Execution Environment
@@ -61,6 +61,12 @@ COPY --from=builder /output/ /output/
 RUN /output/install-from-bindep && rm -rf /output/wheels
 COPY ansible-runner/context/app /runner
 
+# Install db sqlite migration cli
+FROM registry.access.redhat.com/ubi8/python-36 AS db-cli
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
 # Create mirror registry archive
 FROM registry.redhat.io/ubi8:latest AS build
 
@@ -70,8 +76,11 @@ RUN tar -cvf execution-environment.tar -C /ansible .
 
 COPY --from=cli /cli/mirror-registry .
 
+COPY --from=db-cli / /db-cli
+RUN tar -cvf db-cli.tar -C /db-cli .
+
 # Bundle mirror registry archive
-RUN tar -czvf mirror-registry.tar.gz execution-environment.tar mirror-registry
+RUN tar -czvf mirror-registry.tar.gz execution-environment.tar mirror-registry db-cli.tar
 
 # Extract bundle to final release image
 FROM registry.redhat.io/ubi8:latest AS release

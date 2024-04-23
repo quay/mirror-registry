@@ -35,7 +35,11 @@ ENV REDIS_IMAGE=${REDIS_IMAGE}
 ENV PAUSE_IMAGE=${PAUSE_IMAGE}
 
 RUN go build -v \
+<<<<<<< HEAD
 	-ldflags "-X github.com/quay/mirror-registry/cmd.releaseVersion=${RELEASE_VERSION} -X github.com/quay/mirror-registry/cmd.eeImage=${EE_IMAGE} -X github.com/quay/mirror-registry/cmd.pauseImage=${PAUSE_IMAGE} -X github.com/quay/mirror-registry/cmd.quayImage=${QUAY_IMAGE} -X github.com/quay/mirror-registry/cmd.redisImage=${REDIS_IMAGE}" \
+=======
+	-ldflags "-X github.com/quay/mirror-registry/cmd.releaseVersion=${RELEASE_VERSION} -X github.com/quay/mirror-registry/cmd.eeImage=${EE_IMAGE} -X github.com/quay/mirror-registry/cmd.pauseImage=${PAUSE_IMAGE} -X github.com/quay/mirror-registry/cmd.quayImage=${QUAY_IMAGE} -X github.com/quay/mirror-registry/cmd.redisImage=${REDIS_IMAGE} -X github.com/quay/mirror-registry/cmd.postgresImage=${POSTGRES_IMAGE} -X github.com/quay/mirror-registry/cmd.sqliteImage=${DB_TO_SQLITE_IMAGE}" \
+>>>>>>> 7261fe9 (Add support for sqlite storage in installer binary (PROJQUAY-6286))
 	-o mirror-registry
 
 # Create Ansible Execution Environment
@@ -70,6 +74,12 @@ FROM $QUAY_IMAGE as quay
 FROM $REDIS_IMAGE as redis
 FROM $PAUSE_IMAGE as pause
 
+# Install db sqlite migration cli
+FROM registry.access.redhat.com/ubi8/python-36 AS db-cli
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
 # Create mirror registry archive
 FROM registry.access.redhat.com/ubi8:latest AS build
 
@@ -88,11 +98,14 @@ RUN tar -cvf quay.tar -C /quay .
 
 COPY --from=cli /cli/mirror-registry .
 
+COPY --from=db-cli / /db-cli
+RUN tar -cvf db-cli.tar -C /db-cli .
+
 # Bundle quay, redis and pause into a single archive
 RUN tar -cvf image-archive.tar quay.tar redis.tar pause.tar
 
 # Bundle mirror registry archive
-RUN tar -czvf mirror-registry.tar.gz image-archive.tar execution-environment.tar mirror-registry
+RUN tar -czvf mirror-registry.tar.gz image-archive.tar execution-environment.tar mirror-registry db-cli.tar
 
 # Extract bundle to final release image
 FROM registry.access.redhat.com/ubi8:latest AS release

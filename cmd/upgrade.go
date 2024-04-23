@@ -40,6 +40,8 @@ func init() {
 	upgradeCmd.Flags().StringVarP(&sqliteStorage, "sqliteStorage", "", "sqlite-storage", "The folder where quay sqlite data is saved. This defaults to a Podman named volume 'sqlite-storage'. Root is required to uninstall.")
 	upgradeCmd.Flags().StringVarP(&additionalArgs, "additionalArgs", "", "", "Additional arguments you would like to append to the ansible-playbook call. Used mostly for development.")
 
+	upgradeCmd.Flags().StringVarP(&sqliteStorage, "sqliteStorage", "", "sqlite-storage", "The volume where sqlite persistent storage data is saved. This defaults to a Podman named volume 'sqlite-storage'. Root is required to uninstall.")
+
 }
 
 func upgrade() {
@@ -79,6 +81,10 @@ func upgrade() {
 			check(errors.New("Could not find image-archive.tar at " + imageArchivePath))
 		}
 	}
+
+	// Load python db migration tool for sqlite
+	err = loadSqliteDBMigrationTool()
+	check(err)
 
 	if imageArchivePath != "" {
 		imageArchiveMountFlag = fmt.Sprintf("-v %s:/runner/image-archive.tar", imageArchivePath)
