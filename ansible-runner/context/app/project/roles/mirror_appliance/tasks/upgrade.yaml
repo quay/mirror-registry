@@ -7,6 +7,9 @@
 - name: Set SELinux Rules
   include_tasks: set-selinux-rules.yaml
 
+- name: Migrate postgres db to sqlite for Quay
+  include_tasks: migrate.yaml
+
 - name: Autodetect Image Archive
   include_tasks: autodetect-image-archive.yaml
 

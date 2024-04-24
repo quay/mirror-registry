@@ -182,8 +182,13 @@ func upgrade() {
 		`--quiet `+
 		`--name ansible_runner_instance `+
 		fmt.Sprintf("%s ", eeImage)+
+<<<<<<< HEAD
 		`ansible-playbook -i %s@%s, --private-key /runner/env/ssh_key -e "quay_image=%s quay_version=%s redis_image=%s pause_image=%s quay_hostname=%s local_install=%s quay_root=%s quay_storage=%s sqlite_storage=%s" upgrade_mirror_appliance.yml %s %s`,
 		sshKey, targetUsername, targetHostname, quayImage, quayVersion, redisImage, pauseImage, quayHostname, strconv.FormatBool(isLocalInstall()), quayRoot, quayStorage, sqliteStorage, askBecomePassFlag, additionalArgs)
+=======
+		`ansible-playbook -i %s@%s, --private-key /runner/env/ssh_key -e "quay_image=%s quay_version=%s redis_image=%s postgres_image=%s sqlite_image=%s pause_image=%s quay_hostname=%s local_install=%s quay_root=%s quay_storage=%s pg_storage=%s sqlite_storage=%s" upgrade_mirror_appliance.yml %s %s`,
+		sshKey, targetUsername, targetHostname, quayImage, quayVersion, redisImage, postgresImage, sqliteImage, pauseImage, quayHostname, strconv.FormatBool(isLocalInstall()), quayRoot, quayStorage, pgStorage, sqliteStorage, askBecomePassFlag, additionalArgs)
+>>>>>>> d0f8065 (Add ansible tasks to migrate data from postgres to sqlite)
 
 	log.Debug("Running command: " + podmanCmd)
 	cmd := exec.Command("bash", "-c", podmanCmd)

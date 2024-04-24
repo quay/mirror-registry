@@ -1,6 +1,14 @@
-- name: Install db-to-sqlite package
-  pip:
-    name: db-to-sqlite
+- name: Check if sqlite migration tool image is loaded
+  command: podman inspect --type=image {{ sqlite_image }}
+  register: db_sqlite
+  ignore_errors: yes
+
+- name: Create necessary directory for storing quay postgres db snapshot
+  ansible.builtin.file:
+    path: "{{ quay_root }}/quay-postgres-backup"
+    mode: 0750
+    state: directory
+    recurse: yes
 
 - name: Get connection string of running PostgreSQL container
   containers.podman.podman_container_info:
@@ -8,13 +16,15 @@
   register: postgres_container_info
 
 - set_fact:
-    postgres_connection_string: "postgresql://{{ postgres_container_info.containers[0].network_settings.ip_address }}:5432/quay"    
+    postgres_connection_string: "postgresql://{{ postgres_container_info.containers[0].network_settings.ip_address }}:5432/quay"
 
-- name: Convert PostgreSQL database to SQLite
-  ansible.builtin.command: >
-    db-to-sqlite "{{ postgres_connection_string }}" pg_quay_dump.db --all
-  environment:
-    POSTGRES_PASSWORD: "{{ postgres_password }}"
+- name: Run db-to-sqlite command
+  command: >
+    podman run --rm
+    -v {{ quayRoot }}/quay-postgres-backup:/app
+    -e CONNECTION_STRING=" {{ postgres_connection_string}}"
+    {{ sqlite_image }}
+    quay_sqlite.db --all
 
 - name: Stop Quay service
   systemd:
@@ -30,10 +40,8 @@
       state: present
       name: sqlite-storage
 
-- name: Copy sqlite database file to sqlite storage volume
-  ansible.builtin.copy:
-    src: pg_quay_dump.db
-    dest: "{{ quay_storage }}:/pg_quay_dump.db"
+- name: Copy data to pg-storage volume
+  command: podman cp { quayRoot }}/quay-postgres-backup/quay_sqlite.db quay-app:/quay-registry/sqlite/data/quay_sqlite.db
 
 - name: Stop Postgres service
   systemd:
