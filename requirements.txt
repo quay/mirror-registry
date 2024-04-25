@@ -1,1 +1,2 @@
 db-to-sqlite
+psycopg2

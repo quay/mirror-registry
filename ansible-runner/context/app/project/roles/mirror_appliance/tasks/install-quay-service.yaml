@@ -139,11 +139,6 @@
       name: "{{ sqlite_storage }}"
   when: "not sqlite_storage.startswith('/')"
 
-- name: Create Quay sqlite storage named volume
-  containers.podman.podman_volume:
-      state: present
-      name: sqlite-storage
-
 - name: Start Quay service
   systemd:
     name: quay-app.service

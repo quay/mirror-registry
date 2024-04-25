@@ -66,9 +66,6 @@ var quayStorage string
 // sqliteStorage is the directory where all the Quay sqlite data is stored
 var sqliteStorage string
 
-// sqliteStorage is the directory where all the Sqlite data is stored
-var sqliteStorage string
-
 // additionalArgs are arguments that you would like to append to the end of the ansible-playbook call (used mostly for development)
 var additionalArgs string
 

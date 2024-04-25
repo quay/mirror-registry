@@ -228,7 +228,10 @@ func getImageMetadata(app, imageName, archivePath string) string {
 		statement = `/usr/bin/podman image import \
 					--change 'ENV PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin' \
 					--change 'ENV container=oci' \
-					--change 'CMD=["db-to-sqlite"]' \
+					--change 'WORKDIR=/data' \
+					--change 'VOLUME=/data' \
+					--change 'USER=1001' \
+					--change 'ENTRYPOINT ["db-to-sqlite"]' \
 					- ` + imageName + ` < ` + archivePath
 	case "ansible":
 		statement = `/usr/bin/podman image import \

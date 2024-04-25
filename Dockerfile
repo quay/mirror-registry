@@ -5,6 +5,7 @@ ARG EE_BASE_IMAGE=${EE_BASE_IMAGE}
 ARG EE_BUILDER_IMAGE=${EE_BUILDER_IMAGE}
 ARG REDIS_IMAGE=${REDIS_IMAGE}
 ARG PAUSE_IMAGE=${PAUSE_IMAGE}
+ARG DB_TO_SQLITE_IMAGE=${DB_TO_SQLITE_IMAGE}
 
 # Create Go CLI
 FROM registry.access.redhat.com/ubi8:latest AS cli
@@ -15,6 +16,7 @@ ARG QUAY_IMAGE=${QUAY_IMAGE}
 ARG EE_IMAGE=${EE_IMAGE}
 ARG REDIS_IMAGE=${REDIS_IMAGE}
 ARG PAUSE_IMAGE=${PAUSE_IMAGE}
+ARG DB_TO_SQLITE_IMAGE=${DB_TO_SQLITE_IMAGE}
 
 ENV GOROOT=/usr/local/go
 ENV PATH=$GOPATH/bin:$GOROOT/bin:$PATH 
@@ -33,6 +35,7 @@ ENV EE_IMAGE=${EE_IMAGE}
 ENV QUAY_IMAGE=${QUAY_IMAGE}
 ENV REDIS_IMAGE=${REDIS_IMAGE}
 ENV PAUSE_IMAGE=${PAUSE_IMAGE}
+ENV DB_TO_SQLITE_IMAGE=${DB_TO_SQLITE_IMAGE}
 
 RUN go build -v \
 <<<<<<< HEAD
@@ -79,7 +82,7 @@ FROM registry.access.redhat.com/ubi8-minimal AS db-cli
 
 # Install Python 3 and pip
 RUN microdnf update -y && \
-    microdnf install python3 python3-pip -y && \
+    microdnf install libpq-devel python3 python3-pip -y && \
     microdnf install gcc-c++ python3-devel -y && \
     microdnf clean all
 

@@ -21,7 +21,8 @@ build-online-zip:
 		--build-arg EE_BUILDER_IMAGE=${EE_BUILDER_IMAGE} \
 		--build-arg REDIS_IMAGE=${REDIS_IMAGE} \
 		--build-arg PAUSE_IMAGE=${PAUSE_IMAGE} \
-		--file Dockerfile.online . 
+		--build-arg DB_TO_SQLITE_IMAGE=${DB_TO_SQLITE_IMAGE} \
+		--file Dockerfile.online .
 	$(CLIENT) run --name mirror-registry-online-${RELEASE_VERSION} mirror-registry-online:${RELEASE_VERSION}
 	$(CLIENT) cp mirror-registry-online-${RELEASE_VERSION}:/mirror-registry.tar.gz .
 	$(CLIENT) rm mirror-registry-online-${RELEASE_VERSION}
@@ -36,6 +37,7 @@ build-offline-zip:
 		--build-arg EE_BUILDER_IMAGE=${EE_BUILDER_IMAGE} \
 		--build-arg REDIS_IMAGE=${REDIS_IMAGE} \
 		--build-arg PAUSE_IMAGE=${PAUSE_IMAGE} \
+		--build-arg DB_TO_SQLITE_IMAGE=${DB_TO_SQLITE_IMAGE} \
 		--file Dockerfile .
 	$(CLIENT) run --name mirror-registry-offline-${RELEASE_VERSION} mirror-registry-offline:${RELEASE_VERSION}
 	$(CLIENT) cp mirror-registry-offline-${RELEASE_VERSION}:/mirror-registry.tar.gz .

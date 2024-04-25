@@ -11,6 +11,7 @@ ARG QUAY_IMAGE=${QUAY_IMAGE}
 ARG EE_IMAGE=${EE_IMAGE}
 ARG REDIS_IMAGE=${REDIS_IMAGE}
 ARG PAUSE_IMAGE=${PAUSE_IMAGE}
+ARG DB_TO_SQLITE_IMAGE=${DB_TO_SQLITE_IMAGE}
 
 ENV GOROOT=/usr/local/go
 ENV PATH=$GOPATH/bin:$GOROOT/bin:$PATH 
@@ -29,6 +30,7 @@ ENV EE_IMAGE=${EE_IMAGE}
 ENV QUAY_IMAGE=${QUAY_IMAGE}
 ENV REDIS_IMAGE=${REDIS_IMAGE}
 ENV PAUSE_IMAGE=${PAUSE_IMAGE}
+ENV DB_TO_SQLITE_IMAGE=${DB_TO_SQLITE_IMAGE}
 
 RUN go build -v \
     -ldflags "-X github.com/quay/mirror-registry/cmd.releaseVersion=${RELEASE_VERSION} -X github.com/quay/mirror-registry/cmd.eeImage=${EE_IMAGE} -X github.com/quay/mirror-registry/cmd.pauseImage=${PAUSE_IMAGE} -X github.com/quay/mirror-registry/cmd.quayImage=${QUAY_IMAGE} -X github.com/quay/mirror-registry/cmd.redisImage=${REDIS_IMAGE} -X github.com/quay/mirror-registry/cmd.sqliteImage=${DB_TO_SQLITE_IMAGE}" \
@@ -61,18 +63,12 @@ COPY --from=builder /output/ /output/
 RUN /output/install-from-bindep && rm -rf /output/wheels
 COPY ansible-runner/context/app /runner
 
-# # Install db sqlite migration cli
-# FROM registry.access.redhat.com/ubi8/python-36 AS db-cli
-
-# COPY requirements.txt .
-# RUN pip install --no-cache-dir -r requirements.txt
-
 # Install db sqlite migration cli
 FROM registry.access.redhat.com/ubi8-minimal AS db-cli
 
 # Install Python 3 and pip
 RUN microdnf update -y && \
-    microdnf install python3 python3-pip -y && \
+    microdnf install libpq-devel python3 python3-pip -y && \
     microdnf install gcc-c++ python3-devel -y && \
     microdnf clean all
 

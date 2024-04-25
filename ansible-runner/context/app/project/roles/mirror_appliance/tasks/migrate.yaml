@@ -3,6 +3,13 @@
   register: db_sqlite
   ignore_errors: yes
 
+- name: Pull Sqlite image
+  containers.podman.podman_image:
+    name: "{{ sqlite_image }}"
+  when: db_sqlite.rc != 0
+  retries: 5
+  delay: 5
+
 - name: Create necessary directory for storing quay postgres db snapshot
   ansible.builtin.file:
     path: "{{ quay_root }}/quay-postgres-backup"
@@ -10,21 +17,48 @@
     state: directory
     recurse: yes
 
-- name: Get connection string of running PostgreSQL container
-  containers.podman.podman_container_info:
-    name: quay-postgres
-  register: postgres_container_info
+- name: Create Sqlite storage named volume
+  containers.podman.podman_volume:
+      state: present
+      name: sqlite-storage
 
-- set_fact:
-    postgres_connection_string: "postgresql://{{ postgres_container_info.containers[0].network_settings.ip_address }}:5432/quay"
-
-- name: Run db-to-sqlite command
+- name: Run db-to-sqlite command via podman container
   command: >
-    podman run --rm
-    -v {{ quayRoot }}/quay-postgres-backup:/app
-    -e CONNECTION_STRING=" {{ postgres_connection_string}}"
+    podman run -d --name quay-db-migration --pod quay-pod
+    -v {{ sqlite_storage }}:/data:Z
+    --umask=013
     {{ sqlite_image }}
-    quay_sqlite.db --all
+    postgresql://user:{{ PGDB_PASSWORD }}@localhost/quay
+    quay_sqlite.db --all -p
+  register: container_result
+  ignore_errors: yes
+
+- name: Display migration error when sqlite migration fails
+  debug:
+    msg: "{{ container_result.stderr }}"
+  when: container_result.rc != 0
+
+- name: Back up postgres data from mounted volume to host machine
+  command: podman cp quay-db-migration:/data {{ quay_root }}/quay-postgres-backup/
+  when: container_result.rc == 0
+
+- name: Delete temporary migration container
+  containers.podman.podman_container:
+    name: quay-db-migration
+    state: absent
+  when: container_result.rc == 0
+
+# for local dev only
+- name: Update DB_URI in config.yaml
+  replace:
+    path: "{{ quay_root }}/quay-config/config.yaml"
+    regexp: '^DB_URI: postgresql://.*$'
+    replace: 'DB_URI: sqlite:////quay-registry/sqlite/data/quay_sqlite.db'
+  register: db_uri_update
+
+- debug:
+    msg: "DB_URI has been updated."
+  when: db_uri_update.changed
 
 - name: Stop Quay service
   systemd:
@@ -34,14 +68,7 @@
     state: stopped
     force: yes
     scope: "{{ systemd_scope }}"
-
-- name: Create Sqlite storage named volume
-  containers.podman.podman_volume:
-      state: present
-      name: sqlite-storage
-
-- name: Copy data to pg-storage volume
-  command: podman cp { quayRoot }}/quay-postgres-backup/quay_sqlite.db quay-app:/quay-registry/sqlite/data/quay_sqlite.db
+  when: container_result.rc == 0
 
 - name: Stop Postgres service
   systemd:
@@ -51,11 +78,4 @@
     state: stopped
     force: yes
     scope: "{{ systemd_scope }}"
-
-- name: Start Quay service
-  systemd:
-    name: quay-app.service
-    enabled: yes
-    daemon_reload: yes
-    state: restarted
-    scope: "{{ systemd_scope }}"
+  when: container_result.rc == 0
