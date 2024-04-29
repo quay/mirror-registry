@@ -14,7 +14,7 @@ This application will allow user to easily install Quay and its required compone
 Download one of the installer package from our [releases](https://github.com/quay/mirror-registry/releases) page:
 
 - offline version (contains all required images to run Quay)
-- online version (additional container images to run Quay and Postgres will be downloaded by the installer)
+- online version (additional container images to run Quay and Redis will be downloaded by the installer)
 
 ### Running the installer
 
@@ -32,7 +32,7 @@ The following flags are also available:
 --quayHostname          The value to set SERVER_HOSTNAME in the Quay config.yaml. This defaults to <targetHostname>:8443.
 --quayRoot          -r  The folder where quay persistent quay config data is saved. This defaults to $HOME/quay-install.
 --quayStorage           The folder where quay persistent storage data is saved. This defaults to a Podman named volume 'quay-storage'. Root is required to uninstall.
---pgStorage             The folder where postgres persistent storage data is saved. This defaults to a Podman named volume 'pg-storage'. Root is required to uninstall.
+--sqliteStorage         The folder where quay sqlite db data is saved. This defaults to a Podman named volume 'sqlite-storage'. Root is required to uninstall.
 --ssh-key           -k  The path of your ssh identity key. This defaults to ~/.ssh/quay_installer.
 --sslCert               The path to the SSL certificate Quay should use.
 --sslCheckSkip          Whether or not to check the certificate hostname against the SERVER_HOSTNAME in config.yaml.
@@ -68,7 +68,7 @@ Behind the scenes, Ansible is using `ssh -i ~/.ssh/my_ssh_key someuser@some.remo
 This command will make the following changes to your machine
 
 - Generate trusted SSH keys, if not supplied, in case the deployment target is the local host (required since the installer is ansible-based)
-- Pulls Quay, Redis, and Postgres images from `registry.redhat.io` (if using online installer)
+- Pulls Quay and Redis images from `registry.redhat.io` (if using online installer)
 - Sets up systemd files on host machine to ensure that container runtimes are persistent
 - Creates the folder defined by `--quayRoot` (default: `$HOME/quay-install`) contains install files, local storage, and config bundle.
 - Installs Quay and creates an initial user called `init` with an auto-generated password

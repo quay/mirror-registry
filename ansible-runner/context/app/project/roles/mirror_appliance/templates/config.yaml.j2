@@ -3,9 +3,9 @@ BUILDLOGS_REDIS:
   host: localhost
   password: {{ redis_password }}
   port: 6379
-{# DATABASE_SECRET_KEY: {{ database_secret_key }} #}
+DATABASE_SECRET_KEY: {{ database_secret_key }}
 {# DB_URI: postgresql://user:{{ pgdb_password }}@localhost/quay #}
-DB_URI: sqlite:///quay-registry/sqlite/data/quay_sqlite.db 
+DB_URI: sqlite:////quay-registry/sqlite/data/quay_sqlite.db
 DEFAULT_TAG_EXPIRATION: 2w
 DISTRIBUTED_STORAGE_DEFAULT_LOCATIONS: []
 DISTRIBUTED_STORAGE_PREFERENCE:

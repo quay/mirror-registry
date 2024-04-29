@@ -1,7 +1,3 @@
-- name: Expand pg_storage
-  shell: 'echo {{ pg_storage }}'
-  register: expanded_pg_storage_output
-
 - name: Expand quay_root
   shell: 'echo {{ quay_root }}'
   register: expanded_quay_root_output
@@ -10,8 +6,12 @@
   shell: 'echo {{ quay_storage }}'
   register: expanded_quay_storage_output
 
+- name: Expand sqlite_storage
+  shell: 'echo {{ sqlite_storage }}'
+  register: expanded_sqlite_storage_output
+
 - name: Set expanded variables
   set_fact:
-    expanded_pg_storage: "{{ expanded_pg_storage_output.stdout }}"
+    expanded_sqlite_storage: "{{ expanded_sqlite_storage_output.stdout }}"
     expanded_quay_root: "{{ expanded_quay_root_output.stdout }}"
     expanded_quay_storage: "{{ expanded_quay_storage_output.stdout }}"

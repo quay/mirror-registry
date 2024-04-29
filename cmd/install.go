@@ -20,7 +20,6 @@ var eeImage string
 var pauseImage string
 var quayImage string
 var redisImage string
-var postgresImage string
 
 // imageArchivePath is the optional location of the OCI image archive containing required install images
 var imageArchivePath string
@@ -64,8 +63,8 @@ var quayRoot string
 // quayStorage is the directory where all the Quay data is stored
 var quayStorage string
 
-// pgStorage is the directory where all the Postgres data is stored
-var pgStorage string
+// sqliteStorage is the directory where all the Quay sqlite data is stored
+var sqliteStorage string
 
 // additionalArgs are arguments that you would like to append to the end of the ansible-playbook call (used mostly for development)
 var additionalArgs string
@@ -100,7 +99,7 @@ func init() {
 	installCmd.Flags().BoolVarP(&askBecomePass, "askBecomePass", "", false, "Whether or not to ask for sudo password during SSH connection.")
 	installCmd.Flags().StringVarP(&quayRoot, "quayRoot", "r", "~/quay-install", "The folder where quay persistent data are saved. This defaults to ~/quay-install")
 	installCmd.Flags().StringVarP(&quayStorage, "quayStorage", "", "quay-storage", "The folder where quay persistent storage data is saved. This defaults to a Podman named volume 'quay-storage'. Root is required to uninstall.")
-	installCmd.Flags().StringVarP(&pgStorage, "pgStorage", "", "pg-storage", "The folder where postgres persistent storage data is saved. This defaults to a Podman named volume 'pg-storage'. Root is required to uninstall.")
+	installCmd.Flags().StringVarP(&sqliteStorage, "sqliteStorage", "", "sqlite-storage", "The folder where quay sqlite data is saved. This defaults to a Podman named volume 'sqlite-storage'. Root is required to uninstall.")
 	installCmd.Flags().StringVarP(&additionalArgs, "additionalArgs", "", "", "Additional arguments you would like to append to the ansible-playbook call. Used mostly for development.")
 
 }
@@ -114,7 +113,6 @@ func install() {
 	log.Debug("Pause Image: " + pauseImage)
 	log.Debug("Quay Image: " + quayImage)
 	log.Debug("Redis Image: " + redisImage)
-	log.Debug("Postgres Image: " + postgresImage)
 
 	// Load execution environment
 	err = loadExecutionEnvironment()
@@ -185,19 +183,6 @@ func install() {
 			}
 			log.Debug("Importing Redis with command: ", redisImport)
 			err = redisImport.Run()
-			check(err)
-
-			// Load Postgres image
-			postgresArchivePath := path.Join(path.Dir(executableDir), "postgres.tar")
-			log.Printf("Loading postgres image archive from %s", postgresArchivePath)
-			statement = getImageMetadata("postgres", postgresImage, postgresArchivePath)
-			postgresImport := exec.Command("/bin/bash", "-c", statement)
-			if verbose {
-				postgresImport.Stderr = os.Stderr
-				postgresImport.Stdout = os.Stdout
-			}
-			log.Debug("Importing Postgres with command: ", postgresImport)
-			err = postgresImport.Run()
 			check(err)
 
 			// Load Quay image
@@ -278,8 +263,8 @@ func install() {
 		`--quiet `+
 		`--name ansible_runner_instance `+
 		fmt.Sprintf("%s ", eeImage)+
-		`ansible-playbook -i %s@%s, --private-key /runner/env/ssh_key -e "init_user=%s init_password=%s quay_image=%s quay_version=%s redis_image=%s postgres_image=%s pause_image=%s quay_hostname=%s local_install=%s quay_root=%s quay_storage=%s pg_storage=%s" install_mirror_appliance.yml %s %s`,
-		sshKey, targetUsername, targetHostname, initUser, initPassword, quayImage, quayVersion, redisImage, postgresImage, pauseImage, quayHostname, strconv.FormatBool(isLocalInstall()), quayRoot, quayStorage, pgStorage, askBecomePassFlag, additionalArgs)
+		`ansible-playbook -i %s@%s, --private-key /runner/env/ssh_key -e "init_user=%s init_password=%s quay_image=%s quay_version=%s redis_image=%s pause_image=%s quay_hostname=%s local_install=%s quay_root=%s quay_storage=%s sqlite_storage=%s" install_mirror_appliance.yml %s %s`,
+		sshKey, targetUsername, targetHostname, initUser, initPassword, quayImage, quayVersion, redisImage, pauseImage, quayHostname, strconv.FormatBool(isLocalInstall()), quayRoot, quayStorage, sqliteStorage, askBecomePassFlag, additionalArgs)
 
 	log.Debug("Running command: " + podmanCmd)
 	cmd := exec.Command("bash", "-c", podmanCmd)
