@@ -13,6 +13,9 @@
 - name: Autodetect Image Archive
   include_tasks: autodetect-image-archive.yaml
 
+- name: Autodetect existing Secrets in config.yaml
+  include_tasks: upgrade-config-vars.yaml
+
 - name: Upgrade Quay Pod Service
   include_tasks: upgrade-pod-service.yaml
 

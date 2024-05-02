@@ -1,0 +1,18 @@
+- name: Look up quay_root, set it to /etc/quay-install if not found.
+  ansible.builtin.set_fact:
+    quay_root: "{{ quay_root | default('/etc/quay-install') }}"
+
+- name: Include vars of the config.yaml into the 'quay_config_file' variable.
+  ansible.builtin.slurp:
+    src: "{{ quay_root }}/quay-config/config.yaml"
+  register: remote_yaml_file
+
+- name: Parse the remote YAML file and set as a fact
+  ansible.builtin.set_fact:
+    quay_config_file: "{{ remote_yaml_file['content'] | b64decode | from_yaml }}"
+
+- name: Set facts for the pre-existing secrets only if they are a string and not a jinja2 variable in the config.yaml.
+  ansible.builtin.set_fact:
+    REDIS_PASSWORD : "{{ quay_config_file['USER_EVENTS_REDIS']['password'] }}"
+    PGDB_PASSWORD : "{{ quay_config_file['DB_URI'].split('@')[0].split(':')[2] }}"
+  when: quay_config_file['DATABASE_SECRET_KEY'] is string and quay_config_file['USER_EVENTS_REDIS']['password'] is string and quay_config_file['DB_URI'] is string
