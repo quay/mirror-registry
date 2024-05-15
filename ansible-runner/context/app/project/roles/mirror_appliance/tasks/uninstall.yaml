@@ -16,15 +16,6 @@
     force: yes
     scope: "{{ systemd_scope }}"
 
-# - name: Stop Postgres service
-#   systemd:
-#     name: quay-postgres.service
-#     enabled: no
-#     daemon_reload: yes
-#     state: stopped
-#     force: yes
-#     scope: "{{ systemd_scope }}"
-
 - name: Stop Quay Pod service
   systemd:
     name: quay-pod.service
@@ -50,11 +41,6 @@
       state: absent
       name: sqlite-storage
   when: auto_approve|bool == true and sqlite_storage == "sqlite-storage"
-
-- name: Delete Postgres Password Secret
-  containers.podman.podman_secret:
-    state: absent
-    name: pgdb_pass
 
 - name: Delete Redis Password Secret
   containers.podman.podman_secret:
@@ -87,7 +73,6 @@
     path: "{{ systemd_unit_dir }}/{{ item }}"
   loop:
     - quay-pod.service
-    # - quay-postgres.service
     - quay-redis.service
     - quay-app.service
 

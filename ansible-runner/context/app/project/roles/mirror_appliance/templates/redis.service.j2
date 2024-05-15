@@ -17,7 +17,6 @@ ExecStart=/usr/bin/podman run \
     --image-volume=ignore \
     --secret=redis_pass,type=env,target=REDIS_PASSWORD \
     --replace \
-    --image-volume=ignore \
     {{ redis_image }}
 
 ExecStop=-/usr/bin/podman stop --ignore --cidfile %t/%n-cid -t 10
