@@ -24,7 +24,7 @@
 
 - name: Run db-to-sqlite command via podman container
   command: >
-    podman run -d --name quay-db-migration --pod quay-pod
+    podman run --name quay-db-migration --pod quay-pod
     -v {{ sqlite_storage }}:/data:Z
     --umask=013
     {{ sqlite_image }}
@@ -48,7 +48,6 @@
     state: absent
   when: container_result.rc == 0
 
-# for local dev only
 - name: Update DB_URI in config.yaml
   replace:
     path: "{{ quay_root }}/quay-config/config.yaml"
@@ -78,4 +77,29 @@
     state: stopped
     force: yes
     scope: "{{ systemd_scope }}"
+  when: container_result.rc == 0
+
+- name: Delete Postgres Storage named volume
+  containers.podman.podman_volume:
+      state: absent
+      name: pg-storage
+  when: auto_approve|bool == true and pg_storage == "pg-storage" and container_result.rc == 0
+
+- name: Delete Postgres Password Secret
+  containers.podman.podman_secret:
+    state: absent
+    name: pgdb_pass
+  when: container_result.rc == 0
+
+- name: Delete necessary directory for Postgres persistent data
+  ansible.builtin.file:
+    path: "{{ pg_storage }}"
+    state: absent
+  become: yes
+  when: auto_approve|bool == true and pg_storage.startswith('/') and container_result.rc == 0
+
+- name: Cleanup quay-postgres systemd unit file
+  file:
+    state: absent
+    path: "{{ systemd_unit_dir }}/quay-postgres.service"
   when: container_result.rc == 0
