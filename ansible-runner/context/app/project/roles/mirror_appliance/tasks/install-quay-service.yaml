@@ -141,7 +141,7 @@
 - name: Create Sqlite Storage named volume
   containers.podman.podman_volume:
       state: present
-      name: sqlite-storage
+      name: "{{ sqlite_storage }}"
 
 - name: Start Quay service
   systemd:

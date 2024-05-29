@@ -1,9 +1,20 @@
-- name: Waiting up to 3 minutes for Quay to become alive at https://{{ quay_hostname }}/health/instance
-  uri:
-    url: "https://{{ quay_hostname }}/health/instance"
-    method: GET
-    validate_certs: no
-  register: result
-  until: result.status == 200
-  retries: 10
-  delay: 30
+- name: Wait for Quay to become alive and handle failure
+  block:
+    - name: Waiting up to 3 minutes for Quay to become alive at https://{{ quay_hostname }}/health/instance
+      uri:
+        url: "https://{{ quay_hostname }}/health/instance"
+        method: GET
+        validate_certs: no
+      register: result
+      until: result.status == 200
+      retries: 10
+      delay: 30
+  rescue:
+    - name: Print debug logs for quay-app in case of failure
+      command: systemctl --user status quay-app.service
+      register: systemctl_status
+      ignore_errors: yes
+
+    - name: Debug systemctl status output
+      debug:
+        var: systemctl_status.stdout_lines
