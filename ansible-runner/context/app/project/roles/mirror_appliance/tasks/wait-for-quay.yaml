@@ -22,3 +22,4 @@
     - name: Fail the playbook due to Quay not becoming alive
       fail:
         msg: "Quay did not become alive. Check debug logs above for details."
+

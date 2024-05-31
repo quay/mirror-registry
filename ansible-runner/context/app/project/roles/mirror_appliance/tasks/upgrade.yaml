@@ -7,9 +7,6 @@
 - name: Set SELinux Rules
   include_tasks: set-selinux-rules.yaml
 
-- name: Autodetect root or rootless from previous install
-  include_tasks: migrate-pre-1_3_0.yaml
-
 - name: Autodetect Image Archive
   include_tasks: autodetect-image-archive.yaml
 
@@ -18,9 +15,6 @@
 
 - name: Upgrade Quay Pod Service
   include_tasks: upgrade-pod-service.yaml
-
-- name: Upgrade Postgres Service
-  include_tasks: upgrade-postgres-service.yaml
 
 - name: Upgrade Redis Service
   include_tasks: upgrade-redis-service.yaml

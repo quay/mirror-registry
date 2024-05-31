@@ -247,7 +247,7 @@ func getImageMetadata(app, imageName, archivePath string) string {
 					--change 'EXPOSE=8443' \
 					--change 'VOLUME=/conf/stack' \
 					--change 'VOLUME=/datastorage' \
-					--change 'VOLUME=/sqlite/data' \
+					--change 'VOLUME=/sqlite' \
 					--change 'VOLUME=/tmp' \
 					--change 'VOLUME=/var/log' \
 					--change 'USER=1001' \

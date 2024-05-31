@@ -19,6 +19,8 @@ ExecStart=/usr/bin/podman run \
     --cidfile %t/%n-cid \
     --cgroups=no-conmon \
     --replace \
+    -e WORKER_COUNT_UNSUPPORTED_MINIMUM=1 \
+    -e WORKER_COUNT=1 \
     {{ quay_image }}
     
 ExecStop=-/usr/bin/podman stop --ignore --cidfile %t/%n-cid -t 10
