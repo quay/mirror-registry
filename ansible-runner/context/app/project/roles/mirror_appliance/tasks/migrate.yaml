@@ -20,7 +20,8 @@
 - name: Create Sqlite storage named volume
   containers.podman.podman_volume:
       state: present
-      name: sqlite-storage
+      name: "{{ sqlite_storage }}"
+  when: "not sqlite_storage.startswith('/')"
 
 - name: Run db-to-sqlite command via podman container
   command: >
