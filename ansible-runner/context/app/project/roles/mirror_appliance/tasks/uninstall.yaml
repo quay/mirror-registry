@@ -43,7 +43,7 @@
   containers.podman.podman_volume:
       state: absent
       name: quay-storage
-  when: auto_approve|bool == true and quay_storage == "pg-storage"
+  when: auto_approve|bool == true and quay_storage == "quay-storage"
 
 - name: Delete Postgres Storage named volume
   containers.podman.podman_volume:
