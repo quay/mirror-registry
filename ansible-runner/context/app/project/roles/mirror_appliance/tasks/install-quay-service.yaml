@@ -15,19 +15,13 @@
   when: "quay_storage.startswith('/')"
 
 - name: Create necessary directory for sqlite data
+  become_method: containers.podman.podman_unshare
+  become: true
   ansible.builtin.file:
+    mode: u+rwx
+    owner: 1001
     path: "{{ sqlite_storage }}"
     state: directory
-    recurse: yes
-  when: "sqlite_storage.startswith('/')"
-
-- name: Set permissions on local storage directory
-  ansible.posix.acl:
-    path: "{{ sqlite_storage }}"
-    entity: 1001
-    etype: user
-    permissions: wx
-    state: present
   when: "sqlite_storage.startswith('/')"
 
 - name: Create necessary directory for Quay config bundle
