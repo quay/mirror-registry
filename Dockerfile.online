@@ -9,7 +9,6 @@ FROM registry.redhat.io/ubi8:latest AS cli
 ARG RELEASE_VERSION=${RELEASE_VERSION}
 ARG QUAY_IMAGE=${QUAY_IMAGE}
 ARG EE_IMAGE=${EE_IMAGE}
-ARG POSTGRES_IMAGE=${POSTGRES_IMAGE}
 ARG REDIS_IMAGE=${REDIS_IMAGE}
 ARG PAUSE_IMAGE=${PAUSE_IMAGE}
 
@@ -29,11 +28,10 @@ ENV RELEASE_VERSION=${RELEASE_VERSION}
 ENV EE_IMAGE=${EE_IMAGE}
 ENV QUAY_IMAGE=${QUAY_IMAGE}
 ENV REDIS_IMAGE=${REDIS_IMAGE}
-ENV POSTGRES_IMAGE=${POSTGRES_IMAGE}
 ENV PAUSE_IMAGE=${PAUSE_IMAGE}
 
 RUN go build -v \
-    -ldflags "-X github.com/quay/mirror-registry/cmd.releaseVersion=${RELEASE_VERSION} -X github.com/quay/mirror-registry/cmd.eeImage=${EE_IMAGE} -X github.com/quay/mirror-registry/cmd.pauseImage=${PAUSE_IMAGE} -X github.com/quay/mirror-registry/cmd.quayImage=${QUAY_IMAGE} -X github.com/quay/mirror-registry/cmd.redisImage=${REDIS_IMAGE} -X github.com/quay/mirror-registry/cmd.postgresImage=${POSTGRES_IMAGE}" \
+    -ldflags "-X github.com/quay/mirror-registry/cmd.releaseVersion=${RELEASE_VERSION} -X github.com/quay/mirror-registry/cmd.eeImage=${EE_IMAGE} -X github.com/quay/mirror-registry/cmd.pauseImage=${PAUSE_IMAGE} -X github.com/quay/mirror-registry/cmd.quayImage=${QUAY_IMAGE} -X github.com/quay/mirror-registry/cmd.redisImage=${REDIS_IMAGE}" \
     -o mirror-registry
 
 # Create Ansible Execution Environment

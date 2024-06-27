@@ -8,7 +8,7 @@ all:
 
 build-golang-executable:
 	$(CLIENT) run --rm -v ${PWD}:/usr/src:Z -w /usr/src docker.io/golang:1.16 go build -v \
-	-ldflags "-X github.com/quay/mirror-registry/cmd.eeImage=${EE_IMAGE} -X 'github.com/quay/mirror-registry/cmd.quayImage=${QUAY_IMAGE}' -X 'github.com/quay/mirror-registry/cmd.redisImage=${REDIS_IMAGE}' -X 'github.com/quay/mirror-registry/cmd.postgresImage=${POSTGRES_IMAGE}'" \
+	-ldflags "-X github.com/quay/mirror-registry/cmd.eeImage=${EE_IMAGE} -X 'github.com/quay/mirror-registry/cmd.quayImage=${QUAY_IMAGE}' -X 'github.com/quay/mirror-registry/cmd.redisImage=${REDIS_IMAGE}'" \
 	-o mirror-registry;
 
 build-online-zip: 
@@ -19,7 +19,6 @@ build-online-zip:
 		--build-arg EE_IMAGE=${EE_IMAGE} \
 		--build-arg EE_BASE_IMAGE=${EE_BASE_IMAGE} \
 		--build-arg EE_BUILDER_IMAGE=${EE_BUILDER_IMAGE} \
-		--build-arg POSTGRES_IMAGE=${POSTGRES_IMAGE} \
 		--build-arg REDIS_IMAGE=${REDIS_IMAGE} \
 		--build-arg PAUSE_IMAGE=${PAUSE_IMAGE} \
 		--file Dockerfile.online . 
@@ -35,7 +34,6 @@ build-offline-zip:
 		--build-arg EE_IMAGE=${EE_IMAGE} \
 		--build-arg EE_BASE_IMAGE=${EE_BASE_IMAGE} \
 		--build-arg EE_BUILDER_IMAGE=${EE_BUILDER_IMAGE} \
-		--build-arg POSTGRES_IMAGE=${POSTGRES_IMAGE} \
 		--build-arg REDIS_IMAGE=${REDIS_IMAGE} \
 		--build-arg PAUSE_IMAGE=${PAUSE_IMAGE} \
 		--file Dockerfile .

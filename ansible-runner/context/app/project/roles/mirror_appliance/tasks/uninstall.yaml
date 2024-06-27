@@ -16,15 +16,6 @@
     force: yes
     scope: "{{ systemd_scope }}"
 
-- name: Stop Postgres service
-  systemd:
-    name: quay-postgres.service
-    enabled: no
-    daemon_reload: yes
-    state: stopped
-    force: yes
-    scope: "{{ systemd_scope }}"
-
 - name: Stop Quay Pod service
   systemd:
     name: quay-pod.service
@@ -43,18 +34,13 @@
   containers.podman.podman_volume:
       state: absent
       name: quay-storage
-  when: auto_approve|bool == true and quay_storage == "pg-storage"
+  when: auto_approve|bool == true and quay_storage == "quay-storage"
 
-- name: Delete Postgres Storage named volume
+- name: Delete Sqlite Storage named volume
   containers.podman.podman_volume:
       state: absent
-      name: pg-storage
-  when: auto_approve|bool == true and pg_storage == "pg-storage"
-
-- name: Delete Postgres Password Secret
-  containers.podman.podman_secret:
-    state: absent
-    name: pgdb_pass
+      name: sqlite-storage
+  when: auto_approve|bool == true and sqlite_storage == "sqlite-storage"
 
 - name: Delete Redis Password Secret
   containers.podman.podman_secret:
@@ -68,12 +54,12 @@
   become: yes
   when: auto_approve|bool == true and quay_storage.startswith('/')
 
-- name: Delete necessary directory for Postgres persistent data
+- name: Delete necessary directory for Sqlite storage data
   ansible.builtin.file:
-    path: "{{ pg_storage }}"
+    path: "{{ sqlite_storage }}"
     state: absent
   become: yes
-  when: auto_approve|bool == true and pg_storage.startswith('/')
+  when: auto_approve|bool == true and sqlite_storage.startswith('/')
 
 - name: Delete Install Directory
   file:
@@ -87,7 +73,6 @@
     path: "{{ systemd_unit_dir }}/{{ item }}"
   loop:
     - quay-pod.service
-    - quay-postgres.service
     - quay-redis.service
     - quay-app.service
 

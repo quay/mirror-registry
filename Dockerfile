@@ -3,7 +3,6 @@ ARG QUAY_IMAGE=${QUAY_IMAGE}
 ARG EE_IMAGE=${EE_IMAGE}
 ARG EE_BASE_IMAGE=${EE_BASE_IMAGE}
 ARG EE_BUILDER_IMAGE=${EE_BUILDER_IMAGE}
-ARG POSTGRES_IMAGE=${POSTGRES_IMAGE}
 ARG REDIS_IMAGE=${REDIS_IMAGE}
 ARG PAUSE_IMAGE=${PAUSE_IMAGE}
 
@@ -14,7 +13,6 @@ FROM registry.access.redhat.com/ubi8:latest AS cli
 ARG RELEASE_VERSION=${RELEASE_VERSION}
 ARG QUAY_IMAGE=${QUAY_IMAGE}
 ARG EE_IMAGE=${EE_IMAGE}
-ARG POSTGRES_IMAGE=${POSTGRES_IMAGE}
 ARG REDIS_IMAGE=${REDIS_IMAGE}
 ARG PAUSE_IMAGE=${PAUSE_IMAGE}
 
@@ -34,11 +32,10 @@ ENV RELEASE_VERSION=${RELEASE_VERSION}
 ENV EE_IMAGE=${EE_IMAGE}
 ENV QUAY_IMAGE=${QUAY_IMAGE}
 ENV REDIS_IMAGE=${REDIS_IMAGE}
-ENV POSTGRES_IMAGE=${POSTGRES_IMAGE}
 ENV PAUSE_IMAGE=${PAUSE_IMAGE}
 
 RUN go build -v \
-	-ldflags "-X github.com/quay/mirror-registry/cmd.releaseVersion=${RELEASE_VERSION} -X github.com/quay/mirror-registry/cmd.eeImage=${EE_IMAGE} -X github.com/quay/mirror-registry/cmd.pauseImage=${PAUSE_IMAGE} -X github.com/quay/mirror-registry/cmd.quayImage=${QUAY_IMAGE} -X github.com/quay/mirror-registry/cmd.redisImage=${REDIS_IMAGE} -X github.com/quay/mirror-registry/cmd.postgresImage=${POSTGRES_IMAGE}" \
+	-ldflags "-X github.com/quay/mirror-registry/cmd.releaseVersion=${RELEASE_VERSION} -X github.com/quay/mirror-registry/cmd.eeImage=${EE_IMAGE} -X github.com/quay/mirror-registry/cmd.pauseImage=${PAUSE_IMAGE} -X github.com/quay/mirror-registry/cmd.quayImage=${QUAY_IMAGE} -X github.com/quay/mirror-registry/cmd.redisImage=${REDIS_IMAGE}" \
 	-o mirror-registry
 
 # Create Ansible Execution Environment
@@ -71,7 +68,6 @@ COPY ansible-runner/context/app /runner
 # Pull in Quay dependencies
 FROM $QUAY_IMAGE as quay
 FROM $REDIS_IMAGE as redis
-FROM $POSTGRES_IMAGE as postgres
 FROM $PAUSE_IMAGE as pause
 
 # Create mirror registry archive
@@ -87,16 +83,13 @@ RUN tar -cvf execution-environment.tar -C /ansible .
 COPY --from=redis / /redis
 RUN tar -cvf redis.tar -C /redis .
 
-COPY --from=postgres / /postgres
-RUN tar -cvf postgres.tar -C /postgres .
-
 COPY --from=quay / /quay
 RUN tar -cvf quay.tar -C /quay .
 
 COPY --from=cli /cli/mirror-registry .
 
-# Bundle quay, redis, postgres, and pause into a single archive
-RUN tar -cvf image-archive.tar quay.tar redis.tar postgres.tar pause.tar
+# Bundle quay, redis and pause into a single archive
+RUN tar -cvf image-archive.tar quay.tar redis.tar pause.tar
 
 # Bundle mirror registry archive
 RUN tar -czvf mirror-registry.tar.gz image-archive.tar execution-environment.tar mirror-registry

@@ -14,6 +14,16 @@
     state: present
   when: "quay_storage.startswith('/')"
 
+- name: Create necessary directory for sqlite data
+  become_method: containers.podman.podman_unshare
+  become: true
+  ansible.builtin.file:
+    mode: u+rwx
+    owner: 1001
+    path: "{{ sqlite_storage }}"
+    state: directory
+  when: "sqlite_storage.startswith('/')"
+
 - name: Create necessary directory for Quay config bundle
   ansible.builtin.file:
     path: "{{ quay_root }}/quay-config"
@@ -120,7 +130,14 @@
 - name: Create Quay Storage named volume
   containers.podman.podman_volume:
       state: present
-      name: quay-storage
+      name: "{{ quay_storage }}"
+  when: "not quay_storage.startswith('/')"
+
+- name: Create Sqlite Storage named volume
+  containers.podman.podman_volume:
+      state: present
+      name: "{{ sqlite_storage }}"
+  when: "not sqlite_storage.startswith('/')"
 
 - name: Start Quay service
   systemd:

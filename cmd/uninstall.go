@@ -32,7 +32,7 @@ func init() {
 	uninstallCmd.Flags().BoolVarP(&askBecomePass, "askBecomePass", "", false, "Whether or not to ask for sudo password during SSH connection.")
 	uninstallCmd.Flags().StringVarP(&quayRoot, "quayRoot", "r", "~/quay-install", "The folder where quay persistent data are saved. This defaults to ~/quay-install")
 	uninstallCmd.Flags().StringVarP(&quayStorage, "quayStorage", "", "quay-storage", "The folder where quay persistent storage data is saved. This defaults to a Podman named volume 'quay-storage'. Root is required to uninstall.")
-	uninstallCmd.Flags().StringVarP(&pgStorage, "pgStorage", "", "pg-storage", "The folder where postgres persistent storage data is saved. This defaults to a Podman named volume 'pg-storage'. Root is required to uninstall.")
+	uninstallCmd.Flags().StringVarP(&sqliteStorage, "sqliteStorage", "", "sqlite-storage", "The folder where quay sqlite data is saved. This defaults to a Podman named volume 'sqlite-storage'. Root is required to uninstall.")
 	uninstallCmd.Flags().StringVarP(&additionalArgs, "additionalArgs", "", "", "Additional arguments you would like to append to the ansible-playbook call. Used mostly for development.")
 	uninstallCmd.Flags().BoolVarP(&autoApprove, "autoApprove", "", false, "Skips interactive approval")
 }
@@ -78,8 +78,8 @@ func uninstall() {
 		`--quiet `+
 		`--name ansible_runner_instance `+
 		fmt.Sprintf("%s ", eeImage)+
-		`ansible-playbook -i %s@%s, --private-key /runner/env/ssh_key uninstall_mirror_appliance.yml -e "quay_root=%s quay_storage=%s pg_storage=%s auto_approve=%t" %s %s`,
-		sshKey, targetUsername, strings.Split(targetHostname, ":")[0], quayRoot, quayStorage, pgStorage, autoApprove, askBecomePassFlag, additionalArgs)
+		`ansible-playbook -i %s@%s, --private-key /runner/env/ssh_key uninstall_mirror_appliance.yml -e "quay_root=%s quay_storage=%s sqlite_storage=%s auto_approve=%t" %s %s`,
+		sshKey, targetUsername, strings.Split(targetHostname, ":")[0], quayRoot, quayStorage, sqliteStorage, autoApprove, askBecomePassFlag, additionalArgs)
 
 	log.Debug("Running command: " + podmanCmd)
 	cmd := exec.Command("bash", "-c", podmanCmd)

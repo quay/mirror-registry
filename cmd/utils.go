@@ -223,25 +223,6 @@ func getImageMetadata(app, imageName, archivePath string) string {
 					--change 'VOLUME=/var/lib/redis/data' \
 					--change 'CMD ["run-redis"]' \
 					- ` + imageName + ` < ` + archivePath
-	case "postgres":
-		statement = `/usr/bin/podman image import \
-					--change 'ENV PATH=/opt/app-root/src/bin:/opt/app-root/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin' \
-					--change 'ENV STI_SCRIPTS_URL=image:///usr/libexec/s2i' \
-					--change 'ENV STI_SCRIPTS_PATH=/usr/libexec/s2i' \
-					--change 'ENV APP_ROOT=/opt/app-root' \
-					--change 'ENV APP_DATA=/opt/app-root' \
-					--change 'ENV HOME=/var/lib/pgsql' \
-					--change 'ENV PLATFORM=el8' \
-					--change 'ENV POSTGRESQL_VERSION=10' \
-					--change 'ENV POSTGRESQL_PREV_VERSION=9.6' \
-					--change 'ENV PGUSER=postgres' \
-					--change 'ENV CONTAINER_SCRIPTS_PATH=/usr/share/container-scripts/postgresql' \
-					--change 'ENTRYPOINT=["container-entrypoint"]' \
-					--change 'WORKDIR=/opt/app-root/src' \
-					--change 'EXPOSE=5432' \
-					--change 'USER=26' \
-					--change 'CMD ["run-postgresql"]' \
-					- ` + imageName + ` < ` + archivePath
 	case "quay":
 		// quay.io
 		statement = `/usr/bin/podman image import \
@@ -266,6 +247,7 @@ func getImageMetadata(app, imageName, archivePath string) string {
 					--change 'EXPOSE=8443' \
 					--change 'VOLUME=/conf/stack' \
 					--change 'VOLUME=/datastorage' \
+					--change 'VOLUME=/sqlite' \
 					--change 'VOLUME=/tmp' \
 					--change 'VOLUME=/var/log' \
 					--change 'USER=1001' \
