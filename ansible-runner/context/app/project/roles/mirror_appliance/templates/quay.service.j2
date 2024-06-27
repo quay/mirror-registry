@@ -13,7 +13,6 @@ ExecStart=/usr/bin/podman run \
     -v {{ expanded_quay_root }}/quay-config:/quay-registry/conf/stack:Z \
     -v {{ expanded_sqlite_storage }}:/sqlite:Z \
     -v {{ expanded_quay_storage }}:/datastorage:Z \
-    -v {{ expanded_sqlite_storage }}:/quay-registry/sqlite/data:Z \
     --image-volume=ignore \
     --pod=quay-pod \
     --conmon-pidfile %t/%n-pid \

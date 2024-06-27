@@ -15,4 +15,3 @@
     expanded_sqlite_storage: "{{ expanded_sqlite_storage_output.stdout }}"
     expanded_quay_root: "{{ expanded_quay_root_output.stdout }}"
     expanded_quay_storage: "{{ expanded_quay_storage_output.stdout }}"
-    expanded_sqlite_storage: "{{ expanded_sqlite_storage_output.stdout }}"
