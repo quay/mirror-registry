@@ -39,9 +39,6 @@ func init() {
 	upgradeCmd.Flags().StringVarP(&quayStorage, "quayStorage", "", "quay-storage", "The folder where quay persistent storage data is saved. This defaults to a Podman named volume 'quay-storage'. Root is required to uninstall.")
 	upgradeCmd.Flags().StringVarP(&sqliteStorage, "sqliteStorage", "", "sqlite-storage", "The folder where quay sqlite data is saved. This defaults to a Podman named volume 'sqlite-storage'. Root is required to uninstall.")
 	upgradeCmd.Flags().StringVarP(&additionalArgs, "additionalArgs", "", "", "Additional arguments you would like to append to the ansible-playbook call. Used mostly for development.")
-
-	upgradeCmd.Flags().StringVarP(&sqliteStorage, "sqliteStorage", "", "sqlite-storage", "The volume where sqlite persistent storage data is saved. This defaults to a Podman named volume 'sqlite-storage'. Root is required to uninstall.")
-
 }
 
 func upgrade() {

@@ -8,7 +8,7 @@ all:
 
 build-golang-executable:
 	$(CLIENT) run --rm -v ${PWD}:/usr/src:Z -w /usr/src docker.io/golang:1.16 go build -v \
-	-ldflags "-X github.com/quay/mirror-registry/cmd.eeImage=${EE_IMAGE} -X 'github.com/quay/mirror-registry/cmd.quayImage=${QUAY_IMAGE}' -X 'github.com/quay/mirror-registry/cmd.redisImage=${REDIS_IMAGE}'" \
+	-ldflags "-X 'github.com/quay/mirror-registry/cmd.releaseVersion=${RELEASE_VERSION}' -X 'github.com/quay/mirror-registry/cmd.eeImage=${EE_IMAGE}' -X 'github.com/quay/mirror-registry/cmd.pauseImage=${PAUSE_IMAGE}' -X 'github.com/quay/mirror-registry/cmd.quayImage=${QUAY_IMAGE}' -X 'github.com/quay/mirror-registry/cmd.redisImage=${REDIS_IMAGE}' -X 'github.com/quay/mirror-registry/cmd.sqliteImage=${DB_TO_SQLITE_IMAGE}'" \
 	-o mirror-registry;
 
 build-online-zip: 
