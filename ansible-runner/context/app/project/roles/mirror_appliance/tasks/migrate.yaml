@@ -58,6 +58,20 @@
     state: absent
   when: container_result.rc == 0
 
+- name: Update DB_URI in config.yaml
+  replace:
+    path: "{{ quay_root }}/quay-config/config.yaml"
+    regexp: '^DB_URI: postgresql://.*$'
+    replace: 'DB_URI: sqlite:////sqlite/quay_sqlite.db'
+  register: db_uri_update
+
+- name: Ensure DB_URI was updated successfully
+  assert:
+    that:
+      - db_uri_update.changed
+    fail_msg: "Failed to update DB_URI in quay's config"
+    success_msg: "DB_URI has been updated successfully"
+
 - name: Stop Quay service
   systemd:
     name: quay-app.service
