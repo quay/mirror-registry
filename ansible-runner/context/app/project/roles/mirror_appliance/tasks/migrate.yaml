@@ -1,0 +1,118 @@
+- name: Check if sqlite migration tool image is loaded
+  command: podman inspect --type=image {{ sqlite_image }}
+  register: db_sqlite
+  ignore_errors: yes
+
+- name: Pull Sqlite image
+  containers.podman.podman_image:
+    name: "{{ sqlite_image }}"
+  when: db_sqlite.rc != 0
+  retries: 5
+  delay: 5
+
+- name: Create necessary directory for storing quay postgres db snapshot
+  ansible.builtin.file:
+    path: "{{ quay_root }}/quay-postgres-backup"
+    mode: 0750
+    state: directory
+    recurse: yes
+
+- name: Create Sqlite storage named volume
+  containers.podman.podman_volume:
+      state: present
+      name: "{{ sqlite_storage }}"
+  when: "not sqlite_storage.startswith('/')"
+
+- name: Run db-to-sqlite command via podman container
+  command: >
+    podman run --name quay-db-migration --pod quay-pod
+    -v {{ sqlite_storage }}:/data:Z
+    --umask=013
+    {{ sqlite_image }}
+    postgresql://user:{{ PGDB_PASSWORD }}@localhost/quay
+    quay_sqlite.db --all -p
+  register: container_result
+  ignore_errors: yes
+
+- name: Display migration error when sqlite migration fails
+  debug:
+    msg: "{{ container_result.stderr }}"
+  when: container_result.rc != 0
+
+- name: Back up postgres data from mounted volume to host machine
+  command: podman cp quay-db-migration:/data {{ quay_root }}/quay-postgres-backup/
+  when: container_result.rc == 0
+
+- name: Check if sqlite file exists
+  stat:
+    path: "{{ quay_root }}/quay-postgres-backup/quay_sqlite.db"
+  register: file_check
+
+- fail:
+    msg: "Sqlite db file '{{ quay_root }}/quay-postgres-backup/quay_sqlite.db' does not exist."
+  when: file_check.stat.exists == false
+
+- name: Delete temporary migration container
+  containers.podman.podman_container:
+    name: quay-db-migration
+    state: absent
+  when: container_result.rc == 0
+
+- name: Update DB_URI in config.yaml
+  replace:
+    path: "{{ quay_root }}/quay-config/config.yaml"
+    regexp: '^DB_URI: postgresql://.*$'
+    replace: 'DB_URI: sqlite:////sqlite/quay_sqlite.db'
+  register: db_uri_update
+
+- name: Ensure DB_URI was updated successfully
+  assert:
+    that:
+      - db_uri_update.changed
+    fail_msg: "Failed to update DB_URI in quay's config"
+    success_msg: "DB_URI has been updated successfully"
+
+- name: Stop Quay service
+  systemd:
+    name: quay-app.service
+    enabled: no
+    daemon_reload: yes
+    state: stopped
+    force: yes
+    scope: "{{ systemd_scope }}"
+  when: container_result.rc == 0
+
+- name: Stop Postgres service
+  systemd:
+    name: quay-postgres.service
+    enabled: no
+    daemon_reload: yes
+    state: stopped
+    force: yes
+    scope: "{{ systemd_scope }}"
+  when: container_result.rc == 0
+
+- name: Delete Postgres Storage named volume
+  containers.podman.podman_volume:
+      state: absent
+      name: pg-storage
+  when: auto_approve|bool == true and pg_storage == "pg-storage" and container_result.rc == 0
+
+- name: Delete Postgres Password Secret
+  containers.podman.podman_secret:
+    state: absent
+    name: pgdb_pass
+  when: container_result.rc == 0
+
+- name: Delete necessary directory for Postgres persistent data
+  ansible.builtin.file:
+    path: "{{ pg_storage }}"
+    state: absent
+  become: yes
+  when: auto_approve|bool == true and pg_storage.startswith('/') and container_result.rc == 0
+
+- name: Cleanup quay-postgres systemd unit file
+  file:
+    state: absent
+    path: "{{ systemd_unit_dir }}/quay-postgres.service"
+  when: container_result.rc == 0

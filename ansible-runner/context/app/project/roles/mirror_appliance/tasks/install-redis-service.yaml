@@ -20,7 +20,7 @@
     state: present
     name: redis_pass
     data: "{{ redis_password }}"
-    skip_existing: false
+    skip_existing: true
 
 - name: Start Redis service
   systemd:

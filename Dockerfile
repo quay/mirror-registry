@@ -5,6 +5,7 @@ ARG EE_BASE_IMAGE=${EE_BASE_IMAGE}
 ARG EE_BUILDER_IMAGE=${EE_BUILDER_IMAGE}
 ARG REDIS_IMAGE=${REDIS_IMAGE}
 ARG PAUSE_IMAGE=${PAUSE_IMAGE}
+ARG DB_TO_SQLITE_IMAGE=${DB_TO_SQLITE_IMAGE}
 
 # Create Go CLI
 FROM registry.access.redhat.com/ubi8:latest AS cli
@@ -15,6 +16,7 @@ ARG QUAY_IMAGE=${QUAY_IMAGE}
 ARG EE_IMAGE=${EE_IMAGE}
 ARG REDIS_IMAGE=${REDIS_IMAGE}
 ARG PAUSE_IMAGE=${PAUSE_IMAGE}
+ARG DB_TO_SQLITE_IMAGE=${DB_TO_SQLITE_IMAGE}
 
 ENV GOROOT=/usr/local/go
 ENV PATH=$GOPATH/bin:$GOROOT/bin:$PATH 
@@ -33,9 +35,10 @@ ENV EE_IMAGE=${EE_IMAGE}
 ENV QUAY_IMAGE=${QUAY_IMAGE}
 ENV REDIS_IMAGE=${REDIS_IMAGE}
 ENV PAUSE_IMAGE=${PAUSE_IMAGE}
+ENV DB_TO_SQLITE_IMAGE=${DB_TO_SQLITE_IMAGE}
 
 RUN go build -v \
-	-ldflags "-X github.com/quay/mirror-registry/cmd.releaseVersion=${RELEASE_VERSION} -X github.com/quay/mirror-registry/cmd.eeImage=${EE_IMAGE} -X github.com/quay/mirror-registry/cmd.pauseImage=${PAUSE_IMAGE} -X github.com/quay/mirror-registry/cmd.quayImage=${QUAY_IMAGE} -X github.com/quay/mirror-registry/cmd.redisImage=${REDIS_IMAGE}" \
+	-ldflags "-X github.com/quay/mirror-registry/cmd.releaseVersion=${RELEASE_VERSION} -X github.com/quay/mirror-registry/cmd.eeImage=${EE_IMAGE} -X github.com/quay/mirror-registry/cmd.pauseImage=${PAUSE_IMAGE} -X github.com/quay/mirror-registry/cmd.quayImage=${QUAY_IMAGE} -X github.com/quay/mirror-registry/cmd.redisImage=${REDIS_IMAGE} -X github.com/quay/mirror-registry/cmd.sqliteImage=${DB_TO_SQLITE_IMAGE}" \
 	-o mirror-registry
 
 # Create Ansible Execution Environment
@@ -70,6 +73,18 @@ FROM $QUAY_IMAGE as quay
 FROM $REDIS_IMAGE as redis
 FROM $PAUSE_IMAGE as pause
 
+# Install db sqlite migration cli
+FROM registry.access.redhat.com/ubi8-minimal AS db-cli
+
+# Install Python 3 and pip
+RUN microdnf update -y && \
+    microdnf install libpq-devel python3 python3-pip -y && \
+    microdnf install gcc-c++ python3-devel -y && \
+    microdnf clean all
+
+COPY requirements.txt .
+RUN pip3 install --no-cache-dir -r requirements.txt
+
 # Create mirror registry archive
 FROM registry.access.redhat.com/ubi8:latest AS build
 
@@ -88,11 +103,14 @@ RUN tar -cvf quay.tar -C /quay .
 
 COPY --from=cli /cli/mirror-registry .
 
+COPY --from=db-cli / /db-cli
+RUN tar -cvf db-cli.tar -C /db-cli .
+
 # Bundle quay, redis and pause into a single archive
 RUN tar -cvf image-archive.tar quay.tar redis.tar pause.tar
 
 # Bundle mirror registry archive
-RUN tar -czvf mirror-registry.tar.gz image-archive.tar execution-environment.tar mirror-registry
+RUN tar -czvf mirror-registry.tar.gz image-archive.tar execution-environment.tar mirror-registry db-cli.tar
 
 # Extract bundle to final release image
 FROM registry.access.redhat.com/ubi8:latest AS release
