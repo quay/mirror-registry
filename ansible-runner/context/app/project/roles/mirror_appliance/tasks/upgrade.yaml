@@ -10,8 +10,14 @@
 - name: Autodetect existing Secrets in config.yaml
   include_tasks: upgrade-config-vars.yaml
 
+- name: Check if quay-postgres container is running
+  command: podman ps -q -f name=quay-postgres
+  register: postgres_container_status
+  changed_when: false
+
 - name: Migrate postgres db to sqlite for Quay
   include_tasks: migrate.yaml
+  when: postgres_container_status.stdout != ""
 
 - name: Autodetect Image Archive
   include_tasks: autodetect-image-archive.yaml
