@@ -33,3 +33,7 @@
 
 - name: Wait for Quay
   include_tasks: wait-for-quay.yaml
+
+- name: Clean up old postgres service
+  include_tasks: cleanup-postgres.yaml
+  when: postgres_container_status.stdout != ""
