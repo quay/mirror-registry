@@ -81,3 +81,11 @@
     force: yes
     scope: "{{ systemd_scope }}"
   when: container_result.rc == 0
+
+- name: Start Quay service
+  systemd:
+    name: quay-app.service
+    enabled: yes
+    daemon_reload: yes
+    state: restarted
+    scope: "{{ systemd_scope }}"
