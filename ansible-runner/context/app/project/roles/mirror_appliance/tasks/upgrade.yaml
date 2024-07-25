@@ -24,3 +24,19 @@
 
 - name: Wait for Quay
   include_tasks: wait-for-quay.yaml
+
+- name: Check if quay-postgres container is running
+  command: podman ps -q -f name=quay-postgres
+  register: postgres_container_status
+  changed_when: false
+
+- name: Migrate postgres db to sqlite for Quay
+  include_tasks: migrate.yaml
+  when: postgres_container_status.stdout != ""
+
+- name: Wait for Quay
+  include_tasks: wait-for-quay.yaml
+
+- name: Clean up old postgres service
+  include_tasks: cleanup-postgres.yaml
+  when: postgres_container_status.stdout != ""

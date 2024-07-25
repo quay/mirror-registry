@@ -1,0 +1,140 @@
+- name: Create Sqlite storage named volume
+  containers.podman.podman_volume:
+      state: present
+      name: "{{ sqlite_storage }}"
+  when: "not sqlite_storage.startswith('/')"
+
+- name: Create necessary directory for storing quay postgres db snapshot
+  ansible.builtin.file:
+    path: "{{ quay_root }}/quay-postgres-backup"
+    mode: 0750
+    state: directory
+    recurse: yes
+
+- name: Stop Quay service
+  systemd:
+    name: quay-app.service
+    enabled: no
+    daemon_reload: yes
+    state: stopped
+    force: yes
+    scope: "{{ systemd_scope }}"
+
+- name: Update DB_URI in config.yaml
+  replace:
+    path: "{{ quay_root }}/quay-config/config.yaml"
+    regexp: '^DB_URI: postgresql://.*$'
+    replace: 'DB_URI: sqlite:////sqlite/quay_sqlite.db'
+  register: db_uri_update
+
+- name: Ensure DB_URI was updated successfully
+  assert:
+    that:
+      - db_uri_update.changed
+    fail_msg: "Failed to update DB_URI in quay's config"
+    success_msg: "DB_URI has been updated successfully"
+
+- name: Copy Quay systemd service file with migrate command
+  template:
+    src: ../templates/quay.service.j2
+    dest: "{{ systemd_unit_dir }}/quay-migrate.service"
+  vars:
+    quay_cmd: "migrate head"
+
+- name: Start Quay service
+  systemd:
+    name: quay-migrate.service
+    enabled: yes
+    daemon_reload: yes
+    scope: "{{ systemd_scope }}"
+    state: started
+  register: quay_service
+
+# for debug only
+- name: Wait for 5 seconds
+  wait_for:
+    timeout: 5
+
+- name: Create temporary data-only container to copy contents of sqlite_storage
+  containers.podman.podman_container:
+    name: quay-copy
+    image: "{{ pause_image }}"
+    state: present
+    volumes:
+    - "{{ sqlite_storage }}:/data"
+
+- name: Copy data from conatiner to host
+  command: podman cp quay-copy:/data {{ quay_root }}/quay-postgres-backup/
+
+- name: Extract SQLite schema from the .db file
+  shell: sqlite3 "{{ quay_root }}/quay-postgres-backup/quay_sqlite.db" .schema > "{{ quay_root }}/quay-postgres-backup/sqlite_schema_dump.sql"
+  args:
+    executable: /bin/bash
+
+- name: Stop Quay migrate service
+  systemd:
+    name: quay-migrate.service
+    enabled: no
+    daemon_reload: yes
+    state: stopped
+    force: yes
+    scope: "{{ systemd_scope }}"
+
+- name: Cleanup quay-migrate systemd unit file
+  file:
+    state: absent
+    path: "{{ systemd_unit_dir }}/quay-migrate.service"
+
+- name: Take a pg_dump of the data from quay-postgres
+  command: >
+    podman exec -it quay-postgres
+    pg_dump --data-only --column-inserts --no-owner --no-privileges --disable-triggers
+    -U user -d quay
+  register: pg_dump_output
+
+- name: Back up postgres data to host machine
+  copy:
+    content: "{{ pg_dump_output.stdout }}"
+    dest: "{{ quay_root }}/quay-postgres-backup/pg_data_dump.sql"
+  when: pg_dump_output.stdout is defined
+
+- name: Copy python script to host machine
+  template:
+    src: /runner/project/roles/mirror_appliance/templates/pg_to_sqlite.py
+    dest: "{{ quay_root }}/quay-postgres-backup/"
+
+- name: Transform PostgreSQL data only dump to SQLite-compatible .sql file
+  command: python3 "{{ quay_root }}/quay-postgres-backup/pg_to_sqlite.py" "{{ quay_root }}/quay-postgres-backup/pg_data_dump.sql" "{{ quay_root }}/quay-postgres-backup/converted_data.sql"
+
+- name: Concatenate sqlite schema and transformed postgres data into single merged_sqlite.sql
+  shell: cat "{{ quay_root }}/quay-postgres-backup/sqlite_schema_dump.sql" "{{ quay_root }}/quay-postgres-backup/converted_data.sql" > "{{ quay_root }}/quay-postgres-backup/merged_sqlite.sql"
+  args:
+    executable: /bin/bash
+
+- name: Import merged_sqlite.sql into .db file overwriting quay_sqlite.db
+  shell: sqlite3 "{{ quay_root }}/quay-postgres-backup/quay_sqlite.db" < "{{ quay_root }}/quay-postgres-backup/merged_sqlite.sql"
+  args:
+    executable: /bin/bash
+
+- name: Copy quay_sqlite.db file to sqlite-storage volume
+  command: podman cp {{ quay_root }}/quay-postgres-backup/quay_sqlite.db quay-copy:/data
+
+- name: Delete temporary container
+  containers.podman.podman_container:
+    name: quay-copy
+    state: absent
+
+- name: Copy Quay systemd service file to run quay without migration
+  template:
+    src: ../templates/quay.service.j2
+    dest: "{{ systemd_unit_dir }}/quay-app.service"
+  vars:
+    quay_cmd: "registry-nomigrate"
+
+- name: Start Quay service
+  systemd:
+    name: quay-app.service
+    enabled: yes
+    daemon_reload: yes
+    state: restarted
+    scope: "{{ systemd_scope }}"

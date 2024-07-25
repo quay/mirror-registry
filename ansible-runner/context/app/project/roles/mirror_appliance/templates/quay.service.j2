@@ -21,7 +21,7 @@ ExecStart=/usr/bin/podman run \
     --replace \
     -e WORKER_COUNT_UNSUPPORTED_MINIMUM=1 \
     -e WORKER_COUNT=1 \
-    {{ quay_image }}
+    {{ quay_image }} {{ quay_cmd }}
     
 ExecStop=-/usr/bin/podman stop --ignore --cidfile %t/%n-cid -t 10
 ExecStopPost=-/usr/bin/podman rm --ignore -f --cidfile %t/%n-cid
