@@ -11,6 +11,39 @@
     state: directory
     recurse: yes
 
+- name: Check for sqlite3 command
+  command: which sqlite3
+  register: result
+  ignore_errors: yes
+
+- name: Fail if sqlite3 is not installed
+  fail:
+    msg: "sqlite3 is not installed, cannot proceed with upgrade"
+  when: result.rc != 0
+
+- name: Check for Python 3 command
+  command: which python3
+  register: python3_result
+  ignore_errors: yes
+
+- name: Fail if Python 3 is not installed
+  fail:
+    msg: "Python 3 is not installed, cannot proceed with upgrade"
+  when: python3_result.rc != 0
+
+- name: Take a pg_dump of the data from quay-postgres
+  command: >
+    podman exec -it quay-postgres
+    pg_dump --data-only --column-inserts --no-owner --no-privileges --disable-triggers
+    -U user -d quay
+  register: pg_dump_output
+
+- name: Back up postgres data to host machine
+  copy:
+    content: "{{ pg_dump_output.stdout }}"
+    dest: "{{ expanded_quay_root }}/quay-postgres-backup/pg_data_dump.sql"
+  when: pg_dump_output.stdout is defined
+
 - name: Stop Quay service
   systemd:
     name: quay-app.service
@@ -90,19 +123,6 @@
     state: absent
     path: "{{ systemd_unit_dir }}/quay-migrate.service"
 
-- name: Take a pg_dump of the data from quay-postgres
-  command: >
-    podman exec -it quay-postgres
-    pg_dump --data-only --column-inserts --no-owner --no-privileges --disable-triggers
-    -U user -d quay
-  register: pg_dump_output
-
-- name: Back up postgres data to host machine
-  copy:
-    content: "{{ pg_dump_output.stdout }}"
-    dest: "{{ expanded_quay_root }}/quay-postgres-backup/pg_data_dump.sql"
-  when: pg_dump_output.stdout is defined
-
 - name: Copy python script to host machine
   template:
     src: /runner/project/roles/mirror_appliance/templates/pg_to_sqlite.py
@@ -121,10 +141,10 @@
   args:
     executable: /bin/bash
 
-- name: Change permissions of quay_sqlite.db file to 0777
+- name: Change permissions of quay_sqlite.db file to 0744
   file:
     path: "{{ expanded_quay_root }}/quay-postgres-backup/quay_sqlite.db"
-    mode: '0777'
+    mode: '0744'
 
 - name: Copy quay_sqlite.db file to sqlite-storage volume
   command: podman cp {{ expanded_quay_root }}/quay-postgres-backup/quay_sqlite.db quay-copy:/data/
