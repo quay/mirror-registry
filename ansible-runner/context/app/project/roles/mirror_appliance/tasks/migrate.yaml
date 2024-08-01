@@ -1,3 +1,15 @@
+- name: Check if sqlite cli image is loaded
+  command: podman inspect --type=image {{ sqlite_image }}
+  register: sqlite_cli
+  ignore_errors: yes
+
+- name: Pull Sqlite image
+  containers.podman.podman_image:
+    name: "{{ sqlite_image }}"
+  when: sqlite_cli.rc != 0
+  retries: 5
+  delay: 5
+
 - name: Create Sqlite storage named volume
   containers.podman.podman_volume:
       state: present
@@ -11,14 +23,15 @@
     state: directory
     recurse: yes
 
-- name: Check for sqlite3 command
-  command: which sqlite3
+- name: Run sqlite3 command inside container
+  command: >
+    podman run --name sqlite-cli --rm {{ sqlite_image }} sqlite3 --version
   register: result
   ignore_errors: yes
 
-- name: Fail if sqlite3 is not installed
+- name: Fail if sqlite3 is not available in the container
   fail:
-    msg: "sqlite3 is not installed, cannot proceed with upgrade"
+    msg: "sqlite3 is not available in the container, cannot proceed"
   when: result.rc != 0
 
 - name: Check for Python 3 command

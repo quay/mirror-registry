@@ -1,0 +1,18 @@
+- name: Checking for sqlite3.tar archive
+  local_action: stat path=/runner/sqlite3.tar
+  register: s
+
+- name: Copy Image if /runner/sqlite3.tar exists
+  copy:
+    src: /runner/sqlite3.tar
+    dest: "{{ quay_root }}/sqlite3.tar"
+  when: s.stat.exists and local_install == "false"
+
+- name: Unpack Image from sqlite3.tar
+  command: "tar -xvf {{ quay_root }}/sqlite3.tar -C {{ quay_root }}/"
+  when: s.stat.exists and local_install == "false"
+
+- name: Load sqlite image if sqlite3.tar exists
+  shell: 
+    cmd: podman image import --change 'ENV PATH=/opt/app-root/src/bin:/opt/app-root/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin' --change 'ENV container=oci' --change 'ENTRYPOINT=["sleep"]' --change 'CMD ["infinity"]' - {{ sqlite_image }} < {{ quay_root }}/sqlite3.tar
+  when: s.stat.exists and local_install == "false"

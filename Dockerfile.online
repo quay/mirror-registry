@@ -65,10 +65,9 @@ COPY ansible-runner/context/app /runner
 
 # Install sqlite cli
 FROM registry.access.redhat.com/ubi8-minimal as sqlite-cli
-RUN set -ex\
-	; microdnf update -y \
-    ; microdnf install sqlite sqlite-devel -y \
-    ; microdnf clean all
+RUN microdnf update -y && \
+    microdnf install sqlite sqlite-devel -y && \
+    microdnf clean all
 
 # Create mirror registry archive
 FROM registry.redhat.io/ubi8:latest AS build

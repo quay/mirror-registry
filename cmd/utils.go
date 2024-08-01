@@ -12,6 +12,9 @@ import (
 	"strings"
 )
 
+// This variable is set at build time via ldflags
+var sqliteImage string
+
 func loadExecutionEnvironment() error {
 
 	// Ensure execution environment is present
@@ -180,12 +183,48 @@ func check(err error) {
 	}
 }
 
+func loadSqliteCli() error {
+	// Ensure execution environment is present
+	executableDir, err := os.Executable()
+	if err != nil {
+		return err
+	}
+	sqliteCliPath := path.Join(path.Dir(executableDir), "sqlite3.tar")
+	if !pathExists(sqliteCliPath) {
+		return errors.New("Could not find db-cli.tar at " + sqliteCliPath)
+	}
+	log.Info("Found sqlite3 cli binary at " + sqliteCliPath)
+
+	// Load sqlite3 as a podman image
+	log.Printf("Loading sqlite3 cli binary from sqlite3.tar")
+	statement := getImageMetadata("sqlite", sqliteImage, sqliteCliPath)
+	cmd := exec.Command("/bin/bash", "-c", statement)
+	if verbose {
+		cmd.Stderr = os.Stderr
+		cmd.Stdout = os.Stdout
+	}
+	log.Debug("Importing sqlite3 cli binary with command: ", cmd)
+
+	err = cmd.Run()
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 // getImageMetadata provides the metadata needed for a corresponding image
 func getImageMetadata(app, imageName, archivePath string) string {
 	var statement string
 
 	switch app {
 	case "pause":
+		statement = `/usr/bin/podman image import \
+					--change 'ENV PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin' \
+					--change 'ENV container=oci' \
+					--change 'ENTRYPOINT=["sleep"]' \
+					--change 'CMD=["infinity"]' \
+					- ` + imageName + ` < ` + archivePath
+	case "sqlite":
 		statement = `/usr/bin/podman image import \
 					--change 'ENV PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin' \
 					--change 'ENV container=oci' \

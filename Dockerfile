@@ -98,8 +98,8 @@ RUN tar -cvf quay.tar -C /quay .
 
 COPY --from=cli /cli/mirror-registry .
 
-COPY --from=sqlite-cli /usr/bin/sqlite3 /usr/bin/sqlite3
-RUN tar -cvf sqlite3.tar /usr/bin/sqlite3
+COPY --from=sqlite-cli / /sqlite3
+RUN tar -cvf sqlite3.tar -C /sqlite3 .
 
 # Bundle quay, redis and pause into a single archive
 RUN tar -cvf image-archive.tar quay.tar redis.tar pause.tar

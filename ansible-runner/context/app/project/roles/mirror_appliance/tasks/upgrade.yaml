@@ -30,6 +30,10 @@
   register: postgres_container_status
   changed_when: false
 
+- name: Autodetect Sqlite Archive
+  include_tasks: autodetect-sqlite-archive.yaml
+  when: postgres_container_status.stdout != ""
+
 - name: Migrate postgres db to sqlite for Quay
   include_tasks: migrate.yaml
   when: postgres_container_status.stdout != ""
