@@ -23,16 +23,24 @@
     state: directory
     recurse: yes
 
-- name: Run sqlite3 command inside container
+- name: Verify sqlite3 cli binary is available as entrypoint command from the container
   command: >
-    podman run --name sqlite-cli --rm {{ sqlite_image }} sqlite3 --version
+    podman run --name sqlite-cli --rm {{ sqlite_image }} --version
   register: result
   ignore_errors: yes
 
+- name: Print sqlite3 version output
+  debug:
+    msg: "sqlite3 version output: {{ result.stdout }}"
+
+- name: Check if sqlite3 version is in the output
+  set_fact:
+    sqlite_version_available: "{{ '3.' in result.stdout }}"
+
 - name: Fail if sqlite3 is not available in the container
   fail:
-    msg: "sqlite3 is not available in the container, cannot proceed"
-  when: result.rc != 0
+    msg: "sqlite3 is not available in the container, cannot proceed to migrate"
+  when: not sqlite_version_available
 
 - name: Check for Python 3 command
   command: which python3
@@ -44,7 +52,7 @@
     msg: "Python 3 is not installed, cannot proceed with upgrade"
   when: python3_result.rc != 0
 
-- name: Take a pg_dump of the data from quay-postgres
+- name: Take a pg_dump of the data from running quay-postgres container
   command: >
     podman exec -it quay-postgres
     pg_dump --data-only --column-inserts --no-owner --no-privileges --disable-triggers
@@ -87,6 +95,7 @@
   vars:
     quay_cmd: "migrate head"
 
+# This starts quay with sqlite db and runs the alembic migration
 - name: Start Quay service
   systemd:
     name: quay-migrate.service
@@ -101,7 +110,7 @@
   wait_for:
     timeout: 5
 
-- name: Create temporary data-only container to copy contents of sqlite_storage
+- name: Create temporary data-only container to copy contents of sqlite_storage volume
   containers.podman.podman_container:
     name: quay-copy
     image: "{{ pause_image }}"
@@ -112,10 +121,24 @@
 - name: Copy data from container to host
   command: podman cp quay-copy:/data {{ quay_root }}/quay-postgres-backup/
 
-- name: Extract SQLite schema from the .db file
-  shell: sqlite3 "{{ expanded_quay_root }}/quay-postgres-backup/quay_sqlite.db" .schema > "{{ expanded_quay_root }}/quay-postgres-backup/sqlite_schema_dump.sql"
-  args:
-    executable: /bin/bash
+- name: Run sqlite3 command inside container to take quay's sqlite database schema dump
+  command: >
+    podman run --name sqlite-cli --rm
+    -v {{ expanded_quay_root }}/quay-postgres-backup/:/backup:Z
+    {{ sqlite_image }} /backup/quay_sqlite.db .schema
+  register: sqlite_schema_result
+  ignore_errors: yes
+
+- name: Fail if sqlite3 command failed
+  fail:
+    msg: "sqlite3 command failed. Output was: {{ sqlite_schema_result.stdout }}"
+  when: sqlite_schema_result.rc != 0
+
+- name: Back up sqlite schema data to host machine
+  copy:
+    content: "{{ sqlite_schema_result.stdout }}"
+    dest: "{{ expanded_quay_root }}/quay-postgres-backup/sqlite_schema_dump.sql"
+  when: sqlite_schema_result.rc == 0
 
 - name: Remove the quay_sqlite.db file
   file:
@@ -136,21 +159,21 @@
     state: absent
     path: "{{ systemd_unit_dir }}/quay-migrate.service"
 
-- name: Copy python script to host machine
+- name: Copy postgres-to-sqlite python script to host machine
   template:
     src: /runner/project/roles/mirror_appliance/templates/pg_to_sqlite.py
     dest: "{{ expanded_quay_root }}/quay-postgres-backup/"
 
 - name: Transform PostgreSQL data only dump to SQLite-compatible .sql file
-  command: python3 "{{ expanded_quay_root }}/quay-postgres-backup/pg_to_sqlite.py" "{{ expanded_quay_root }}/quay-postgres-backup/pg_data_dump.sql" "{{ expanded_quay_root }}/quay-postgres-backup/converted_data.sql"
+  command: python3 "{{ expanded_quay_root }}/quay-postgres-backup/pg_to_sqlite.py" "{{ expanded_quay_root }}/quay-postgres-backup/pg_data_dump.sql" "{{ expanded_quay_root }}/quay-postgres-backup/transformed_pgdata.sql"
 
-- name: Concatenate sqlite schema and transformed postgres data into single merged_sqlite.sql
-  shell: cat "{{ expanded_quay_root }}/quay-postgres-backup/sqlite_schema_dump.sql" "{{ expanded_quay_root }}/quay-postgres-backup/converted_data.sql" > "{{ expanded_quay_root }}/quay-postgres-backup/merged_sqlite.sql"
+- name: Concatenate sqlite schema .sql and transformed postgres data into single merged_sqlite.sql
+  shell: cat "{{ expanded_quay_root }}/quay-postgres-backup/sqlite_schema_dump.sql" "{{ expanded_quay_root }}/quay-postgres-backup/transformed_pgdata.sql" > "{{ expanded_quay_root }}/quay-postgres-backup/merged_sqlite.sql"
   args:
     executable: /bin/bash
 
 - name: Apply merged_sqlite.sql into a new quay_sqlite.db file
-  shell: sqlite3 "{{ expanded_quay_root }}/quay-postgres-backup/quay_sqlite.db" < "{{ expanded_quay_root }}/quay-postgres-backup/merged_sqlite.sql"
+  shell: cat "{{ expanded_quay_root }}/quay-postgres-backup/merged_sqlite.sql" | podman run -i --name sqlite-cli -v {{ expanded_quay_root }}/quay-postgres-backup:/backup:Z {{ sqlite_image }} /backup/quay_sqlite.db
   args:
     executable: /bin/bash
 
@@ -172,7 +195,7 @@
     src: ../templates/quay.service.j2
     dest: "{{ systemd_unit_dir }}/quay-app.service"
   vars:
-    quay_cmd: "registry"
+    quay_cmd: "registry-nomigrate"
 
 - name: Start Quay service
   systemd:

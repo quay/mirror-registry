@@ -191,7 +191,7 @@ func loadSqliteCli() error {
 	}
 	sqliteCliPath := path.Join(path.Dir(executableDir), "sqlite3.tar")
 	if !pathExists(sqliteCliPath) {
-		return errors.New("Could not find db-cli.tar at " + sqliteCliPath)
+		return errors.New("Could not find sqlite3.tar at " + sqliteCliPath)
 	}
 	log.Info("Found sqlite3 cli binary at " + sqliteCliPath)
 
@@ -228,8 +228,7 @@ func getImageMetadata(app, imageName, archivePath string) string {
 		statement = `/usr/bin/podman image import \
 					--change 'ENV PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin' \
 					--change 'ENV container=oci' \
-					--change 'ENTRYPOINT=["sleep"]' \
-					--change 'CMD=["infinity"]' \
+					--change 'ENTRYPOINT=["/usr/bin/sqlite3"]' \
 					- ` + imageName + ` < ` + archivePath
 	case "ansible":
 		statement = `/usr/bin/podman image import \
