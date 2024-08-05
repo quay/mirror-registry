@@ -26,21 +26,13 @@
 - name: Verify sqlite3 cli binary is available as entrypoint command from the container
   command: >
     podman run --name sqlite-cli --rm {{ sqlite_image }} --version
-  register: result
+  register: sqlite_version
   ignore_errors: yes
 
-- name: Print sqlite3 version output
-  debug:
-    msg: "sqlite3 version output: {{ result.stdout }}"
-
-- name: Check if sqlite3 version is in the output
-  set_fact:
-    sqlite_version_available: "{{ '3.' in result.stdout }}"
-
-- name: Fail if sqlite3 is not available in the container
+- name: Fail if sqlite cli binary is not found
   fail:
-    msg: "sqlite3 is not available in the container, cannot proceed to migrate"
-  when: not sqlite_version_available
+    msg: "sqlite cli is not available via the container, cannot proceed to migrate"
+  when: sqlite_version.stdout.split(' ')[0] | regex_search('(\\d+\\.\\d+\\.\\d+)') is not defined
 
 - name: Check for Python 3 command
   command: which python3
@@ -173,14 +165,14 @@
     executable: /bin/bash
 
 - name: Apply merged_sqlite.sql into a new quay_sqlite.db file
-  shell: cat "{{ expanded_quay_root }}/quay-postgres-backup/merged_sqlite.sql" | podman run -i --name sqlite-cli -v {{ expanded_quay_root }}/quay-postgres-backup:/backup:Z {{ sqlite_image }} /backup/quay_sqlite.db
+  shell: cat "{{ expanded_quay_root }}/quay-postgres-backup/merged_sqlite.sql" | podman run -i --rm --name sqlite-cli -v {{ expanded_quay_root }}/quay-postgres-backup:/backup:Z {{ sqlite_image }} /backup/quay_sqlite.db
   args:
     executable: /bin/bash
 
-- name: Change permissions of quay_sqlite.db file to 0744
+- name: Change permissions of quay_sqlite.db file
   file:
     path: "{{ expanded_quay_root }}/quay-postgres-backup/quay_sqlite.db"
-    mode: '0744'
+    mode: '0664'
 
 - name: Copy quay_sqlite.db file to sqlite-storage volume
   command: podman cp {{ expanded_quay_root }}/quay-postgres-backup/quay_sqlite.db quay-copy:/data/
