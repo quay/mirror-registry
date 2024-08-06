@@ -65,8 +65,9 @@ func upgrade() {
 	err = loadSSHKeys()
 	check(err)
 
+	var sqliteArchiveMountFlag string
 	// Load sqlite cli binary required for migrating from postgres to sqlite
-	err = loadSqliteCli()
+	sqliteArchiveMountFlag, err = loadSqliteCli()
 	check(err)
 
 	// Handle Image Archive Defaulting
@@ -171,6 +172,7 @@ func upgrade() {
 		`--workdir /runner/project `+
 		`--net host `+
 		imageArchiveMountFlag+ // optional image archive flag
+		sqliteArchiveMountFlag+
 		` -v %s:/runner/env/ssh_key `+
 		`-e RUNNER_OMIT_EVENTS=False `+
 		`-e RUNNER_ONLY_FAILED_EVENTS=False `+

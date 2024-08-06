@@ -3,12 +3,10 @@
   register: sqlite_cli
   ignore_errors: yes
 
-- name: Pull Sqlite image
-  containers.podman.podman_image:
-    name: "{{ sqlite_image }}"
-  when: sqlite_cli.rc != 0
-  retries: 5
-  delay: 5
+- name: Fail if sqlite cli image is not found
+    fail:
+      msg: "The SQLite CLI image '{{ sqlite_image }}' is not loaded."
+    when: sqlite_cli.rc != 0
 
 - name: Create Sqlite storage named volume
   containers.podman.podman_volume:

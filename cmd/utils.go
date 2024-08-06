@@ -183,33 +183,42 @@ func check(err error) {
 	}
 }
 
-func loadSqliteCli() error {
+func loadSqliteCli() (string, error) {
 	// Ensure execution environment is present
 	executableDir, err := os.Executable()
 	if err != nil {
-		return err
+		return "", err
 	}
-	sqliteCliPath := path.Join(path.Dir(executableDir), "sqlite3.tar")
-	if !pathExists(sqliteCliPath) {
-		return errors.New("Could not find sqlite3.tar at " + sqliteCliPath)
+	sqliteArchivePath := path.Join(path.Dir(executableDir), "sqlite3.tar")
+	if !pathExists(sqliteArchivePath) {
+		return "", errors.New("Could not find sqlite3.tar at " + sqliteArchivePath)
 	}
-	log.Info("Found sqlite3 cli binary at " + sqliteCliPath)
+	log.Info("Found sqlite3 cli binary at " + sqliteArchivePath)
 
+	sqliteArchiveMountFlag := fmt.Sprintf(" -v %s:/runner/sqlite3.tar", sqliteArchivePath)
 	// Load sqlite3 as a podman image
 	log.Printf("Loading sqlite3 cli binary from sqlite3.tar")
-	statement := getImageMetadata("sqlite", sqliteImage, sqliteCliPath)
-	cmd := exec.Command("/bin/bash", "-c", statement)
+	statement := getImageMetadata("sqlite", sqliteImage, sqliteArchivePath)
+	sqliteImportCmd := exec.Command("/bin/bash", "-c", statement)
+	if verbose {
+		sqliteImportCmd.Stderr = os.Stderr
+		sqliteImportCmd.Stdout = os.Stdout
+	}
+	log.Debug("Importing sqlite3 cli binary with command: ", sqliteImportCmd)
+	err = sqliteImportCmd.Run()
+	if err != nil {
+		return "", err
+	}
+	log.Infof("Attempting to set SELinux rules on sqlite archive")
+	cmd := exec.Command("chcon", "-Rt", "svirt_sandbox_file_t", sqliteArchivePath)
 	if verbose {
 		cmd.Stderr = os.Stderr
 		cmd.Stdout = os.Stdout
 	}
-	log.Debug("Importing sqlite3 cli binary with command: ", cmd)
-
-	err = cmd.Run()
-	if err != nil {
-		return err
+	if err := cmd.Run(); err != nil {
+		log.Warn("Could not set SELinux rule. If your system does not have SELinux enabled, you may ignore this.")
 	}
-	return nil
+	return sqliteArchiveMountFlag, nil
 }
 
 // getImageMetadata provides the metadata needed for a corresponding image
