@@ -32,7 +32,7 @@
 - name: Fail if sqlite cli binary is not found
   fail:
     msg: "sqlite cli is not available via the container, cannot proceed to migrate"
-  when: sqlite_version.stdout.split(' ')[0] | regex_search('(\\d+\\.\\d+\\.\\d+)') is not defined
+  when: sqlite_version.rc != 0 or sqlite_version.stdout.split(' ')[0] | regex_search('(\\d+\\.\\d+\\.\\d+)') is not defined
 
 - name: Check for Python 3 command
   command: which python3

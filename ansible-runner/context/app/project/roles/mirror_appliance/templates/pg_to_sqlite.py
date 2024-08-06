@@ -11,7 +11,7 @@ def pg_to_sqlite(input_file, output_file):
 
     # Remove PostgreSQL-specific commands not supported by SQLite
     sql = re.sub(r'SET\s+\w+\s*=\s*[^;]+;', '', sql)  # Remove all SET statements
-    sql = re.sub(r'--.*', '', sql)  # Remove comments
+    sql = re.sub(r'^\s*--.*$', '', sql, flags=re.MULTILINE)  # Remove comments
     sql = re.sub(r'ALTER TABLE .*? DISABLE TRIGGER ALL;', '', sql)  # Remove disable triggers
     sql = re.sub(r'ALTER TABLE .*? ENABLE TRIGGER ALL;', '', sql)  # Remove enable triggers
     sql = re.sub(r"SELECT pg_catalog\.set_config\('search_path', '', false\);", '', sql)  # Remove search path config
