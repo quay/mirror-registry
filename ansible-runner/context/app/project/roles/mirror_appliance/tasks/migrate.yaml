@@ -95,10 +95,9 @@
     state: started
   register: quay_service
 
-# Add wait to ensure quay runs the migration
-- name: Wait for 5 seconds
+- name: Add wait to ensure quay runs alembic migration and is available
   wait_for:
-    timeout: 5
+    timeout: 30
 
 - name: Create temporary data-only container to copy contents of sqlite_storage volume
   containers.podman.podman_container:
