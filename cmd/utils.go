@@ -36,7 +36,7 @@ func loadExecutionEnvironment() error {
 		cmd.Stderr = os.Stderr
 		cmd.Stdout = os.Stdout
 	}
-	log.Debug("Importing execution enviornment with command: ", cmd)
+	log.Debug("Importing execution environment with command: ", cmd)
 
 	err = cmd.Run()
 	if err != nil {
@@ -196,18 +196,21 @@ func loadSqliteCli() (string, error) {
 	log.Info("Found sqlite3 cli binary at " + sqliteArchivePath)
 
 	sqliteArchiveMountFlag := fmt.Sprintf(" -v %s:/runner/sqlite3.tar", sqliteArchivePath)
-	// Load sqlite3 as a podman image
-	log.Printf("Loading sqlite3 cli binary from sqlite3.tar")
-	statement := getImageMetadata("sqlite", sqliteImage, sqliteArchivePath)
-	sqliteImportCmd := exec.Command("/bin/bash", "-c", statement)
-	if verbose {
-		sqliteImportCmd.Stderr = os.Stderr
-		sqliteImportCmd.Stdout = os.Stdout
-	}
-	log.Debug("Importing sqlite3 cli binary with command: ", sqliteImportCmd)
-	err = sqliteImportCmd.Run()
-	if err != nil {
-		return "", err
+
+	if isLocalInstall() {
+		// Load sqlite3 as a podman image
+		log.Printf("Loading sqlite3 cli binary from sqlite3.tar")
+		statement := getImageMetadata("sqlite", sqliteImage, sqliteArchivePath)
+		sqliteImportCmd := exec.Command("/bin/bash", "-c", statement)
+		if verbose {
+			sqliteImportCmd.Stderr = os.Stderr
+			sqliteImportCmd.Stdout = os.Stdout
+		}
+		log.Debug("Importing sqlite3 cli binary with command: ", sqliteImportCmd)
+		err = sqliteImportCmd.Run()
+		if err != nil {
+			return "", err
+		}
 	}
 	log.Infof("Attempting to set SELinux rules on sqlite archive")
 	cmd := exec.Command("chcon", "-Rt", "svirt_sandbox_file_t", sqliteArchivePath)
