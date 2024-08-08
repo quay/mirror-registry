@@ -5,6 +5,7 @@ ARG EE_BASE_IMAGE=${EE_BASE_IMAGE}
 ARG EE_BUILDER_IMAGE=${EE_BUILDER_IMAGE}
 ARG REDIS_IMAGE=${REDIS_IMAGE}
 ARG PAUSE_IMAGE=${PAUSE_IMAGE}
+ARG SQLITE_IMAGE=${SQLITE_IMAGE}
 
 # Create Go CLI
 FROM registry.access.redhat.com/ubi8:latest AS cli
@@ -15,6 +16,7 @@ ARG QUAY_IMAGE=${QUAY_IMAGE}
 ARG EE_IMAGE=${EE_IMAGE}
 ARG REDIS_IMAGE=${REDIS_IMAGE}
 ARG PAUSE_IMAGE=${PAUSE_IMAGE}
+ARG SQLITE_IMAGE=${SQLITE_IMAGE}
 
 ENV GOROOT=/usr/local/go
 ENV PATH=$GOPATH/bin:$GOROOT/bin:$PATH 
@@ -33,9 +35,10 @@ ENV EE_IMAGE=${EE_IMAGE}
 ENV QUAY_IMAGE=${QUAY_IMAGE}
 ENV REDIS_IMAGE=${REDIS_IMAGE}
 ENV PAUSE_IMAGE=${PAUSE_IMAGE}
+ENV SQLITE_IMAGE=${SQLITE_IMAGE}
 
 RUN go build -v \
-	-ldflags "-X github.com/quay/mirror-registry/cmd.releaseVersion=${RELEASE_VERSION} -X github.com/quay/mirror-registry/cmd.eeImage=${EE_IMAGE} -X github.com/quay/mirror-registry/cmd.pauseImage=${PAUSE_IMAGE} -X github.com/quay/mirror-registry/cmd.quayImage=${QUAY_IMAGE} -X github.com/quay/mirror-registry/cmd.redisImage=${REDIS_IMAGE}" \
+	-ldflags "-X github.com/quay/mirror-registry/cmd.releaseVersion=${RELEASE_VERSION} -X github.com/quay/mirror-registry/cmd.eeImage=${EE_IMAGE} -X github.com/quay/mirror-registry/cmd.pauseImage=${PAUSE_IMAGE} -X github.com/quay/mirror-registry/cmd.quayImage=${QUAY_IMAGE} -X github.com/quay/mirror-registry/cmd.redisImage=${REDIS_IMAGE} -X github.com/quay/mirror-registry/cmd.sqliteImage=${SQLITE_IMAGE}" \
 	-o mirror-registry
 
 # Create Ansible Execution Environment
@@ -70,6 +73,13 @@ FROM $QUAY_IMAGE as quay
 FROM $REDIS_IMAGE as redis
 FROM $PAUSE_IMAGE as pause
 
+# Install sqlite cli
+FROM registry.access.redhat.com/ubi8-minimal as sqlite-cli
+RUN set -ex\
+	; microdnf update -y \
+    ; microdnf install sqlite sqlite-devel -y \
+    ; microdnf clean all
+
 # Create mirror registry archive
 FROM registry.access.redhat.com/ubi8:latest AS build
 
@@ -88,11 +98,14 @@ RUN tar -cvf quay.tar -C /quay .
 
 COPY --from=cli /cli/mirror-registry .
 
+COPY --from=sqlite-cli / /sqlite3
+RUN tar -cvf sqlite3.tar -C /sqlite3 .
+
 # Bundle quay, redis and pause into a single archive
 RUN tar -cvf image-archive.tar quay.tar redis.tar pause.tar
 
 # Bundle mirror registry archive
-RUN tar -czvf mirror-registry.tar.gz image-archive.tar execution-environment.tar mirror-registry
+RUN tar -czvf mirror-registry.tar.gz image-archive.tar execution-environment.tar mirror-registry sqlite3.tar
 
 # Extract bundle to final release image
 FROM registry.access.redhat.com/ubi8:latest AS release

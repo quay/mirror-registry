@@ -1,0 +1,195 @@
+- name: Check if sqlite cli image is loaded
+  command: podman inspect --type=image {{ sqlite_image }}
+  register: sqlite_cli
+  ignore_errors: yes
+
+- name: Fail if sqlite cli image is not found
+  fail:
+    msg: "The SQLite CLI image '{{ sqlite_image }}' is not loaded."
+  when: sqlite_cli.rc != 0
+
+- name: Create Sqlite storage named volume
+  containers.podman.podman_volume:
+    state: present
+    name: "{{ sqlite_storage }}"
+  when: "not sqlite_storage.startswith('/')"
+
+- name: Create necessary directory for storing quay postgres db snapshot
+  ansible.builtin.file:
+    path: "{{ expanded_quay_root }}/quay-postgres-backup"
+    mode: 0750
+    state: directory
+    recurse: yes
+
+- name: Verify sqlite3 cli binary is available as entrypoint command from the container
+  command: >
+    podman run --name sqlite-cli --rm {{ sqlite_image }} --version
+  register: sqlite_version
+  ignore_errors: yes
+
+- name: Fail if sqlite cli binary is not found
+  fail:
+    msg: "sqlite cli is not available via the container, cannot proceed to migrate"
+  when: sqlite_version.rc != 0 or sqlite_version.stdout.split(' ')[0] | regex_search('(\\d+\\.\\d+\\.\\d+)') is not defined
+
+- name: Check for Python 3 command
+  command: which python3
+  register: python3_result
+  ignore_errors: yes
+
+- name: Fail if Python 3 is not installed
+  fail:
+    msg: "Python 3 is not installed, cannot proceed with upgrade"
+  when: python3_result.rc != 0
+
+- name: Take a pg_dump of the data from running quay-postgres container
+  command: >
+    podman exec -it quay-postgres
+    pg_dump --data-only --column-inserts --no-owner --no-privileges --disable-triggers
+    -U user -d quay
+  register: pg_dump_output
+
+- name: Back up postgres data to host machine
+  copy:
+    content: "{{ pg_dump_output.stdout }}"
+    dest: "{{ expanded_quay_root }}/quay-postgres-backup/pg_data_dump.sql"
+  when: pg_dump_output.stdout is defined
+
+- name: Stop Quay service
+  systemd:
+    name: quay-app.service
+    enabled: no
+    daemon_reload: yes
+    state: stopped
+    force: yes
+    scope: "{{ systemd_scope }}"
+
+- name: Update DB_URI in config.yaml
+  replace:
+    path: "{{ expanded_quay_root }}/quay-config/config.yaml"
+    regexp: '^DB_URI: postgresql://.*$'
+    replace: 'DB_URI: sqlite:////sqlite/quay_sqlite.db'
+  register: db_uri_update
+
+- name: Ensure DB_URI was updated successfully
+  assert:
+    that:
+      - db_uri_update.changed
+    fail_msg: "Failed to update DB_URI in quay's config"
+    success_msg: "DB_URI has been updated successfully"
+
+- name: Copy Quay systemd service file with migrate command
+  template:
+    src: ../templates/quay.service.j2
+    dest: "{{ systemd_unit_dir }}/quay-migrate.service"
+  vars:
+    quay_cmd: "migrate head"
+
+# This starts quay with sqlite db and runs the alembic migration
+- name: Start Quay service
+  systemd:
+    name: quay-migrate.service
+    enabled: yes
+    daemon_reload: yes
+    scope: "{{ systemd_scope }}"
+    state: started
+  register: quay_service
+
+- name: Add wait to ensure quay runs alembic migration and is available
+  wait_for:
+    timeout: 30
+
+- name: Create temporary data-only container to copy contents of sqlite_storage volume
+  containers.podman.podman_container:
+    name: quay-copy
+    image: "{{ pause_image }}"
+    state: present
+    volumes:
+    - "{{ sqlite_storage }}:/data:Z"
+
+- name: Copy data from container to host
+  command: podman cp quay-copy:/data {{ quay_root }}/quay-postgres-backup/
+
+- name: Run sqlite3 command inside container to take quay's sqlite database schema dump
+  command: >
+    podman run --name sqlite-cli --rm
+    -v {{ expanded_quay_root }}/quay-postgres-backup/:/backup:Z
+    {{ sqlite_image }} /backup/quay_sqlite.db .schema
+  register: sqlite_schema_result
+  ignore_errors: yes
+
+- name: Fail if sqlite3 command failed
+  fail:
+    msg: "sqlite3 command failed. Output was: {{ sqlite_schema_result.stdout }}"
+  when: sqlite_schema_result.rc != 0
+
+- name: Back up sqlite schema data to host machine
+  copy:
+    content: "{{ sqlite_schema_result.stdout }}"
+    dest: "{{ expanded_quay_root }}/quay-postgres-backup/sqlite_schema_dump.sql"
+  when: sqlite_schema_result.rc == 0
+
+- name: Remove the quay_sqlite.db file
+  file:
+    path: "{{ expanded_quay_root }}/quay-postgres-backup/quay_sqlite.db"
+    state: absent
+
+- name: Stop Quay migrate service
+  systemd:
+    name: quay-migrate.service
+    enabled: no
+    daemon_reload: yes
+    state: stopped
+    force: yes
+    scope: "{{ systemd_scope }}"
+
+- name: Cleanup quay-migrate systemd unit file
+  file:
+    state: absent
+    path: "{{ systemd_unit_dir }}/quay-migrate.service"
+
+- name: Copy postgres-to-sqlite python script to host machine
+  template:
+    src: /runner/project/roles/mirror_appliance/templates/pg_to_sqlite.py
+    dest: "{{ expanded_quay_root }}/quay-postgres-backup/"
+
+- name: Transform PostgreSQL data only dump to SQLite-compatible .sql file
+  command: python3 "{{ expanded_quay_root }}/quay-postgres-backup/pg_to_sqlite.py" "{{ expanded_quay_root }}/quay-postgres-backup/pg_data_dump.sql" "{{ expanded_quay_root }}/quay-postgres-backup/transformed_pgdata.sql"
+
+- name: Concatenate sqlite schema .sql and transformed postgres data into single merged_sqlite.sql
+  shell: cat "{{ expanded_quay_root }}/quay-postgres-backup/sqlite_schema_dump.sql" "{{ expanded_quay_root }}/quay-postgres-backup/transformed_pgdata.sql" > "{{ expanded_quay_root }}/quay-postgres-backup/merged_sqlite.sql"
+  args:
+    executable: /bin/bash
+
+- name: Apply merged_sqlite.sql into a new quay_sqlite.db file
+  shell: cat "{{ expanded_quay_root }}/quay-postgres-backup/merged_sqlite.sql" | podman run -i --rm --name sqlite-cli -v {{ expanded_quay_root }}/quay-postgres-backup:/backup:Z {{ sqlite_image }} /backup/quay_sqlite.db
+  args:
+    executable: /bin/bash
+
+- name: Change permissions of quay_sqlite.db file
+  file:
+    path: "{{ expanded_quay_root }}/quay-postgres-backup/quay_sqlite.db"
+    mode: '0664'
+
+- name: Copy quay_sqlite.db file to sqlite-storage volume
+  command: podman cp {{ expanded_quay_root }}/quay-postgres-backup/quay_sqlite.db quay-copy:/data/
+
+- name: Delete temporary container
+  containers.podman.podman_container:
+    name: quay-copy
+    state: absent
+
+- name: Copy Quay systemd service file to run quay without migration
+  template:
+    src: ../templates/quay.service.j2
+    dest: "{{ systemd_unit_dir }}/quay-app.service"
+  vars:
+    quay_cmd: "registry-nomigrate"
+
+- name: Start Quay service
+  systemd:
+    name: quay-app.service
+    enabled: yes
+    daemon_reload: yes
+    state: restarted
+    scope: "{{ systemd_scope }}"

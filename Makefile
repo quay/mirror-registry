@@ -8,7 +8,7 @@ all:
 
 build-golang-executable:
 	$(CLIENT) run --rm -v ${PWD}:/usr/src:Z -w /usr/src docker.io/golang:1.16 go build -v \
-	-ldflags "-X github.com/quay/mirror-registry/cmd.eeImage=${EE_IMAGE} -X 'github.com/quay/mirror-registry/cmd.quayImage=${QUAY_IMAGE}' -X 'github.com/quay/mirror-registry/cmd.redisImage=${REDIS_IMAGE}'" \
+	-ldflags "-X 'github.com/quay/mirror-registry/cmd.releaseVersion=${RELEASE_VERSION}' -X 'github.com/quay/mirror-registry/cmd.eeImage=${EE_IMAGE}' -X 'github.com/quay/mirror-registry/cmd.pauseImage=${PAUSE_IMAGE}' -X 'github.com/quay/mirror-registry/cmd.quayImage=${QUAY_IMAGE}' -X 'github.com/quay/mirror-registry/cmd.redisImage=${REDIS_IMAGE}' -X 'github.com/quay/mirror-registry/cmd.sqliteImage=${SQLITE_IMAGE}'" \
 	-o mirror-registry;
 
 build-online-zip: 
@@ -21,6 +21,7 @@ build-online-zip:
 		--build-arg EE_BUILDER_IMAGE=${EE_BUILDER_IMAGE} \
 		--build-arg REDIS_IMAGE=${REDIS_IMAGE} \
 		--build-arg PAUSE_IMAGE=${PAUSE_IMAGE} \
+		--build-arg SQLITE_IMAGE=${SQLITE_IMAGE} \
 		--file Dockerfile.online . 
 	$(CLIENT) run --name mirror-registry-online-${RELEASE_VERSION} mirror-registry-online:${RELEASE_VERSION}
 	$(CLIENT) cp mirror-registry-online-${RELEASE_VERSION}:/mirror-registry.tar.gz .
@@ -36,6 +37,7 @@ build-offline-zip:
 		--build-arg EE_BUILDER_IMAGE=${EE_BUILDER_IMAGE} \
 		--build-arg REDIS_IMAGE=${REDIS_IMAGE} \
 		--build-arg PAUSE_IMAGE=${PAUSE_IMAGE} \
+		--build-arg SQLITE_IMAGE=${SQLITE_IMAGE} \
 		--file Dockerfile .
 	$(CLIENT) run --name mirror-registry-offline-${RELEASE_VERSION} mirror-registry-offline:${RELEASE_VERSION}
 	$(CLIENT) cp mirror-registry-offline-${RELEASE_VERSION}:/mirror-registry.tar.gz .
