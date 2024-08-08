@@ -32,14 +32,14 @@
 
 - name: Delete Quay Storage named volume
   containers.podman.podman_volume:
-      state: absent
-      name: quay-storage
+    state: absent
+    name: quay-storage
   when: auto_approve|bool == true and quay_storage == "quay-storage"
 
 - name: Delete Sqlite Storage named volume
   containers.podman.podman_volume:
-      state: absent
-      name: sqlite-storage
+    state: absent
+    name: sqlite-storage
   when: auto_approve|bool == true and sqlite_storage == "sqlite-storage"
 
 - name: Delete Redis Password Secret

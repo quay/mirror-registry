@@ -12,6 +12,9 @@ import (
 	"strings"
 )
 
+// This variable is set at build time via ldflags
+var sqliteImage string
+
 func loadExecutionEnvironment() error {
 
 	// Ensure execution environment is present
@@ -33,7 +36,7 @@ func loadExecutionEnvironment() error {
 		cmd.Stderr = os.Stderr
 		cmd.Stdout = os.Stdout
 	}
-	log.Debug("Importing execution enviornment with command: ", cmd)
+	log.Debug("Importing execution environment with command: ", cmd)
 
 	err = cmd.Run()
 	if err != nil {
@@ -180,6 +183,47 @@ func check(err error) {
 	}
 }
 
+func loadSqliteCli() (string, error) {
+	// Ensure execution environment is present
+	executableDir, err := os.Executable()
+	if err != nil {
+		return "", err
+	}
+	sqliteArchivePath := path.Join(path.Dir(executableDir), "sqlite3.tar")
+	if !pathExists(sqliteArchivePath) {
+		return "", errors.New("Could not find sqlite3.tar at " + sqliteArchivePath)
+	}
+	log.Info("Found sqlite3 cli binary at " + sqliteArchivePath)
+
+	sqliteArchiveMountFlag := fmt.Sprintf(" -v %s:/runner/sqlite3.tar", sqliteArchivePath)
+
+	if isLocalInstall() {
+		// Load sqlite3 as a podman image
+		log.Printf("Loading sqlite3 cli binary from sqlite3.tar")
+		statement := getImageMetadata("sqlite", sqliteImage, sqliteArchivePath)
+		sqliteImportCmd := exec.Command("/bin/bash", "-c", statement)
+		if verbose {
+			sqliteImportCmd.Stderr = os.Stderr
+			sqliteImportCmd.Stdout = os.Stdout
+		}
+		log.Debug("Importing sqlite3 cli binary with command: ", sqliteImportCmd)
+		err = sqliteImportCmd.Run()
+		if err != nil {
+			return "", err
+		}
+	}
+	log.Infof("Attempting to set SELinux rules on sqlite archive")
+	cmd := exec.Command("chcon", "-Rt", "svirt_sandbox_file_t", sqliteArchivePath)
+	if verbose {
+		cmd.Stderr = os.Stderr
+		cmd.Stdout = os.Stdout
+	}
+	if err := cmd.Run(); err != nil {
+		log.Warn("Could not set SELinux rule. If your system does not have SELinux enabled, you may ignore this.")
+	}
+	return sqliteArchiveMountFlag, nil
+}
+
 // getImageMetadata provides the metadata needed for a corresponding image
 func getImageMetadata(app, imageName, archivePath string) string {
 	var statement string
@@ -191,6 +235,12 @@ func getImageMetadata(app, imageName, archivePath string) string {
 					--change 'ENV container=oci' \
 					--change 'ENTRYPOINT=["sleep"]' \
 					--change 'CMD=["infinity"]' \
+					- ` + imageName + ` < ` + archivePath
+	case "sqlite":
+		statement = `/usr/bin/podman image import \
+					--change 'ENV PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin' \
+					--change 'ENV container=oci' \
+					--change 'ENTRYPOINT=["/usr/bin/sqlite3"]' \
 					- ` + imageName + ` < ` + archivePath
 	case "ansible":
 		statement = `/usr/bin/podman image import \

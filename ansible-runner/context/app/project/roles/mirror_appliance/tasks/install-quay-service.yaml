@@ -129,14 +129,14 @@
 
 - name: Create Quay Storage named volume
   containers.podman.podman_volume:
-      state: present
-      name: "{{ quay_storage }}"
+    state: present
+    name: "{{ quay_storage }}"
   when: "not quay_storage.startswith('/')"
 
 - name: Create Sqlite Storage named volume
   containers.podman.podman_volume:
-      state: present
-      name: "{{ sqlite_storage }}"
+    state: present
+    name: "{{ sqlite_storage }}"
   when: "not sqlite_storage.startswith('/')"
 
 - name: Start Quay service

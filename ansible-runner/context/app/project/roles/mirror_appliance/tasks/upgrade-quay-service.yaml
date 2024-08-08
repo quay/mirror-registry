@@ -2,6 +2,8 @@
   template:
     src: ../templates/quay.service.j2
     dest: "{{ systemd_unit_dir }}/quay-app.service"
+  vars:
+    quay_cmd: "registry"
 
 - name: Check if Quay image is loaded
   command: podman inspect --type=image {{ quay_image }}

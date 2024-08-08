@@ -1,0 +1,31 @@
+- name: Stop Postgres service
+  systemd:
+    name: quay-postgres.service
+    enabled: no
+    daemon_reload: yes
+    state: stopped
+    force: yes
+    scope: "{{ systemd_scope }}"
+
+- name: Delete Postgres Storage named volume
+  containers.podman.podman_volume:
+    state: absent
+    name: pg-storage
+  when: auto_approve|bool == true and pg_storage == "pg-storage"
+
+- name: Delete Postgres Password Secret
+  containers.podman.podman_secret:
+    state: absent
+    name: pgdb_pass
+
+- name: Delete necessary directory for Postgres persistent data
+  ansible.builtin.file:
+    path: "{{ pg_storage }}"
+    state: absent
+  become: yes
+  when: auto_approve|bool == true and pg_storage.startswith('/')
+
+- name: Cleanup quay-postgres systemd unit file
+  file:
+    state: absent
+    path: "{{ systemd_unit_dir }}/quay-postgres.service"

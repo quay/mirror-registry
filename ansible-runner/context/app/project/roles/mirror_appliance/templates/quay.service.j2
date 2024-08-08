@@ -7,6 +7,7 @@ Requires=quay-pod.service quay-redis.service
 [Service]
 Type=simple
 TimeoutStartSec=5m
+Environment=PODMAN_SYSTEMD_UNIT=%n
 ExecStartPre=-/bin/rm -f %t/%n-pid %t/%n-cid
 ExecStart=/usr/bin/podman run \
     --name quay-app \
@@ -18,10 +19,11 @@ ExecStart=/usr/bin/podman run \
     --conmon-pidfile %t/%n-pid \
     --cidfile %t/%n-cid \
     --cgroups=no-conmon \
+    --log-driver=journald \
     --replace \
     -e WORKER_COUNT_UNSUPPORTED_MINIMUM=1 \
     -e WORKER_COUNT=1 \
-    {{ quay_image }}
+    {{ quay_image }} {{ quay_cmd }}
     
 ExecStop=-/usr/bin/podman stop --ignore --cidfile %t/%n-cid -t 10
 ExecStopPost=-/usr/bin/podman rm --ignore -f --cidfile %t/%n-cid
