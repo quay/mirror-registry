@@ -184,6 +184,42 @@ jobs:
       - name: Uninstall Registry
         run: ./mirror-registry uninstall -u jonathan -H quay --autoApprove -v -k /home/runner/.ssh/id_rsa
 
+      - name: Download old mirror-registry tarball that runs quay with postgres
+        run: wget -O mirror-registry-postgres.tar.gz https://github.com/quay/mirror-registry/releases/download/v1.3.10/mirror-registry-online.tar.gz
+
+      - name: Create extraction directory for old mirror-registry binary
+        run: mkdir -p ./mirror-registry-postgres
+
+      - name: Extract tarball into the folder
+        run: tar -xzf mirror-registry-postgres.tar.gz -C ./mirror-registry-postgres
+
+      - name: Install postgres backed quay registry
+        run: ./mirror-registry-postgres/mirror-registry install -u jonathan -r /home/jonathan/quay-install -H quay -v --initPassword password -k /home/runner/.ssh/id_rsa
+
+      - name: Podman login to quay registry
+        run: podman login -u init -p password quay:8443 --tls-verify=false
+
+      - name: Pull busybox image from Docker Hub
+        run: podman pull docker.io/library/busybox
+
+      - name: Tag busybox image for Quay
+        run: podman tag docker.io/library/busybox quay:8443/init/busybox:latest
+
+      - name: Push busybox image to Quay
+        run: podman push quay:8443/init/busybox:latest --tls-verify=false
+
+      - name: Use latest binary to test upgrade cmd to ensure db migration from old postgres to sqlite
+        run: ./mirror-registry upgrade -u jonathan -r /home/jonathan/quay-install -H quay -v --initPassword password -k /home/runner/.ssh/id_rsa
+
+      - name: Pull already pushed busybox image from quay registry
+        run: podman pull quay:8443/init/busybox:latest
+
+      - name: Verify busybox image is pulled successfully
+        run: podman images | grep -q quay:8443/init/busybox:latest
+
+      - name: Uninstall Registry
+        run: ./mirror-registry uninstall -u jonathan -H quay --autoApprove -v -k /home/runner/.ssh/id_rsa
+
       - name: Terraform Destroy
         run: terraform destroy --auto-approve
         shell: bash
@@ -288,6 +324,45 @@ jobs:
 
       - name: Upgrade Quay
         run: ssh jonathan@quay './mirror-registry upgrade -v'
+
+      - name: Uninstall Quay
+        run: ssh jonathan@quay './mirror-registry uninstall --autoApprove -v'
+
+      - name: Download old mirror-registry tarball that runs quay with postgres
+        run: wget -O mirror-registry-postgres.tar.gz https://github.com/quay/mirror-registry/releases/download/v1.3.10/mirror-registry-online.tar.gz
+
+      - name: SCP old tarball to VM
+        run: scp mirror-registry-postgres.tar.gz jonathan@quay:~/mirror-registry-postgres.tar.gz
+
+      - name: Create extraction directory for old mirror-registry binary
+        run: ssh jonathan@quay 'mkdir -p ./mirror-registry-postgres'
+
+      - name: Extract tarball into the folder
+        run: ssh jonathan@quay 'tar -xzf mirror-registry-postgres.tar.gz -C ./mirror-registry-postgres'
+
+      - name: Install postgres backed quay registry
+        run: ssh jonathan@quay './mirror-registry-postgres/mirror-registry install -u jonathan -r /home/jonathan/quay-install -H quay -v --initPassword password -k /home/runner/.ssh/id_rsa'
+
+      - name: Podman login to quay registry
+        run: ssh jonathan@quay 'podman login -u init -p password quay:8443 --tls-verify=false'
+
+      - name: Pull busybox image from Docker Hub
+        run: ssh jonathan@quay 'podman pull docker.io/library/busybox'
+
+      - name: Tag busybox image for Quay
+        run: ssh jonathan@quay 'podman tag docker.io/library/busybox quay:8443/init/busybox:latest'
+
+      - name: Push busybox image to Quay
+        run: ssh jonathan@quay 'podman push quay:8443/init/busybox:latest --tls-verify=false'
+
+      - name: Use latest binary to test upgrade cmd to ensure db migration from old postgres to sqlite
+        run: ssh jonathan@quay './mirror-registry upgrade -u jonathan -r /home/jonathan/quay-install -H quay -v --initPassword password -k /home/runner/.ssh/id_rsa'
+
+      - name: Pull already pushed busybox image from quay registry
+        run: ssh jonathan@quay 'podman pull quay:8443/init/busybox:latest'
+
+      - name: Verify busybox image was pulled successfully
+        run: ssh jonathan@quay 'podman images | grep -q quay:8443/init/busybox:latest'
 
       - name: Uninstall Quay
         run: ssh jonathan@quay './mirror-registry uninstall --autoApprove -v'
