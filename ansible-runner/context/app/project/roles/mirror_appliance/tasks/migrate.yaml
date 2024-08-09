@@ -145,9 +145,7 @@
     mode: '0755'
 
 - name: Convert PostgreSQL data-only dump to SQLite-compatible SQL file
-  script: pg_to_sqlite.sh "{{ expanded_quay_root }}/quay-postgres-backup/pg_data_dump.sql" "{{ expanded_quay_root }}/quay-postgres-backup/transformed_pgdata.sql"
-  args:
-    executable: /bin/bash
+  command: /bin/bash "{{ expanded_quay_root }}/quay-postgres-backup/pg_to_sqlite.sh" "{{ expanded_quay_root }}/quay-postgres-backup/pg_data_dump.sql" "{{ expanded_quay_root }}/quay-postgres-backup/transformed_pgdata.sql"
 
 - name: Concatenate sqlite schema .sql and transformed postgres data into single merged_sqlite.sql
   shell: cat "{{ expanded_quay_root }}/quay-postgres-backup/sqlite_schema_dump.sql" "{{ expanded_quay_root }}/quay-postgres-backup/transformed_pgdata.sql" > "{{ expanded_quay_root }}/quay-postgres-backup/merged_sqlite.sql"

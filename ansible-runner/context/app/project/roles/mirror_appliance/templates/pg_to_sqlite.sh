@@ -25,13 +25,16 @@ pg_to_sqlite() {
     sql=$(echo "$sql" | sed -E '/^pg_dump:.*$/d')
 
     # Remove original PostgreSQL sequence set statements
-    sql=$(echo "$sql" | sed -E "s/SELECT pg_catalog\.setval\('public\..*?\', [0-9]+, (true|false)\);//g")
+    sql=$(echo "$sql" | sed -E "s/SELECT pg_catalog\.setval\('public\..*?', [0-9]+, (true|false)\);//g")
 
     # Remove the `public.` schema prefix from table names
     sql=$(echo "$sql" | sed "s/INSERT INTO public\./INSERT INTO /g")
 
-    # Remove blank lines
-    sql=$(echo "$sql" | sed '/^$/d')
+    # Remove empty lines
+    sql=$(echo "$sql" | sed "/^\s*$/d")
+
+    # Trim whitespace from the beginning and end
+    sql=$(echo "$sql" | sed 's/^[ \t]*//;s/[ \t]*$//')
 
     # Write the output to the specified file
     echo "$sql" > "$output_file"
