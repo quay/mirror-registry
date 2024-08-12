@@ -185,7 +185,7 @@ jobs:
         run: ./mirror-registry uninstall -u jonathan -H quay --autoApprove -v -k /home/runner/.ssh/id_rsa
 
       - name: Download old mirror-registry tarball that runs quay with postgres
-        run: wget -O mirror-registry-postgres.tar.gz https://github.com/quay/mirror-registry/releases/download/v1.3.10/mirror-registry-offline.tar.gz
+        run: wget -O mirror-registry-postgres.tar.gz "https://github.com/quay/mirror-registry/releases/download/v1.3.10/mirror-registry-${{ matrix.installer-type }}.tar.gz"
 
       - name: Create extraction directory for old mirror-registry binary
         run: mkdir -p ./mirror-registry-postgres
@@ -329,7 +329,7 @@ jobs:
         run: ssh jonathan@quay './mirror-registry uninstall --autoApprove -v'
 
       - name: Download old mirror-registry tarball that runs quay with postgres
-        run: wget -O mirror-registry-postgres.tar.gz https://github.com/quay/mirror-registry/releases/download/v1.3.10/mirror-registry-online.tar.gz
+        run: wget -O mirror-registry-postgres.tar.gz "https://github.com/quay/mirror-registry/releases/download/v1.3.10/mirror-registry-${{ matrix.installer-type }}.tar.gz"
 
       - name: SCP old tarball to VM
         run: scp mirror-registry-postgres.tar.gz jonathan@quay:~/mirror-registry-postgres.tar.gz
