@@ -212,7 +212,7 @@ jobs:
         run: ./mirror-registry upgrade -u jonathan -r /home/jonathan/quay-install -H quay -v --initPassword password -k /home/runner/.ssh/id_rsa
 
       - name: Pull already pushed busybox image from quay registry
-        run: podman pull quay:8443/init/busybox:latest
+        run: podman pull quay:8443/init/busybox:latest --tls-verify=false
 
       - name: Verify busybox image is pulled successfully
         run: podman images | grep -q quay:8443/init/busybox:latest
@@ -359,7 +359,7 @@ jobs:
         run: ssh jonathan@quay './mirror-registry upgrade -u jonathan -r /home/jonathan/quay-install -H quay -v --initPassword password -k /home/runner/.ssh/id_rsa'
 
       - name: Pull already pushed busybox image from quay registry
-        run: ssh jonathan@quay 'podman pull quay:8443/init/busybox:latest'
+        run: ssh jonathan@quay 'podman pull quay:8443/init/busybox:latest --tls-verify=false'
 
       - name: Verify busybox image was pulled successfully
         run: ssh jonathan@quay 'podman images | grep -q quay:8443/init/busybox:latest'
