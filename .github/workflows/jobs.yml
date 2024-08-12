@@ -185,7 +185,7 @@ jobs:
         run: ./mirror-registry uninstall -u jonathan -H quay --autoApprove -v -k /home/runner/.ssh/id_rsa
 
       - name: Download old mirror-registry tarball that runs quay with postgres
-        run: wget -O mirror-registry-postgres.tar.gz https://github.com/quay/mirror-registry/releases/download/v1.3.10/mirror-registry-online.tar.gz
+        run: wget -O mirror-registry-postgres.tar.gz "https://github.com/quay/mirror-registry/releases/download/v1.3.10/mirror-registry-${{ matrix.installer-type }}.tar.gz"
 
       - name: Create extraction directory for old mirror-registry binary
         run: mkdir -p ./mirror-registry-postgres
@@ -329,7 +329,7 @@ jobs:
         run: ssh jonathan@quay './mirror-registry uninstall --autoApprove -v'
 
       - name: Download old mirror-registry tarball that runs quay with postgres
-        run: wget -O mirror-registry-postgres.tar.gz https://github.com/quay/mirror-registry/releases/download/v1.3.10/mirror-registry-online.tar.gz
+        run: wget -O mirror-registry-postgres.tar.gz "https://github.com/quay/mirror-registry/releases/download/v1.3.10/mirror-registry-${{ matrix.installer-type }}.tar.gz"
 
       - name: SCP old tarball to VM
         run: scp mirror-registry-postgres.tar.gz jonathan@quay:~/mirror-registry-postgres.tar.gz
@@ -341,7 +341,7 @@ jobs:
         run: ssh jonathan@quay 'tar -xzf mirror-registry-postgres.tar.gz -C ./mirror-registry-postgres'
 
       - name: Install postgres backed quay registry
-        run: ssh jonathan@quay './mirror-registry-postgres/mirror-registry install -u jonathan -r /home/jonathan/quay-install -H quay:8443 -v --initPassword password'
+        run: ssh jonathan@quay './mirror-registry-postgres/mirror-registry install -u jonathan -r /home/jonathan/quay-install -H quay -v --initPassword password'
 
       - name: Podman login to quay registry
         run: ssh jonathan@quay 'podman login -u init -p password quay:8443 --tls-verify=false'
@@ -356,7 +356,7 @@ jobs:
         run: ssh jonathan@quay 'podman push quay:8443/init/busybox:latest --tls-verify=false'
 
       - name: Use latest binary to test upgrade cmd to ensure db migration from old postgres to sqlite
-        run: ssh jonathan@quay './mirror-registry upgrade -u jonathan -r /home/jonathan/quay-install -H quay:8443 -v --initPassword password'
+        run: ssh jonathan@quay './mirror-registry upgrade -u jonathan -r /home/jonathan/quay-install -H quay -v --initPassword password'
 
       - name: Pull already pushed busybox image from quay registry
         run: ssh jonathan@quay 'podman pull quay:8443/init/busybox:latest --tls-verify=false'
