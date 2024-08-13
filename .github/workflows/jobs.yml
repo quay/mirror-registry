@@ -341,7 +341,7 @@ jobs:
         run: ssh jonathan@quay 'tar -xzf mirror-registry-postgres.tar.gz -C ./mirror-registry-postgres'
 
       - name: Install postgres backed quay registry
-        run: ssh jonathan@quay './mirror-registry-postgres/mirror-registry install -u jonathan -r /home/jonathan/quay-install -H quay -v --initPassword password'
+        run: ssh jonathan@quay './mirror-registry-postgres/mirror-registry install -u jonathan -r /home/jonathan/quay-install --quayHostname quay:8443 -v --initPassword password'
 
       - name: Podman login to quay registry
         run: ssh jonathan@quay 'podman login -u init -p password quay:8443 --tls-verify=false'
