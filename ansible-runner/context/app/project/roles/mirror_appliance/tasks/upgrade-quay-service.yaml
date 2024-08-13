@@ -17,6 +17,22 @@
   retries: 5
   delay: 5
 
+- name: Check if the SQLite storage directory exists
+  stat:
+    path: "{{ sqlite_storage }}"
+  register: sqlite_storage_stat
+  when: sqlite_storage.startswith('/')
+
+- name: Create necessary directory for sqlite data if it doesn't exist
+  become_method: containers.podman.podman_unshare
+  become: true
+  ansible.builtin.file:
+    mode: u+rwx
+    owner: 1001
+    path: "{{ sqlite_storage }}"
+    state: directory
+  when: sqlite_storage.startswith('/') and not sqlite_storage_stat.stat.exists
+
 - name: Start Quay service
   systemd:
     name: quay-app.service
