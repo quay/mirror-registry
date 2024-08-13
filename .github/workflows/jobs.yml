@@ -179,7 +179,7 @@ jobs:
           pull-secret: ${{ secrets.PULL_SECRET }}
 
       - name: Upgrade Registry
-        run: ./mirror-registry upgrade -u jonathan -r /home/jonathan/quay-install -H quay -v --initPassword password -k /home/runner/.ssh/id_rsa
+        run: ./mirror-registry upgrade -u jonathan -r /home/jonathan/quay-install -H quay -v -k /home/runner/.ssh/id_rsa
 
       - name: Uninstall Registry
         run: ./mirror-registry uninstall -u jonathan -H quay --autoApprove -v -k /home/runner/.ssh/id_rsa
@@ -209,7 +209,7 @@ jobs:
         run: podman push quay:8443/init/busybox:latest --tls-verify=false
 
       - name: Use latest binary to test upgrade cmd to ensure db migration from old postgres to sqlite
-        run: ./mirror-registry upgrade -u jonathan -r /home/jonathan/quay-install -H quay -v --initPassword password -k /home/runner/.ssh/id_rsa
+        run: ./mirror-registry upgrade -u jonathan -r /home/jonathan/quay-install -H quay -v -k /home/runner/.ssh/id_rsa
 
       - name: Pull already pushed busybox image from quay registry
         run: podman pull quay:8443/init/busybox:latest --tls-verify=false
@@ -356,7 +356,7 @@ jobs:
         run: ssh jonathan@quay 'podman push quay:8443/init/busybox:latest --tls-verify=false'
 
       - name: Use latest binary to test upgrade cmd to ensure db migration from old postgres to sqlite
-        run: ssh jonathan@quay './mirror-registry upgrade -u jonathan -r /home/jonathan/quay-install -H quay -v --initPassword password'
+        run: ssh jonathan@quay './mirror-registry upgrade -u jonathan -r /home/jonathan/quay-install --quayHostname quay:8443 -v'
 
       - name: Pull already pushed busybox image from quay registry
         run: ssh jonathan@quay 'podman pull quay:8443/init/busybox:latest --tls-verify=false'
