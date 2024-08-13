@@ -309,6 +309,9 @@ jobs:
         run: ssh jonathan@quay "podman login -u ${{ secrets.REGISTRY_USERNAME }} -p ${{ secrets.REGISTRY_PASSWORD }} registry.redhat.io"
         if: matrix.installer-type == 'online'
 
+      - name: Pull busybox image from Docker Hub before disabling traffic
+        run: ssh jonathan@quay 'podman pull docker.io/library/busybox'
+
       - name: Disable outbound network traffic
         run: ssh jonathan@quay 'sudo firewall-cmd --direct --add-rule ipv4 filter OUTPUT 0 -m state --state ESTABLISHED,RELATED -j ACCEPT; sudo firewall-cmd --direct --add-rule ipv4 filter OUTPUT 1 -p tcp -m tcp --dport=22 -j ACCEPT; sudo firewall-cmd --direct --add-rule ipv4 filter OUTPUT 1 -p tcp -m tcp --dport=8443 -j ACCEPT; sudo firewall-cmd --direct --add-rule ipv4 filter OUTPUT 2 -j DROP'
         if: matrix.installer-type == 'offline'
@@ -345,9 +348,6 @@ jobs:
 
       - name: Podman login to quay registry
         run: ssh jonathan@quay 'podman login -u init -p password quay:8443 --tls-verify=false'
-
-      - name: Pull busybox image from Docker Hub
-        run: ssh jonathan@quay 'podman pull docker.io/library/busybox'
 
       - name: Tag busybox image for Quay
         run: ssh jonathan@quay 'podman tag docker.io/library/busybox quay:8443/init/busybox:latest'
