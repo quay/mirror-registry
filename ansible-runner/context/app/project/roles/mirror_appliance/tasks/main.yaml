@@ -10,11 +10,11 @@
 - name: Set SELinux Rules
   include_tasks: set-selinux-rules.yaml
 
-- name: Install Quay Pod Service
-  include_tasks: install-pod-service.yaml
-
 - name: Autodetect Image Archive
   include_tasks: autodetect-image-archive.yaml
+
+- name: Install Quay Pod Service
+  include_tasks: install-pod-service.yaml
 
 - name: Install Redis Service
   include_tasks: install-redis-service.yaml
