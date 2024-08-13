@@ -215,7 +215,7 @@ jobs:
         run: podman pull quay:8443/init/busybox:latest --tls-verify=false
 
       - name: Verify busybox image is pulled successfully
-        run: podman images | grep -q quay:8443/init/busybox:latest
+        run: podman images | grep -q quay:8443/init/busybox
 
       - name: Uninstall Registry
         run: ./mirror-registry uninstall -u jonathan -H quay --autoApprove -v -k /home/runner/.ssh/id_rsa
@@ -362,7 +362,7 @@ jobs:
         run: ssh jonathan@quay 'podman pull quay:8443/init/busybox:latest --tls-verify=false'
 
       - name: Verify busybox image was pulled successfully
-        run: ssh jonathan@quay 'podman images | grep -q quay:8443/init/busybox:latest'
+        run: ssh jonathan@quay 'podman images | grep -q quay:8443/init/busybox'
 
       - name: Uninstall Quay
         run: ssh jonathan@quay './mirror-registry uninstall --autoApprove -v'
