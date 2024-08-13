@@ -32,16 +32,6 @@
     msg: "sqlite cli is not available via the container, cannot proceed to migrate"
   when: sqlite_version.rc != 0 or sqlite_version.stdout.split(' ')[0] | regex_search('(\\d+\\.\\d+\\.\\d+)') is not defined
 
-- name: Check for Python 3 command
-  command: which python3
-  register: python3_result
-  ignore_errors: yes
-
-- name: Fail if Python 3 is not installed
-  fail:
-    msg: "Python 3 is not installed, cannot proceed with upgrade"
-  when: python3_result.rc != 0
-
 - name: Take a pg_dump of the data from running quay-postgres container
   command: >
     podman exec -it quay-postgres
@@ -148,13 +138,14 @@
     state: absent
     path: "{{ systemd_unit_dir }}/quay-migrate.service"
 
-- name: Copy postgres-to-sqlite python script to host machine
+- name: Copy postgres-to-sqlite bash script to host machine
   template:
-    src: /runner/project/roles/mirror_appliance/templates/pg_to_sqlite.py
-    dest: "{{ expanded_quay_root }}/quay-postgres-backup/"
+    src: ../templates/pg_to_sqlite.sh
+    dest: "{{ expanded_quay_root }}/quay-postgres-backup/pg_to_sqlite.sh"
+    mode: '0755'
 
-- name: Transform PostgreSQL data only dump to SQLite-compatible .sql file
-  command: python3 "{{ expanded_quay_root }}/quay-postgres-backup/pg_to_sqlite.py" "{{ expanded_quay_root }}/quay-postgres-backup/pg_data_dump.sql" "{{ expanded_quay_root }}/quay-postgres-backup/transformed_pgdata.sql"
+- name: Convert PostgreSQL data-only dump to SQLite-compatible SQL file
+  command: /bin/bash "{{ expanded_quay_root }}/quay-postgres-backup/pg_to_sqlite.sh" "{{ expanded_quay_root }}/quay-postgres-backup/pg_data_dump.sql" "{{ expanded_quay_root }}/quay-postgres-backup/transformed_pgdata.sql"
 
 - name: Concatenate sqlite schema .sql and transformed postgres data into single merged_sqlite.sql
   shell: cat "{{ expanded_quay_root }}/quay-postgres-backup/sqlite_schema_dump.sql" "{{ expanded_quay_root }}/quay-postgres-backup/transformed_pgdata.sql" > "{{ expanded_quay_root }}/quay-postgres-backup/merged_sqlite.sql"
