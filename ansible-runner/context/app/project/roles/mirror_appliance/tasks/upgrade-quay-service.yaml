@@ -23,14 +23,20 @@
   register: sqlite_storage_stat
   when: sqlite_storage.startswith('/')
 
-- name: Create necessary directory for sqlite data if it doesn't exist
-  become_method: containers.podman.podman_unshare
-  become: true
+- name: Create necessary directory for sqlite storage
   ansible.builtin.file:
-    mode: u+rwx
-    owner: 1001
     path: "{{ sqlite_storage }}"
     state: directory
+    recurse: yes
+  when: sqlite_storage.startswith('/') and not sqlite_storage_stat.stat.exists
+
+- name: Set permissions on sqlite storage directory
+  ansible.posix.acl:
+    path: "{{ sqlite_storage }}"
+    entity: 1001
+    etype: user
+    permissions: wx
+    state: present
   when: sqlite_storage.startswith('/') and not sqlite_storage_stat.stat.exists
 
 - name: Start Quay service
