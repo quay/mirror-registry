@@ -16,6 +16,7 @@
 
 - name: Create necessary directory for sqlite storage
   ansible.builtin.file:
+    mode: 0775
     path: "{{ sqlite_storage }}"
     state: directory
     recurse: yes
