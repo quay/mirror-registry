@@ -73,9 +73,6 @@ jobs:
           username: ${{ secrets.REGISTRY_USERNAME }}
           password: ${{ secrets.REGISTRY_PASSWORD }}
 
-      - name: Install ansible builder
-        run: sudo pip install ansible-builder
-
       - name: Build tarfile
         run: CLIENT=docker make build-${{ matrix.installer-type }}-zip
 
