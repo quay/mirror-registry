@@ -1,5 +1,6 @@
 - name: Create necessary directory for Quay local storage
   ansible.builtin.file:
+    mode: 0775
     path: "{{ quay_storage }}"
     state: directory
     recurse: yes
