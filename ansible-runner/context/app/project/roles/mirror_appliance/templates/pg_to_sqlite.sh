@@ -33,9 +33,6 @@ pg_to_sqlite() {
     # Remove empty lines
     sql=$(echo "$sql" | sed "/^\s*$/d")
 
-    # Trim whitespace from the beginning and end
-    sql=$(echo "$sql" | sed 's/^[ \t]*//;s/[ \t]*$//')
-
     # Write the output to the specified file
     echo "$sql" > "$output_file"
 }
