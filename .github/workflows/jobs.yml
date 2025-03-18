@@ -77,7 +77,7 @@ jobs:
         run: CLIENT=docker make build-${{ matrix.installer-type }}-zip
 
       - name: Upload tarfile
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: mirror-registry-${{ matrix.installer-type }}-installer
           path: mirror-registry.tar.gz
