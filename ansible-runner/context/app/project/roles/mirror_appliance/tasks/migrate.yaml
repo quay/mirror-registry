@@ -23,7 +23,7 @@
 
 - name: Verify sqlite3 cli binary is available as entrypoint command from the container
   command: >
-    podman run --name sqlite-cli --rm {{ sqlite_image }} --version
+    timeout 20 podman run --name sqlite-cli {{ sqlite_image }} --version
   register: sqlite_version
   ignore_errors: yes
 
@@ -31,6 +31,13 @@
   fail:
     msg: "sqlite cli is not available via the container, cannot proceed to migrate"
   when: sqlite_version.rc != 0 or sqlite_version.stdout.split(' ')[0] | regex_search('(\\d+\\.\\d+\\.\\d+)') is not defined
+
+- name: Remove the sqlite-cli container (cleanup)
+  command: >
+    podman rm -f sqlite-cli
+  register: remove_sqlite_cli
+  ignore_errors: yes
+  changed_when: remove_sqlite_cli.rc == 0
 
 - name: Take a pg_dump of the data from running quay-postgres container
   command: >
