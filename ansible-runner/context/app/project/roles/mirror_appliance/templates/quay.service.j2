@@ -26,7 +26,7 @@ ExecStart=/usr/bin/podman run \
     {{ quay_image }} {{ quay_cmd }}
     
 ExecStop=-/usr/bin/podman stop --ignore --cidfile %t/%n-cid -t 10
-ExecStopPost=-/usr/bin/podman rm --ignore -f --cidfile %t/%n-cid
+ExecStopPost=-/bin/sh -c 'if [ "$EXIT_STATUS" -eq 0  ]; then /usr/bin/podman rm --ignore -f --cidfile %t/%n-cid; fi'
 PIDFile=%t/%n-pid
 KillMode=none
 Restart=always
