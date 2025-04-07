@@ -63,8 +63,28 @@
     dest: "{{ expanded_quay_root }}/quay-postgres-backup/pg_to_sqlite.sh"
     mode: '0755'
 
-- name: Convert PostgreSQL data-only dump to SQLite-compatible SQL file
-  command: /bin/bash "{{ expanded_quay_root }}/quay-postgres-backup/pg_to_sqlite.sh" "{{ expanded_quay_root }}/quay-postgres-backup/pg_data_dump.sql" "{{ expanded_quay_root }}/quay-postgres-backup/transformed_pgdata.sql"
+- name: Convert PostgreSQL data-only dump to SQLite-compatible SQL format
+  ansible.builtin.shell: |
+    {{ expanded_quay_root }}/quay-postgres-backup/pg_to_sqlite.sh "{{ input_file }}" "{{ output_file }}"
+  args:
+    executable: /bin/bash
+  register: conversion_result
+  failed_when: false
+  ignore_errors: yes
+  vars:
+    input_file: "{{ expanded_quay_root }}/quay-postgres-backup/pg_data_dump.sql"
+    output_file: "{{ expanded_quay_root }}/quay-postgres-backup/transformed_pgdata.sql"
+
+- name: Show detailed error if pg_to_sqlite.sh conversion failed
+  ansible.builtin.fail:
+    msg: |
+      Conversion failed with:
+      Exit code: {{ conversion_result.rc }}
+      Error output: {{ conversion_result.stderr | default(conversion_result.stdout) }}
+  failed_when:
+    - conversion_result.rc != 0
+    - not (output_file.stat.exists)
+    - output_file.stat.size == 0  # Output file empty
 
 - name: Stop Quay service
   systemd:
