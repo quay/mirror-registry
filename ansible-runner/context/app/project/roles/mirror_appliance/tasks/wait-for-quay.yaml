@@ -7,7 +7,7 @@
         validate_certs: no
       register: result
       until: result.status == 200
-      retries: 4
+      retries: 10
       delay: 30
   rescue:
     - name: Print debug logs for quay-app container on failure
