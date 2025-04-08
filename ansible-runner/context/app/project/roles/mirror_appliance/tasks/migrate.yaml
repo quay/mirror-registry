@@ -39,18 +39,40 @@
   ignore_errors: yes
   changed_when: remove_sqlite_cli.rc == 0
 
-- name: Take a pg_dump of the data from running quay-postgres container
-  command: >
-    podman exec -it quay-postgres
-    pg_dump --data-only --column-inserts --no-owner --no-privileges --disable-triggers
-    -U user -d quay
+- name: Copy pg_dump.sh bash script to host machine
+  template:
+    src: ../templates/pg_dump.sh
+    dest: "{{ expanded_quay_root }}/quay-postgres-backup/pg_dump.sh"
+    mode: '0755'
+
+- name: Run pg_dump in parallel to fetch postgres data as a .sql file
+  command: /bin/bash "{{ expanded_quay_root }}/quay-postgres-backup/pg_dump.sh"
   register: pg_dump_output
 
-- name: Back up postgres data to host machine
-  copy:
-    content: "{{ pg_dump_output.stdout }}"
-    dest: "{{ expanded_quay_root }}/quay-postgres-backup/pg_data_dump.sql"
-  when: pg_dump_output.stdout is defined
+- name: Copy the generated .sql file from postgres container to ansible host machine
+  command: podman cp quay-postgres:/tmp/pg_data_dump.sql "{{ expanded_quay_root }}/quay-postgres-backup/"
+
+- name: Display pg_dump output
+  debug:
+    var: pg_dump_output.stdout
+    
+- name: Copy postgres-to-sqlite bash script to host machine
+  template:
+    src: ../templates/pg_to_sqlite.sh
+    dest: "{{ expanded_quay_root }}/quay-postgres-backup/pg_to_sqlite.sh"
+    mode: '0755'
+
+- name: Convert PostgreSQL data-only dump to SQLite-compatible SQL format
+  ansible.builtin.shell: |
+    {{ expanded_quay_root }}/quay-postgres-backup/pg_to_sqlite.sh "{{ input_file }}" "{{ output_file }}" 2>&1
+  args:
+    executable: /bin/bash
+  register: conversion_result
+  failed_when:
+    - conversion_result.rc != 0
+  vars:
+    input_file: "{{ expanded_quay_root }}/quay-postgres-backup/pg_data_dump.sql"
+    output_file: "{{ expanded_quay_root }}/quay-postgres-backup/transformed_pgdata.sql"
 
 - name: Stop Quay service
   systemd:
@@ -61,7 +83,7 @@
     force: yes
     scope: "{{ systemd_scope }}"
 
-- name: Update DB_URI in config.yaml
+- name: Update DB_URI in config.yaml to sqlite file
   replace:
     path: "{{ expanded_quay_root }}/quay-config/config.yaml"
     regexp: '^DB_URI: postgresql://.*$'
@@ -105,7 +127,7 @@
     - "{{ sqlite_storage }}:/data:Z"
 
 - name: Copy data from container to host
-  command: podman cp quay-copy:/data {{ quay_root }}/quay-postgres-backup/
+  command: podman cp quay-copy:/data {{ expanded_quay_root }}/quay-postgres-backup/
 
 - name: Run sqlite3 command inside container to take quay's sqlite database schema dump
   command: >
@@ -145,15 +167,6 @@
     state: absent
     path: "{{ systemd_unit_dir }}/quay-migrate.service"
 
-- name: Copy postgres-to-sqlite bash script to host machine
-  template:
-    src: ../templates/pg_to_sqlite.sh
-    dest: "{{ expanded_quay_root }}/quay-postgres-backup/pg_to_sqlite.sh"
-    mode: '0755'
-
-- name: Convert PostgreSQL data-only dump to SQLite-compatible SQL file
-  command: /bin/bash "{{ expanded_quay_root }}/quay-postgres-backup/pg_to_sqlite.sh" "{{ expanded_quay_root }}/quay-postgres-backup/pg_data_dump.sql" "{{ expanded_quay_root }}/quay-postgres-backup/transformed_pgdata.sql"
-
 - name: Concatenate sqlite schema .sql and transformed postgres data into single merged_sqlite.sql
   shell: cat "{{ expanded_quay_root }}/quay-postgres-backup/sqlite_schema_dump.sql" "{{ expanded_quay_root }}/quay-postgres-backup/transformed_pgdata.sql" > "{{ expanded_quay_root }}/quay-postgres-backup/merged_sqlite.sql"
   args:
@@ -191,3 +204,4 @@
     daemon_reload: yes
     state: restarted
     scope: "{{ systemd_scope }}"
+
