@@ -10,16 +10,22 @@
       retries: 10
       delay: 30
   rescue:
-    - name: Print debug logs for quay-app in case of failure
-      command: systemctl --user status quay-app.service
+    - name: Print debug logs for quay-app container on failure
+      command: podman logs quay-app
+      register: quay_logs
+      ignore_errors: yes
+      changed_when: false
+
+    - name: Display logs if the container exists
+      when: quay_logs.rc == 0 and quay_logs.stdout != ""
+      debug:
+        msg: "{{ quay_logs.stdout_lines }}"
+
+    - name: Show quay-app.service status
+      command: systemctl --{{ systemd_scope }} status quay-app.service
       register: systemctl_status
       ignore_errors: yes
 
-    - name: Debug systemctl status output
-      debug:
-        var: systemctl_status.stdout_lines
-
-    - name: Fail the playbook due to Quay not becoming alive
+    - name:  Fail the playbook since Quay failed to startup
       fail:
-        msg: "Quay did not become alive. Check debug logs above for details."
-
+        msg: "Quay did not become alive, see systemctl status output: {{ systemctl_status.stdout_lines }}"
