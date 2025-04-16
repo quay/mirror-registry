@@ -147,6 +147,29 @@
     name: "{{ sqlite_storage }}"
   when: "not sqlite_storage.startswith('/')"
 
+- name: Check if sqlite cli image is loaded
+  command: podman inspect --type=image {{ sqlite_image }}
+  register: sqlite_cli
+  ignore_errors: yes
+
+- name: Fail if sqlite cli image is not found
+  fail:
+    msg: "The SQLite CLI image '{{ sqlite_image }}' is not loaded."
+  when: sqlite_cli.rc != 0
+
+- name: Create quay database file with persistent WAL mode and correct permissions
+  block:
+    - name: Create sqlite file in WAL mode
+      command: >
+        podman run --rm -v {{ expanded_sqlite_storage }}:/sqlite:Z --name sqlite-cli
+        {{ sqlite_image }} /sqlite/quay_sqlite.db -cmd "PRAGMA journal_mode=WAL;"
+
+    - name: Set permissions for the sqlite file
+      file:
+        path: "{{ expanded_sqlite_storage }}/quay_sqlite.db"
+        mode: u=rw,g=rw,o=r
+  when: "sqlite_storage.startswith('/')"
+
 - name: Start Quay service
   systemd:
     name: quay-app.service
