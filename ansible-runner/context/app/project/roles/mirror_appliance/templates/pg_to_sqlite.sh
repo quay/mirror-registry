@@ -34,6 +34,7 @@ pg_to_sqlite() {
         " "$input_file"
 
         echo "COMMIT;"
+        echo "PRAGMA journal_mode=WAL;"
     } > "$output_file"
 
     # Validate output file
