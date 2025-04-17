@@ -193,25 +193,28 @@ func loadSqliteCli() (string, error) {
 	if !pathExists(sqliteArchivePath) {
 		return "", errors.New("Could not find sqlite3.tar at " + sqliteArchivePath)
 	}
-	log.Info("Found sqlite3 cli binary at " + sqliteArchivePath)
 
-	sqliteArchiveMountFlag := fmt.Sprintf(" -v %s:/runner/sqlite3.tar", sqliteArchivePath)
-
-	if isLocalInstall() {
-		// Load sqlite3 as a podman image
-		log.Printf("Loading sqlite3 cli binary from sqlite3.tar")
-		statement := getImageMetadata("sqlite", sqliteImage, sqliteArchivePath)
-		sqliteImportCmd := exec.Command("/bin/bash", "-c", statement)
-		if verbose {
-			sqliteImportCmd.Stderr = os.Stderr
-			sqliteImportCmd.Stdout = os.Stdout
-		}
-		log.Debug("Importing sqlite3 cli binary with command: ", sqliteImportCmd)
-		err = sqliteImportCmd.Run()
-		if err != nil {
-			return "", err
+	var sqliteArchiveMountFlag string
+	if sqliteArchivePath != "" {
+		sqliteArchiveMountFlag = fmt.Sprintf(" -v %s:/runner/sqlite3.tar", sqliteArchivePath)
+		log.Info("Found sqlite archive at " + sqliteArchivePath)
+		if isLocalInstall() {
+			// Load sqlite3 as a podman image
+			log.Printf("Loading sqlite3 cli binary from sqlite3.tar")
+			statement := getImageMetadata("sqlite", sqliteImage, sqliteArchivePath)
+			sqliteImportCmd := exec.Command("/bin/bash", "-c", statement)
+			if verbose {
+				sqliteImportCmd.Stderr = os.Stderr
+				sqliteImportCmd.Stdout = os.Stdout
+			}
+			log.Debug("Importing sqlite3 cli binary with command: ", sqliteImportCmd)
+			err = sqliteImportCmd.Run()
+			if err != nil {
+				return "", err
+			}
 		}
 	}
+
 	log.Infof("Attempting to set SELinux rules on sqlite archive")
 	cmd := exec.Command("chcon", "-Rt", "svirt_sandbox_file_t", sqliteArchivePath)
 	if verbose {
@@ -240,6 +243,7 @@ func getImageMetadata(app, imageName, archivePath string) string {
 		statement = `/usr/bin/podman image import \
 					--change 'ENV PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin' \
 					--change 'ENV container=oci' \
+					--change 'USER=1001' \
 					--change 'ENTRYPOINT=["/usr/bin/sqlite3"]' \
 					- ` + imageName + ` < ` + archivePath
 	case "ansible":
