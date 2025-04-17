@@ -159,16 +159,32 @@
 
 - name: Create quay database file with persistent WAL mode and correct permissions
   block:
-    - name: Create sqlite file in WAL mode
+    - name: Create DB file and set permissions with error messages
       command: >
-        podman run --rm -v {{ expanded_sqlite_storage }}:/sqlite:Z --name sqlite-cli
-        {{ sqlite_image }} /sqlite/quay_sqlite.db -cmd "PRAGMA journal_mode=WAL;"
+        podman run --rm
+        -v {{ expanded_sqlite_storage }}:/sqlite:Z
+        --entrypoint /bin/sh
+        {{ sqlite_image }}
+        -c '
+          if ! sqlite3 /sqlite/quay_sqlite.db "PRAGMA journal_mode=WAL;"; then
+            echo "Failed to set WAL mode" >&2
+            exit 1
+          fi
+          if ! chown 1001:1001 /sqlite/quay_sqlite.db; then
+            echo "Failed to chown database file" >&2
+            exit 1
+          fi
+          if ! chmod 0664 /sqlite/quay_sqlite.db; then
+            echo "Failed to chmod database file" >&2
+            exit 1
+          fi
+        '
+      register: db_file_creation_result
+      failed_when: db_file_creation_result.rc != 0
+      changed_when: true
+      retries: 3
+      delay: 5
 
-    - name: Set permissions for the sqlite file
-      file:
-        path: "{{ expanded_sqlite_storage }}/quay_sqlite.db"
-        mode: u=rw,g=rw,o=r
-  when: "sqlite_storage.startswith('/')"
 
 - name: Start Quay service
   systemd:

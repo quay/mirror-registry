@@ -6,6 +6,7 @@ terraform-key.json
 terraform.tfstate*
 ansible/context
 image-archive.tar
+sqlite3.tar
 execution-environment.tar
 quay-aioi
 mirror-registry*
