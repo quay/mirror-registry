@@ -10,5 +10,5 @@
 
 - name: Load sqlite image if sqlite3.tar exists
   shell: 
-    cmd: podman image import --change 'ENV PATH=/opt/app-root/src/bin:/opt/app-root/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin' --change 'ENV container=oci' --change 'ENTRYPOINT=["/usr/bin/sqlite3"]' - {{ sqlite_image }} < {{ quay_root }}/sqlite3.tar
+    cmd: podman image import --change 'ENV PATH=/opt/app-root/src/bin:/opt/app-root/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin' --change 'ENV container=oci' --change 'USER=1001' --change 'ENTRYPOINT=["/usr/bin/sqlite3"]' - {{ sqlite_image }} < {{ quay_root }}/sqlite3.tar
   when: s.stat.exists and local_install == "false"
