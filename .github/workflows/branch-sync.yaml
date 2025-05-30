@@ -1,0 +1,40 @@
+name: Sync Main to Release Branch
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  sync_main_to_release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure Git
+        run: |
+          git config user.name "GitHub Actions Bot"
+          git config user.email "github-actions-bot@users.noreply.github.com"
+
+      - name: Merge main into release
+        run: |
+          BRANCH_NAME="mirror-registry-2.0-rhel-8"
+          echo "Syncing main to $BRANCH_NAME"
+          git checkout main
+          git pull origin main
+          MAIN_COMMIT=$(git rev-parse HEAD)
+
+          git fetch origin $BRANCH_NAME
+          git checkout $BRANCH_NAME
+          git pull origin $BRANCH_NAME
+          RELEASE_COMMIT=$(git rev-parse HEAD)
+          echo "Rebasing $BRANCH_NAME ($RELEASE_COMMIT) onto main ($MAIN_COMMIT)"
+          git rebase main
+          git push origin $BRANCH_NAME
+
+          echo "Merged main ($MAIN_COMMIT) into $BRANCH_NAME ($RELEASE_COMMIT)"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
