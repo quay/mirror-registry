@@ -97,7 +97,7 @@ jobs:
       TF_VAR_SSH_PUBLIC_KEY: ${{ secrets.TF_VAR_SSH_PUBLIC_KEY }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Install oc
         uses: redhat-actions/oc-installer@v1
@@ -149,7 +149,7 @@ jobs:
           time: "60s"
 
       - name: Download tarfile
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: mirror-registry-${{ matrix.installer-type }}-installer
 
@@ -237,7 +237,7 @@ jobs:
       TF_VAR_SSH_PUBLIC_KEY: ${{ secrets.TF_VAR_SSH_PUBLIC_KEY }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Install oc
         uses: redhat-actions/oc-installer@v1
@@ -289,7 +289,7 @@ jobs:
           time: "60s"
 
       - name: Download tarfile
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: mirror-registry-${{ matrix.installer-type }}-installer
 
@@ -379,17 +379,17 @@ jobs:
     if: github.event_name == 'push' || github.event.inputs.version
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Download offline tarfile
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: mirror-registry-offline-installer
       - name: Rename offline tarfile
         run: mv mirror-registry.tar.gz mirror-registry-offline.tar.gz
 
       - name: Download online tarfile
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: mirror-registry-online-installer
 
