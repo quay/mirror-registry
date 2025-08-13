@@ -17,6 +17,8 @@ ARG SQLITE_IMAGE=${SQLITE_IMAGE}
 USER root
 COPY . /cli
 WORKDIR /cli
+# Switch back to UBI default user
+USER 1001
 
 # Create CLI
 ENV RELEASE_VERSION=${RELEASE_VERSION}
@@ -41,12 +43,16 @@ WORKDIR /build
 RUN ansible-galaxy role install -r requirements.yml --roles-path /usr/share/ansible/roles
 RUN ansible-galaxy collection install $ANSIBLE_GALAXY_CLI_COLLECTION_OPTS -r requirements.yml --collections-path /usr/share/ansible/collections
 
+# Switch back to non-root user after installation
+USER 1001
+
 FROM $EE_BUILDER_IMAGE as builder
 
 COPY --from=galaxy /usr/share/ansible /usr/share/ansible
 
 RUN ansible-builder introspect --sanitize --write-bindep=/tmp/src/bindep.txt --write-pip=/tmp/src/requirements.txt
 RUN assemble
+
 
 FROM $EE_BASE_IMAGE as ansible
 USER root
@@ -56,6 +62,9 @@ COPY --from=galaxy /usr/share/ansible /usr/share/ansible
 COPY --from=builder /output/ /output/
 RUN /output/install-from-bindep && rm -rf /output/wheels
 COPY ansible-runner/context/app /runner
+
+# Switch back to non-root user after installation
+USER 1001
 
 # Install sqlite cli
 FROM registry.access.redhat.com/ubi8-minimal as sqlite-cli
