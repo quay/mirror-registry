@@ -3,7 +3,9 @@ ARG EE_BASE_IMAGE=${EE_BASE_IMAGE}
 ARG EE_BUILDER_IMAGE=${EE_BUILDER_IMAGE}
 
 # Create Go CLI
-FROM registry.redhat.io/ubi8:latest AS cli
+#FROM registry.redhat.io/ubi8:latest AS cli
+FROM registry.redhat.io/ubi8/go-toolset:1.21.13 AS cli
+
 
 # Need to duplicate these, otherwise they won't be available to the stage
 ARG RELEASE_VERSION=${RELEASE_VERSION}
@@ -13,13 +15,13 @@ ARG REDIS_IMAGE=${REDIS_IMAGE}
 ARG PAUSE_IMAGE=${PAUSE_IMAGE}
 ARG SQLITE_IMAGE=${SQLITE_IMAGE}
 
-ENV GOROOT=/usr/local/go
-ENV PATH=$GOPATH/bin:$GOROOT/bin:$PATH 
+#ENV GOROOT=/usr/local/go
+#ENV PATH=$GOPATH/bin:$GOROOT/bin:$PATH 
 
-# Get Go binary
-RUN curl -o go1.21.13.linux-amd64.tar.gz https://dl.google.com/go/go1.21.13.linux-amd64.tar.gz
-RUN tar -xzf go1.21.13.linux-amd64.tar.gz  &&\
-    mv go /usr/local
+# # Get Go binary
+# RUN curl -o go1.21.13.linux-amd64.tar.gz https://dl.google.com/go/go1.21.13.linux-amd64.tar.gz
+# RUN tar -xzf go1.21.13.linux-amd64.tar.gz  &&\
+#     mv go /usr/local
 
 COPY . /cli
 WORKDIR /cli
