@@ -8,7 +8,7 @@ ARG PAUSE_IMAGE=${PAUSE_IMAGE}
 ARG SQLITE_IMAGE=${SQLITE_IMAGE}
 
 # Create Go CLI
-FROM registry.redhat.io/ubi8/go-toolset:1.21.13 AS cli
+FROM registry.redhat.io/ubi8/go-toolset:1.24.4 AS cli
 
 # Need to duplicate these, otherwise they won't be available to the stage
 ARG RELEASE_VERSION=${RELEASE_VERSION}
