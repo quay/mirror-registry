@@ -14,3 +14,5 @@ ansible-runner/context/Dockerfile
 venv 
 .DS_STORE
 .vagrant
+.cursorindexingignore
+.specstory/
