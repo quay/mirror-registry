@@ -18,6 +18,9 @@ Download one of the installer package from our [releases](https://github.com/qua
 
 ### Running the installer
 
+
+
+
 To install Quay on your local host with your current user account, run the following command:
 
 ```console
