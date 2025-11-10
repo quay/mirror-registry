@@ -4,7 +4,7 @@ go 1.21
 
 require (
 	github.com/lib/pq v1.10.0
-	github.com/sethvargo/go-password v0.2.0
+	github.com/sethvargo/go-password v0.3.1
 	github.com/sirupsen/logrus v1.8.1
 	github.com/spf13/cobra v1.1.3
 )
