@@ -16,6 +16,9 @@ Mirror Registry is a CLI tool for installing Quay container registry on RHEL/Fed
 ## Core Commands
 
 ```bash
+# Build binary
+make build-golang-executable
+
 # Build installers
 make build-online-zip   # Online installer
 make build-offline-zip  # Offline installer (air-gapped)

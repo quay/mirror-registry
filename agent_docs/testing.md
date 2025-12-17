@@ -26,7 +26,6 @@ Pipeline uses `concurrency: group: limit-to-one` to prevent parallel runs.
 
 - PRs require the `ok-to-test` label to trigger integration tests
 - Tests use Terraform to provision RHEL VMs on Google Cloud
-- Required secrets: `GOOGLE_CREDENTIALS`, `TF_API_TOKEN`, `TF_VAR_SSH_*`, `REGISTRY_*`, `PULL_SECRET`
 
 ### Test Matrix
 
