@@ -33,33 +33,6 @@ Image versions are defined in `.env`:
 
 To update images, modify `.env` and rebuild.
 
-## CI/CD Pipeline
-
-Workflow: `.github/workflows/jobs.yml`
-
-### Triggers
-- **Push to version tag** (`v[0-9]+.[0-9]+.[0-9]+`): Full build and release
-- **PR with `ok-to-test` label**: Build and run integration tests
-- **Manual dispatch**: Release specific version
-
-### Pipeline Stages
-
-1. **Build Installer** - Builds both online and offline installers
-2. **Test Remote Install** - Provisions GCP VM, tests remote installation (PRs only)
-3. **Test Local Install** - Provisions GCP VM, tests local installation (PRs only)
-4. **Publish Release** - Creates GitHub release with artifacts
-
-### Testing Requirements
-
-PRs require the `ok-to-test` label to run integration tests. Tests use Terraform to provision RHEL VMs on GCP and run full install/upgrade/uninstall cycles.
-
-Tests verify:
-- Fresh installation (online and offline)
-- Image mirroring with oc-mirror
-- Upgrade from previous versions
-- PostgreSQL to SQLite migration (from pre-v1.4 versions)
-- Uninstall cleanup
-
 ## Releases
 
 ### Version Format

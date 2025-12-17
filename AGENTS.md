@@ -33,8 +33,11 @@ Read the specific documentation below when your task involves these keywords:
 - **Architecture, CLI, Go, Cobra, Ansible, Roles, Code, Structure** → `read_file agent_docs/architecture.md`
   - Project structure, Go CLI commands, Ansible playbook flow
 
-- **Release, CI/CD, Build, Tags, Versioning, Images, Testing** → `read_file agent_docs/ops.md`
-  - Build process, GitHub Actions, release workflow, image configuration
+- **Release, Build, Tags, Versioning, Images** → `read_file agent_docs/ops.md`
+  - Build process, release workflow, image configuration
+
+- **Testing, CI/CD, GitHub Actions, Integration Tests, Vagrant** → `read_file agent_docs/testing.md`
+  - CI pipeline, integration test scenarios, test infrastructure
 
 ## Key Files
 
