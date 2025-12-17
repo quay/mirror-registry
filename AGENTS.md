@@ -33,13 +33,13 @@ make build-offline-zip  # Offline installer (air-gapped)
 
 Read the specific documentation below when your task involves these keywords:
 
-- **Architecture, CLI, Go, Cobra, Ansible, Roles, Code, Structure** → `read_file agent_docs/architecture.md`
+- **Architecture, CLI, Go, Cobra, Ansible, Roles, Code, Structure** → `agent_docs/architecture.md`
   - Project structure, Go CLI commands, Ansible playbook flow
 
-- **Release, Build, Tags, Versioning, Images** → `read_file agent_docs/ops.md`
+- **Release, Build, Tags, Versioning, Images** → `agent_docs/ops.md`
   - Build process, release workflow, image configuration
 
-- **Testing, CI/CD, GitHub Actions, Integration Tests, Vagrant** → `read_file agent_docs/testing.md`
+- **Testing, CI/CD, GitHub Actions, Integration Tests, Vagrant** → `agent_docs/testing.md`
   - CI pipeline, integration test scenarios, test infrastructure
 
 ## Key Files
