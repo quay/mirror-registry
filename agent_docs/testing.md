@@ -58,10 +58,6 @@ Each test run verifies:
    - Upgrade with new binary (migrates to SQLite)
    - Pull test image to verify data integrity
 
-### Offline Test Isolation
-
-Offline installer tests block outbound network traffic (except SSH and port 8443) to verify true air-gapped operation:
-
 ## Local Testing
 
 ### Vagrant Environment
@@ -74,7 +70,20 @@ Located in `test/`:
 
 ```bash
 cd test
-make  # See available targets
+
+# Run all tests (install, sudo-install, sudo-upgrade)
+make
+
+# Individual test targets
+make test-install        # Non-root installation test
+make test-sudo-install   # Root installation test
+make test-sudo-upgrade   # Upgrade from OLD_VERSION (default: 1.2.9)
+
+# Test a specific version
+make test-install VERSION=1.3.10
+
+# Keep VM running after test for debugging
+make test-install DEBUG=1
 ```
 
 ## Test Infrastructure
