@@ -2,16 +2,24 @@
 # vi: set ft=ruby :
 
 Vagrant.configure("2") do |config|
-  config.vm.box = "generic/fedora37"
+  config.vm.box = "fedora/43-cloud-base"
+  config.vm.box_url = "https://dl.fedoraproject.org/pub/fedora/linux/releases/43/Cloud/x86_64/images/Fedora-Cloud-Base-Vagrant-libvirt-43-1.6.x86_64.vagrant.libvirt.box"
   config.vm.network "forwarded_port", guest: 8080, host: 8080
   config.vm.network "forwarded_port", guest: 8443, host: 8443
+
   config.vm.provider "virtualbox" do |vb|
     vb.memory = "3072"
   end
+
+  config.vm.provider "libvirt" do |lv|
+    lv.memory = 3072
+    lv.cpus = 2
+    lv.machine_virtual_size = 40  # GB
+  end
+
   config.vm.provision "shell", inline: <<-SHELL
     dnf install -y \
       acl \
-      openssl \
-      podman
+      openssl
   SHELL
 end
