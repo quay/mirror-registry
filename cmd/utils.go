@@ -88,7 +88,7 @@ func setupLocalSSH() error {
 	if err := cmd.Run(); err != nil {
 		return err
 	}
-	log.Infof("Generated SSH Key at " + os.Getenv("HOME") + "/.ssh/quay_installer")
+	log.Infof("Generated SSH Key at %s/.ssh/quay_installer", os.Getenv("HOME"))
 
 	keyFile, err := ioutil.ReadFile(os.Getenv("HOME") + "/.ssh/quay_installer.pub")
 	if err != nil {
@@ -160,7 +160,7 @@ func loadCerts(certFile, keyFile, hostname string, skipCheck bool) error {
 }
 
 func setSELinux(path string) {
-	log.Infof("Attempting to set SELinux rules on " + path)
+	log.Infof("Attempting to set SELinux rules on %s", path)
 	cmd := exec.Command("chcon", "-Rt", "svirt_sandbox_file_t", path)
 	if verbose {
 		cmd.Stderr = os.Stderr
