@@ -22,8 +22,8 @@ ENV GOROOT=/usr/local/go
 ENV PATH=$GOPATH/bin:$GOROOT/bin:$PATH 
 
 # Get Go binary
-RUN curl -o go1.21.13.linux-amd64.tar.gz https://dl.google.com/go/go1.21.13.linux-amd64.tar.gz
-RUN tar -xzf go1.21.13.linux-amd64.tar.gz  &&\
+RUN curl -o go1.25.5.linux-amd64.tar.gz https://dl.google.com/go/go1.25.5.linux-amd64.tar.gz
+RUN tar -xzf go1.25.5.linux-amd64.tar.gz  &&\
     mv go /usr/local
 
 COPY . /cli
