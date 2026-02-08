@@ -12,6 +12,15 @@ VERSION := dev-$(TREEISH)
 # from.
 OLD_VERSION := 1.2.9
 
+# VAGRANT_UP_ARGS allows to provide additional arguments to `vagrant up`.
+# Example:
+#   make test-install VAGRANT_UP_ARGS='--provider=qemu'
+ifeq ($(shell uname -s) $(shell uname -m),Darwin arm64)
+VAGRANT_UP_ARGS := --provider=qemu
+else
+VAGRANT_UP_ARGS :=
+endif
+
 all: test-install test-sudo-install test-sudo-upgrade
 
 # mirror-registry archive from the current repository.
@@ -36,7 +45,7 @@ $(MAKE) start-vagrant && (set -x; $(1)); ret=$$?; $(MAKE) stop-vagrant && exit $
 endef
 
 start-vagrant:
-	vagrant up
+	vagrant up $(VAGRANT_UP_ARGS)
 
 stop-vagrant:
 ifneq ($(DEBUG), 1)
