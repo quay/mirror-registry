@@ -7,7 +7,7 @@ RELEASE_VERSION ?= dev
 all:
 
 build-golang-executable:
-	$(CLIENT) run --rm -v ${PWD}:/usr/src:Z -w /usr/src docker.io/golang:1.21 go build -v \
+	$(CLIENT) run --rm -v ${PWD}:/usr/src:Z -w /usr/src docker.io/golang:1.25.5 go build -v \
 	-ldflags "-X 'github.com/quay/mirror-registry/cmd.releaseVersion=${RELEASE_VERSION}' -X 'github.com/quay/mirror-registry/cmd.eeImage=${EE_IMAGE}' -X 'github.com/quay/mirror-registry/cmd.pauseImage=${PAUSE_IMAGE}' -X 'github.com/quay/mirror-registry/cmd.quayImage=${QUAY_IMAGE}' -X 'github.com/quay/mirror-registry/cmd.redisImage=${REDIS_IMAGE}' -X 'github.com/quay/mirror-registry/cmd.sqliteImage=${SQLITE_IMAGE}'" \
 	-o mirror-registry;
 
