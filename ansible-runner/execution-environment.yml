@@ -2,7 +2,7 @@
 version: 1
 
 build_arg_defaults:
-  EE_BASE_IMAGE: registry.redhat.io/ansible-automation-platform-25/ee-minimal-rhel8:1.0.0-842
+  EE_BASE_IMAGE: registry.redhat.io/ansible-automation-platform-25/ee-minimal-rhel8:1.0.0-985
 
 dependencies:
   galaxy: requirements.yml
