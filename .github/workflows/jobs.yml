@@ -67,7 +67,7 @@ jobs:
           fi
 
       - name: Log into docker for registry.redhat.io
-        uses: docker/login-action@v2
+        uses: docker/login-action@v3
         with:
           registry: registry.redhat.io
           username: ${{ secrets.REGISTRY_USERNAME }}
