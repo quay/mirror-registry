@@ -1,0 +1,31 @@
+name: "PR Check"
+
+on:
+  pull_request:
+    branches:
+      - main
+      - mirror-registry-*
+
+permissions:
+  contents: read
+
+jobs:
+  go-validate:
+    name: "Go Validate"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: 1.25.5
+
+      - name: Build
+        run: go build -v ./...
+
+      - name: Vet
+        run: go vet ./...
