@@ -16,7 +16,10 @@ on:
         description: 'Version to release (tag name)'
         required: true
 
-concurrency: 
+permissions:
+  contents: read
+
+concurrency:
   group: limit-to-one
 
 jobs:
@@ -34,12 +37,14 @@ jobs:
         if: contains(github.event.pull_request.labels.*.name, 'ok-to-test')
         with:
           ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
 
       # Checkout target branch for release build
-      - name: Checkout 
+      - name: Checkout
         uses: actions/checkout@v4
         with:
           ref: refs/tags/${{ github.event.inputs.version }}
+          persist-credentials: false
         if: github.event.inputs.version
 
       - name: Set version from tag/branch
@@ -49,8 +54,10 @@ jobs:
 
       - name: Set version from input
         run: |
-          echo "RELEASE_VERSION=${{ github.event.inputs.version }}" >>"$GITHUB_ENV"
+          echo "RELEASE_VERSION=$INPUT_VERSION" >>"$GITHUB_ENV"
         if: github.event.inputs.version
+        env:
+          INPUT_VERSION: ${{ github.event.inputs.version }}
 
       - name: Set up Go 1.x
         uses: actions/setup-go@v4
@@ -163,8 +170,11 @@ jobs:
         run: ssh jonathan@quay 'sudo subscription-manager refresh; sudo yum -y install podman'
 
       - name: Log into podman for registry.redhat.io
-        run: ssh jonathan@quay "podman login -u ${{ secrets.REGISTRY_USERNAME }} -p ${{ secrets.REGISTRY_PASSWORD }} registry.redhat.io"
+        run: ssh jonathan@quay "podman login -u \"$REGISTRY_USER\" -p \"$REGISTRY_PASS\" registry.redhat.io"
         if: matrix.installer-type == 'online'
+        env:
+          REGISTRY_USER: ${{ secrets.REGISTRY_USERNAME }}
+          REGISTRY_PASS: ${{ secrets.REGISTRY_PASSWORD }}
 
       - name: Install Registry
         run: ./mirror-registry install -u jonathan -r /home/jonathan/quay-install -H quay -v --initPassword password -k /home/runner/.ssh/id_rsa
@@ -303,8 +313,11 @@ jobs:
         run: ssh jonathan@quay 'sudo subscription-manager refresh; sudo yum -y install podman'
 
       - name: Log into podman for registry.redhat.io
-        run: ssh jonathan@quay "podman login -u ${{ secrets.REGISTRY_USERNAME }} -p ${{ secrets.REGISTRY_PASSWORD }} registry.redhat.io"
+        run: ssh jonathan@quay "podman login -u \"$REGISTRY_USER\" -p \"$REGISTRY_PASS\" registry.redhat.io"
         if: matrix.installer-type == 'online'
+        env:
+          REGISTRY_USER: ${{ secrets.REGISTRY_USERNAME }}
+          REGISTRY_PASS: ${{ secrets.REGISTRY_PASSWORD }}
 
       - name: Pull busybox image from Docker Hub before disabling traffic
         run: ssh jonathan@quay 'podman pull docker.io/library/busybox'
