@@ -4,7 +4,7 @@ on:
   push:
     tags:
       - 'v[0-9]+.[0-9]+.[0-9]+'
-  pull_request:
+  pull_request_target:
     types: [labeled]
     branches:
       - main
@@ -16,14 +16,17 @@ on:
         description: 'Version to release (tag name)'
         required: true
 
-concurrency: 
+permissions:
+  contents: read
+
+concurrency:
   group: limit-to-one
 
 jobs:
   build-install-zip:
     name: "Build Installer"
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' || contains(github.event.pull_request.labels.*.name, 'ok-to-test') || github.event.inputs.version
+    if: github.repository_owner == 'quay' && (github.event_name == 'push' || contains(github.event.pull_request.labels.*.name, 'ok-to-test') || github.event.inputs.version)
     strategy:
       matrix:
         installer-type: ["online", "offline"]
@@ -34,12 +37,14 @@ jobs:
         if: contains(github.event.pull_request.labels.*.name, 'ok-to-test')
         with:
           ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
 
       # Checkout target branch for release build
-      - name: Checkout 
+      - name: Checkout
         uses: actions/checkout@v4
         with:
           ref: refs/tags/${{ github.event.inputs.version }}
+          persist-credentials: false
         if: github.event.inputs.version
 
       - name: Set version from tag/branch
@@ -49,22 +54,10 @@ jobs:
 
       - name: Set version from input
         run: |
-          echo "RELEASE_VERSION=${{ github.event.inputs.version }}" >>"$GITHUB_ENV"
+          echo "RELEASE_VERSION=$INPUT_VERSION" >>"$GITHUB_ENV"
         if: github.event.inputs.version
-
-      - name: Set up Go 1.x
-        uses: actions/setup-go@v4
-        with:
-          go-version: 1.25.5
-        id: go
-
-      - name: Get dependencies
-        run: |
-          go install -v ./...
-          if [ -f Gopkg.toml ]; then
-              curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
-              dep ensure
-          fi
+        env:
+          INPUT_VERSION: ${{ github.event.inputs.version }}
 
       - name: Log into docker for registry.redhat.io
         uses: docker/login-action@v2
@@ -74,7 +67,34 @@ jobs:
           password: ${{ secrets.REGISTRY_PASSWORD }}
 
       - name: Build tarfile
-        run: CLIENT=docker make build-${{ matrix.installer-type }}-zip
+        run: |
+          get_env() { grep "^$1=" .env | head -1 | cut -d= -f2-; }
+
+          INSTALLER_TYPE="${{ matrix.installer-type }}"
+          if [ "$INSTALLER_TYPE" = "offline" ]; then
+            DOCKERFILE="Dockerfile"
+          else
+            DOCKERFILE="Dockerfile.online"
+          fi
+
+          CONTAINER_NAME="mirror-registry-${INSTALLER_TYPE}-${RELEASE_VERSION}"
+          IMAGE_NAME="mirror-registry-${INSTALLER_TYPE}:${RELEASE_VERSION}"
+
+          docker build \
+            -t "$IMAGE_NAME" \
+            --build-arg "RELEASE_VERSION=${RELEASE_VERSION}" \
+            --build-arg "QUAY_IMAGE=$(get_env QUAY_IMAGE)" \
+            --build-arg "EE_IMAGE=$(get_env EE_IMAGE)" \
+            --build-arg "EE_BASE_IMAGE=$(get_env EE_BASE_IMAGE)" \
+            --build-arg "EE_BUILDER_IMAGE=$(get_env EE_BUILDER_IMAGE)" \
+            --build-arg "REDIS_IMAGE=$(get_env REDIS_IMAGE)" \
+            --build-arg "PAUSE_IMAGE=$(get_env PAUSE_IMAGE)" \
+            --build-arg "SQLITE_IMAGE=$(get_env SQLITE_IMAGE)" \
+            --file "$DOCKERFILE" .
+
+          docker run --name "$CONTAINER_NAME" "$IMAGE_NAME"
+          docker cp "$CONTAINER_NAME":/mirror-registry.tar.gz .
+          docker rm "$CONTAINER_NAME"
 
       - name: Upload tarfile
         uses: actions/upload-artifact@v4
@@ -87,7 +107,7 @@ jobs:
     name: "Remote Install"
     needs: ["build-install-zip"]
     runs-on: ubuntu-latest
-    if: contains(github.event.pull_request.labels.*.name, 'ok-to-test') # Skip on release
+    if: github.repository_owner == 'quay' && contains(github.event.pull_request.labels.*.name, 'ok-to-test') # Skip on release
     strategy:
       fail-fast: false
       matrix:
@@ -163,8 +183,11 @@ jobs:
         run: ssh jonathan@quay 'sudo subscription-manager refresh; sudo yum -y install podman'
 
       - name: Log into podman for registry.redhat.io
-        run: ssh jonathan@quay "podman login -u ${{ secrets.REGISTRY_USERNAME }} -p ${{ secrets.REGISTRY_PASSWORD }} registry.redhat.io"
+        run: ssh jonathan@quay "podman login -u \"$REGISTRY_USER\" -p \"$REGISTRY_PASS\" registry.redhat.io"
         if: matrix.installer-type == 'online'
+        env:
+          REGISTRY_USER: ${{ secrets.REGISTRY_USERNAME }}
+          REGISTRY_PASS: ${{ secrets.REGISTRY_PASSWORD }}
 
       - name: Install Registry
         run: ./mirror-registry install -u jonathan -r /home/jonathan/quay-install -H quay -v --initPassword password -k /home/runner/.ssh/id_rsa
@@ -227,7 +250,7 @@ jobs:
     name: "Local Install"
     needs: ["build-install-zip"]
     runs-on: ubuntu-latest
-    if: contains(github.event.pull_request.labels.*.name, 'ok-to-test') # Skip on release
+    if: github.repository_owner == 'quay' && contains(github.event.pull_request.labels.*.name, 'ok-to-test') # Skip on release
     strategy:
       fail-fast: false
       matrix:
@@ -303,8 +326,11 @@ jobs:
         run: ssh jonathan@quay 'sudo subscription-manager refresh; sudo yum -y install podman'
 
       - name: Log into podman for registry.redhat.io
-        run: ssh jonathan@quay "podman login -u ${{ secrets.REGISTRY_USERNAME }} -p ${{ secrets.REGISTRY_PASSWORD }} registry.redhat.io"
+        run: ssh jonathan@quay "podman login -u \"$REGISTRY_USER\" -p \"$REGISTRY_PASS\" registry.redhat.io"
         if: matrix.installer-type == 'online'
+        env:
+          REGISTRY_USER: ${{ secrets.REGISTRY_USERNAME }}
+          REGISTRY_PASS: ${{ secrets.REGISTRY_PASSWORD }}
 
       - name: Pull busybox image from Docker Hub before disabling traffic
         run: ssh jonathan@quay 'podman pull docker.io/library/busybox'
@@ -376,7 +402,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-    if: github.event_name == 'push' || github.event.inputs.version
+    if: github.repository_owner == 'quay' && (github.event_name == 'push' || github.event.inputs.version)
     steps:
       - name: Checkout
         uses: actions/checkout@v3
