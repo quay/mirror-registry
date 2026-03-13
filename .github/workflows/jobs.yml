@@ -26,7 +26,7 @@ jobs:
   build-install-zip:
     name: "Build Installer"
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' || contains(github.event.pull_request.labels.*.name, 'ok-to-test') || github.event.inputs.version
+    if: github.repository_owner == 'quay' && (github.event_name == 'push' || contains(github.event.pull_request.labels.*.name, 'ok-to-test') || github.event.inputs.version)
     strategy:
       matrix:
         installer-type: ["online", "offline"]
@@ -59,20 +59,6 @@ jobs:
         env:
           INPUT_VERSION: ${{ github.event.inputs.version }}
 
-      - name: Set up Go 1.x
-        uses: actions/setup-go@v4
-        with:
-          go-version: 1.25.5
-        id: go
-
-      - name: Get dependencies
-        run: |
-          go install -v ./...
-          if [ -f Gopkg.toml ]; then
-              curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
-              dep ensure
-          fi
-
       - name: Log into docker for registry.redhat.io
         uses: docker/login-action@v2
         with:
@@ -81,7 +67,34 @@ jobs:
           password: ${{ secrets.REGISTRY_PASSWORD }}
 
       - name: Build tarfile
-        run: CLIENT=docker make build-${{ matrix.installer-type }}-zip
+        run: |
+          get_env() { grep "^$1=" .env | head -1 | cut -d= -f2-; }
+
+          INSTALLER_TYPE="${{ matrix.installer-type }}"
+          if [ "$INSTALLER_TYPE" = "offline" ]; then
+            DOCKERFILE="Dockerfile"
+          else
+            DOCKERFILE="Dockerfile.online"
+          fi
+
+          CONTAINER_NAME="mirror-registry-${INSTALLER_TYPE}-${RELEASE_VERSION}"
+          IMAGE_NAME="mirror-registry-${INSTALLER_TYPE}:${RELEASE_VERSION}"
+
+          docker build \
+            -t "$IMAGE_NAME" \
+            --build-arg "RELEASE_VERSION=${RELEASE_VERSION}" \
+            --build-arg "QUAY_IMAGE=$(get_env QUAY_IMAGE)" \
+            --build-arg "EE_IMAGE=$(get_env EE_IMAGE)" \
+            --build-arg "EE_BASE_IMAGE=$(get_env EE_BASE_IMAGE)" \
+            --build-arg "EE_BUILDER_IMAGE=$(get_env EE_BUILDER_IMAGE)" \
+            --build-arg "REDIS_IMAGE=$(get_env REDIS_IMAGE)" \
+            --build-arg "PAUSE_IMAGE=$(get_env PAUSE_IMAGE)" \
+            --build-arg "SQLITE_IMAGE=$(get_env SQLITE_IMAGE)" \
+            --file "$DOCKERFILE" .
+
+          docker run --name "$CONTAINER_NAME" "$IMAGE_NAME"
+          docker cp "$CONTAINER_NAME":/mirror-registry.tar.gz .
+          docker rm "$CONTAINER_NAME"
 
       - name: Upload tarfile
         uses: actions/upload-artifact@v4
@@ -94,7 +107,7 @@ jobs:
     name: "Remote Install"
     needs: ["build-install-zip"]
     runs-on: ubuntu-latest
-    if: contains(github.event.pull_request.labels.*.name, 'ok-to-test') # Skip on release
+    if: github.repository_owner == 'quay' && contains(github.event.pull_request.labels.*.name, 'ok-to-test') # Skip on release
     strategy:
       fail-fast: false
       matrix:
@@ -237,7 +250,7 @@ jobs:
     name: "Local Install"
     needs: ["build-install-zip"]
     runs-on: ubuntu-latest
-    if: contains(github.event.pull_request.labels.*.name, 'ok-to-test') # Skip on release
+    if: github.repository_owner == 'quay' && contains(github.event.pull_request.labels.*.name, 'ok-to-test') # Skip on release
     strategy:
       fail-fast: false
       matrix:
@@ -389,7 +402,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-    if: github.event_name == 'push' || github.event.inputs.version
+    if: github.repository_owner == 'quay' && (github.event_name == 'push' || github.event.inputs.version)
     steps:
       - name: Checkout
         uses: actions/checkout@v3
