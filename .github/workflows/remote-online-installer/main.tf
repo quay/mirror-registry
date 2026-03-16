@@ -24,8 +24,8 @@ resource "google_compute_network" "vpc_network_remote_online_install" {
   name = "terraform-network-remote-online-install"
 }
 
-resource "google_compute_instance" "vm_instance_remote_online_install" {
-  name         = "mirror-ci-rhel-remote-online-install"
+resource "google_compute_instance" "control_vm_remote_online_install" {
+  name         = "mirror-ci-control-remote-online-install"
   machine_type = "e2-standard-16"
 
   boot_disk {
@@ -46,6 +46,38 @@ resource "google_compute_instance" "vm_instance_remote_online_install" {
   metadata = {
     ssh-keys = "jonathan:${var.SSH_PUBLIC_KEY}"
   }
+
+  service_account {
+    scopes = []
+  }
+}
+
+resource "google_compute_instance" "target_vm_remote_online_install" {
+  name         = "mirror-ci-target-remote-online-install"
+  machine_type = "e2-standard-16"
+
+  boot_disk {
+    initialize_params {
+      image = "rhel-9"
+      size  = 100
+    }
+  }
+
+  tags = ["mirror-ci-rhel-remote-online-install"]
+
+  network_interface {
+    network = google_compute_network.vpc_network_remote_online_install.name
+    access_config {
+    }
+  }
+
+  metadata = {
+    ssh-keys = "jonathan:${var.SSH_PUBLIC_KEY}"
+  }
+
+  service_account {
+    scopes = []
+  }
 }
 
 resource "google_compute_firewall" "ssh-rule-remote-online-install" {
@@ -63,5 +95,9 @@ resource "google_compute_firewall" "ssh-rule-remote-online-install" {
 }
 
 output "ip" {
-  value = google_compute_instance.vm_instance_remote_online_install.network_interface.0.access_config.0.nat_ip
+  value = google_compute_instance.target_vm_remote_online_install.network_interface.0.access_config.0.nat_ip
+}
+
+output "control_ip" {
+  value = google_compute_instance.control_vm_remote_online_install.network_interface.0.access_config.0.nat_ip
 }
