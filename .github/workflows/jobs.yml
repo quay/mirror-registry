@@ -104,6 +104,9 @@ jobs:
           retention-days: 1
 
   test-remote-install:
+    # Uses two VMs: a control VM runs the mirror-registry binary and a target VM
+    # receives the deployment, matching the real-world remote install topology
+    # where an operator machine deploys to a separate target host.
     name: "Remote Install"
     needs: ["build-install-zip"]
     runs-on: ubuntu-latest
@@ -154,16 +157,27 @@ jobs:
             User jonathan
             IdentityFile ~/.ssh/staging.key
             StrictHostKeyChecking no
+          Host control
+            HostName control
+            User jonathan
+            IdentityFile ~/.ssh/staging.key
+            StrictHostKeyChecking no
           END
         env:
           SSH_KEY: ${{ secrets.TF_VAR_SSH_PRIVATE_KEY }}
 
-      - name: Initialize VM
+      - name: Initialize VMs
         uses: ./.github/actions/setup-terraform
         with:
           terraform-context: ".github/workflows/remote-${{ matrix.installer-type }}-installer"
 
-      - name: Wait for VM
+      - name: Add control hostname to /etc/hosts
+        run: |
+          CONTROL_IP=$(terraform output --raw control_ip)
+          echo "${CONTROL_IP}  control" | sudo tee -a /etc/hosts
+        working-directory: ".github/workflows/remote-${{ matrix.installer-type }}-installer"
+
+      - name: Wait for VMs
         uses: jakejarvis/wait-action@master
         with:
           time: "60s"
@@ -173,24 +187,41 @@ jobs:
         with:
           name: mirror-registry-${{ matrix.installer-type }}-installer
 
-      - name: Extract tarfile
-        run: tar -xf mirror-registry.tar.gz
-      
-      - name: Add quay to /etc/hosts
+      - name: Add quay to /etc/hosts on target VM
         run: ssh jonathan@quay 'echo "127.0.0.1 quay" | sudo tee -a /etc/hosts'
 
-      - name: Install podman
+      - name: Install podman on target VM
         run: ssh jonathan@quay 'sudo subscription-manager refresh; sudo yum -y install podman'
 
-      - name: Log into podman for registry.redhat.io
+      - name: Log into podman for registry.redhat.io on target VM
         run: ssh jonathan@quay "podman login -u \"$REGISTRY_USER\" -p \"$REGISTRY_PASS\" registry.redhat.io"
         if: matrix.installer-type == 'online'
         env:
           REGISTRY_USER: ${{ secrets.REGISTRY_USERNAME }}
           REGISTRY_PASS: ${{ secrets.REGISTRY_PASSWORD }}
 
+      - name: Install podman on control VM
+        run: ssh jonathan@control 'sudo subscription-manager refresh; sudo yum -y install podman'
+
+      - name: Add target hostname to control VM /etc/hosts
+        run: |
+          TARGET_IP=$(terraform output --raw ip)
+          ssh jonathan@control "echo '${TARGET_IP} quay' | sudo tee -a /etc/hosts"
+        working-directory: ".github/workflows/remote-${{ matrix.installer-type }}-installer"
+
+      - name: SCP tarball to control VM
+        run: scp mirror-registry.tar.gz jonathan@control:~/
+
+      - name: SCP SSH key to control VM
+        run: |
+          scp /home/runner/.ssh/id_rsa jonathan@control:~/.ssh/id_rsa
+          ssh jonathan@control 'chmod 600 ~/.ssh/id_rsa'
+
+      - name: Extract tarfile on control VM
+        run: ssh jonathan@control 'tar -xf mirror-registry.tar.gz'
+
       - name: Install Registry
-        run: ./mirror-registry install -u jonathan -r /home/jonathan/quay-install -H quay -v --initPassword password -k /home/runner/.ssh/id_rsa
+        run: ssh jonathan@control './mirror-registry install -u jonathan -r /home/jonathan/quay-install -H quay -v --initPassword password -k ~/.ssh/id_rsa'
 
       - name: Mirror Images
         uses: ./.github/actions/mirror
@@ -199,22 +230,21 @@ jobs:
           pull-secret: ${{ secrets.PULL_SECRET }}
 
       - name: Upgrade Registry
-        run: ./mirror-registry upgrade -u jonathan -r /home/jonathan/quay-install -H quay -v -k /home/runner/.ssh/id_rsa
+        run: ssh jonathan@control './mirror-registry upgrade -u jonathan -r /home/jonathan/quay-install -H quay -v -k ~/.ssh/id_rsa'
 
       - name: Uninstall Registry
-        run: ./mirror-registry uninstall -u jonathan -H quay --autoApprove -v -k /home/runner/.ssh/id_rsa
+        run: ssh jonathan@control './mirror-registry uninstall -u jonathan -H quay --autoApprove -v -k ~/.ssh/id_rsa'
 
-      - name: Download old mirror-registry tarball that runs quay with postgres
-        run: wget -O mirror-registry-postgres.tar.gz "https://github.com/quay/mirror-registry/releases/download/v1.3.10/mirror-registry-${{ matrix.installer-type }}.tar.gz"
+      - name: Download old mirror-registry tarball on control VM
+        run: ssh jonathan@control 'wget -O mirror-registry-postgres.tar.gz "https://github.com/quay/mirror-registry/releases/download/v1.3.10/mirror-registry-${{ matrix.installer-type }}.tar.gz"'
 
-      - name: Create extraction directory for old mirror-registry binary
-        run: mkdir -p ./mirror-registry-postgres
-
-      - name: Extract tarball into the folder
-        run: tar -xzf mirror-registry-postgres.tar.gz -C ./mirror-registry-postgres
+      - name: Extract old tarball on control VM
+        run: ssh jonathan@control 'mkdir -p ./mirror-registry-postgres && tar -xzf mirror-registry-postgres.tar.gz -C ./mirror-registry-postgres'
 
       - name: Install postgres backed quay registry
-        run: ./mirror-registry-postgres/mirror-registry install -u jonathan -r /home/jonathan/quay-install -H quay -v --initPassword password -k /home/runner/.ssh/id_rsa
+        run: ssh jonathan@control './mirror-registry-postgres/mirror-registry install -u jonathan -r /home/jonathan/quay-install -H quay -v --initPassword password -k ~/.ssh/id_rsa'
+
+      # --- Verify registry works (trusted podman commands on runner) ---
 
       - name: Podman login to quay registry
         run: podman login -u init -p password quay:8443 --tls-verify=false
@@ -228,8 +258,8 @@ jobs:
       - name: Push busybox image to Quay
         run: podman push quay:8443/init/busybox:latest --tls-verify=false
 
-      - name: Use latest binary to test upgrade cmd to ensure db migration from old postgres to sqlite
-        run: ./mirror-registry upgrade -u jonathan -r /home/jonathan/quay-install -H quay -v -k /home/runner/.ssh/id_rsa
+      - name: Upgrade to test postgres to sqlite migration
+        run: ssh jonathan@control './mirror-registry upgrade -u jonathan -r /home/jonathan/quay-install -H quay -v -k ~/.ssh/id_rsa'
 
       - name: Pull already pushed busybox image from quay registry
         run: podman pull quay:8443/init/busybox:latest --tls-verify=false
@@ -238,7 +268,7 @@ jobs:
         run: podman images | grep -q quay:8443/init/busybox
 
       - name: Uninstall Registry
-        run: ./mirror-registry uninstall -u jonathan -H quay --autoApprove -v -k /home/runner/.ssh/id_rsa
+        run: ssh jonathan@control './mirror-registry uninstall -u jonathan -H quay --autoApprove -v -k ~/.ssh/id_rsa'
 
       - name: Terraform Destroy
         run: terraform destroy --auto-approve
