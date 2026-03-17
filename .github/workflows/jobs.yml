@@ -110,6 +110,8 @@ jobs:
     name: "Remote Install"
     needs: ["build-install-zip"]
     runs-on: ubuntu-latest
+    environment: ci-testing
+    timeout-minutes: 60
     if: github.repository_owner == 'quay' && contains(github.event.pull_request.labels.*.name, 'ok-to-test') # Skip on release
     strategy:
       fail-fast: false
@@ -117,7 +119,6 @@ jobs:
         installer-type: ["online", "offline"]
     env:
       GOOGLE_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
-      TF_VAR_SSH_PUBLIC_KEY: ${{ secrets.TF_VAR_SSH_PUBLIC_KEY }}
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -134,22 +135,16 @@ jobs:
           cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
           terraform_wrapper: false
 
-      - name: Install SSH Key
-        uses: webfactory/ssh-agent@v0.5.2
-        with:
-          ssh-private-key: ${{ secrets.TF_VAR_SSH_PRIVATE_KEY }}
-
-      - name: Write SSH Key id_rsa
+      - name: Generate ephemeral SSH key pair
         run: |
-          echo "$SSH_KEY" > /home/runner/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
-        env:
-          SSH_KEY: ${{ secrets.TF_VAR_SSH_PRIVATE_KEY }}
+          ssh-keygen -t ed25519 -f ~/.ssh/id_rsa -N "" -C "ci-run-${{ github.run_id }}"
+          echo "TF_VAR_SSH_PUBLIC_KEY=$(cat ~/.ssh/id_rsa.pub)" >> "$GITHUB_ENV"
 
-      - name: Write SSH Key staging.key
+      - name: Configure SSH
         run: |
-          mkdir -p ~/.ssh/
-          echo "$SSH_KEY" > ~/.ssh/staging.key
+          eval $(ssh-agent -s)
+          ssh-add ~/.ssh/id_rsa
+          cp ~/.ssh/id_rsa ~/.ssh/staging.key
           chmod 600 ~/.ssh/staging.key
           cat >>~/.ssh/config <<END
           Host quay
@@ -163,8 +158,6 @@ jobs:
             IdentityFile ~/.ssh/staging.key
             StrictHostKeyChecking no
           END
-        env:
-          SSH_KEY: ${{ secrets.TF_VAR_SSH_PRIVATE_KEY }}
 
       - name: Initialize VMs
         uses: ./.github/actions/setup-terraform
@@ -280,6 +273,8 @@ jobs:
     name: "Local Install"
     needs: ["build-install-zip"]
     runs-on: ubuntu-latest
+    environment: ci-testing
+    timeout-minutes: 60
     if: github.repository_owner == 'quay' && contains(github.event.pull_request.labels.*.name, 'ok-to-test') # Skip on release
     strategy:
       fail-fast: false
@@ -287,7 +282,6 @@ jobs:
         installer-type: ["online", "offline"]
     env:
       GOOGLE_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
-      TF_VAR_SSH_PUBLIC_KEY: ${{ secrets.TF_VAR_SSH_PUBLIC_KEY }}
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -304,22 +298,16 @@ jobs:
           cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
           terraform_wrapper: false
 
-      - name: Install SSH Key
-        uses: webfactory/ssh-agent@v0.5.2
-        with:
-          ssh-private-key: ${{ secrets.TF_VAR_SSH_PRIVATE_KEY }}
-
-      - name: Write SSH Key id_rsa
+      - name: Generate ephemeral SSH key pair
         run: |
-          echo "$SSH_KEY" > /home/runner/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
-        env:
-          SSH_KEY: ${{ secrets.TF_VAR_SSH_PRIVATE_KEY }}
+          ssh-keygen -t ed25519 -f ~/.ssh/id_rsa -N "" -C "ci-run-${{ github.run_id }}"
+          echo "TF_VAR_SSH_PUBLIC_KEY=$(cat ~/.ssh/id_rsa.pub)" >> "$GITHUB_ENV"
 
-      - name: Write SSH Key staging.key
+      - name: Configure SSH
         run: |
-          mkdir -p ~/.ssh/
-          echo "$SSH_KEY" > ~/.ssh/staging.key
+          eval $(ssh-agent -s)
+          ssh-add ~/.ssh/id_rsa
+          cp ~/.ssh/id_rsa ~/.ssh/staging.key
           chmod 600 ~/.ssh/staging.key
           cat >>~/.ssh/config <<END
           Host quay
@@ -328,8 +316,6 @@ jobs:
             IdentityFile ~/.ssh/staging.key
             StrictHostKeyChecking no
           END
-        env:
-          SSH_KEY: ${{ secrets.TF_VAR_SSH_PRIVATE_KEY }}
 
       - name: Initialize VM
         uses: ./.github/actions/setup-terraform
