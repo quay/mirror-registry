@@ -50,6 +50,13 @@ resource "google_compute_instance" "control_vm_remote_offline_install" {
   service_account {
     scopes = []
   }
+
+  scheduling {
+    max_run_duration {
+      seconds = 7200
+    }
+    instance_termination_action = "DELETE"
+  }
 }
 
 resource "google_compute_instance" "target_vm_remote_offline_install" {
@@ -77,6 +84,13 @@ resource "google_compute_instance" "target_vm_remote_offline_install" {
 
   service_account {
     scopes = []
+  }
+
+  scheduling {
+    max_run_duration {
+      seconds = 7200
+    }
+    instance_termination_action = "DELETE"
   }
 }
 
