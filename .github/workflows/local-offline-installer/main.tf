@@ -50,6 +50,13 @@ resource "google_compute_instance" "vm_instance_local_offline_install" {
   service_account {
     scopes = []
   }
+
+  scheduling {
+    max_run_duration {
+      seconds = 7200
+    }
+    instance_termination_action = "DELETE"
+  }
 }
 
 resource "google_compute_firewall" "ssh-rule-local-offline-install" {
