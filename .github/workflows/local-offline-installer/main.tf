@@ -44,7 +44,7 @@ resource "google_compute_instance" "vm_instance_local_offline_install" {
   }
 
   metadata = {
-    ssh-keys = "jonathan:${var.SSH_PUBLIC_KEY}"
+    ssh-keys = "ci-user:${var.SSH_PUBLIC_KEY}"
   }
 
   service_account {

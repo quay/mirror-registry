@@ -147,12 +147,12 @@ jobs:
           cat >>~/.ssh/config <<END
           Host quay
             HostName quay
-            User jonathan
+            User ci-user
             IdentityFile ~/.ssh/staging.key
             StrictHostKeyChecking no
           Host control
             HostName control
-            User jonathan
+            User ci-user
             IdentityFile ~/.ssh/staging.key
             StrictHostKeyChecking no
           END
@@ -179,40 +179,40 @@ jobs:
           name: mirror-registry-${{ matrix.installer-type }}-installer
 
       - name: Add quay to /etc/hosts on target VM
-        run: ssh jonathan@quay 'echo "127.0.0.1 quay" | sudo tee -a /etc/hosts'
+        run: ssh ci-user@quay 'echo "127.0.0.1 quay" | sudo tee -a /etc/hosts'
 
       - name: Install podman on target VM
-        run: ssh jonathan@quay 'sudo subscription-manager refresh; sudo yum -y install podman'
+        run: ssh ci-user@quay 'sudo subscription-manager refresh; sudo yum -y install podman'
 
       - name: Log into podman for registry.redhat.io on target VM
-        run: ssh jonathan@quay "podman login -u \"$REGISTRY_USER\" -p \"$REGISTRY_PASS\" registry.redhat.io"
+        run: ssh ci-user@quay "podman login -u \"$REGISTRY_USER\" -p \"$REGISTRY_PASS\" registry.redhat.io"
         if: matrix.installer-type == 'online'
         env:
           REGISTRY_USER: ${{ secrets.REGISTRY_USERNAME }}
           REGISTRY_PASS: ${{ secrets.REGISTRY_PASSWORD }}
 
       - name: Install podman on control VM
-        run: ssh jonathan@control 'sudo subscription-manager refresh; sudo yum -y install podman'
+        run: ssh ci-user@control 'sudo subscription-manager refresh; sudo yum -y install podman'
 
       - name: Add target hostname to control VM /etc/hosts
         run: |
           TARGET_IP=$(terraform output --raw ip)
-          ssh jonathan@control "echo '${TARGET_IP} quay' | sudo tee -a /etc/hosts"
+          ssh ci-user@control "echo '${TARGET_IP} quay' | sudo tee -a /etc/hosts"
         working-directory: ".github/workflows/remote-${{ matrix.installer-type }}-installer"
 
       - name: SCP tarball to control VM
-        run: scp mirror-registry.tar.gz jonathan@control:~/
+        run: scp mirror-registry.tar.gz ci-user@control:~/
 
       - name: SCP SSH key to control VM
         run: |
-          scp /home/runner/.ssh/id_rsa jonathan@control:~/.ssh/id_rsa
-          ssh jonathan@control 'chmod 600 ~/.ssh/id_rsa'
+          scp /home/runner/.ssh/id_rsa ci-user@control:~/.ssh/id_rsa
+          ssh ci-user@control 'chmod 600 ~/.ssh/id_rsa'
 
       - name: Extract tarfile on control VM
-        run: ssh jonathan@control 'tar -xf mirror-registry.tar.gz'
+        run: ssh ci-user@control 'tar -xf mirror-registry.tar.gz'
 
       - name: Install Registry
-        run: ssh jonathan@control './mirror-registry install -u jonathan -r /home/jonathan/quay-install -H quay -v --initPassword password -k ~/.ssh/id_rsa'
+        run: ssh ci-user@control './mirror-registry install -u ci-user -r /home/ci-user/quay-install -H quay -v --initPassword password -k ~/.ssh/id_rsa'
 
       - name: Mirror Images
         uses: ./.github/actions/mirror
@@ -221,19 +221,19 @@ jobs:
           pull-secret: ${{ secrets.PULL_SECRET }}
 
       - name: Upgrade Registry
-        run: ssh jonathan@control './mirror-registry upgrade -u jonathan -r /home/jonathan/quay-install -H quay -v -k ~/.ssh/id_rsa'
+        run: ssh ci-user@control './mirror-registry upgrade -u ci-user -r /home/ci-user/quay-install -H quay -v -k ~/.ssh/id_rsa'
 
       - name: Uninstall Registry
-        run: ssh jonathan@control './mirror-registry uninstall -u jonathan -H quay --autoApprove -v -k ~/.ssh/id_rsa'
+        run: ssh ci-user@control './mirror-registry uninstall -u ci-user -H quay --autoApprove -v -k ~/.ssh/id_rsa'
 
       - name: Download old mirror-registry tarball on control VM
-        run: ssh jonathan@control 'wget -O mirror-registry-postgres.tar.gz "https://github.com/quay/mirror-registry/releases/download/v1.3.10/mirror-registry-${{ matrix.installer-type }}.tar.gz"'
+        run: ssh ci-user@control 'wget -O mirror-registry-postgres.tar.gz "https://github.com/quay/mirror-registry/releases/download/v1.3.10/mirror-registry-${{ matrix.installer-type }}.tar.gz"'
 
       - name: Extract old tarball on control VM
-        run: ssh jonathan@control 'mkdir -p ./mirror-registry-postgres && tar -xzf mirror-registry-postgres.tar.gz -C ./mirror-registry-postgres'
+        run: ssh ci-user@control 'mkdir -p ./mirror-registry-postgres && tar -xzf mirror-registry-postgres.tar.gz -C ./mirror-registry-postgres'
 
       - name: Install postgres backed quay registry
-        run: ssh jonathan@control './mirror-registry-postgres/mirror-registry install -u jonathan -r /home/jonathan/quay-install -H quay -v --initPassword password -k ~/.ssh/id_rsa'
+        run: ssh ci-user@control './mirror-registry-postgres/mirror-registry install -u ci-user -r /home/ci-user/quay-install -H quay -v --initPassword password -k ~/.ssh/id_rsa'
 
       # --- Verify registry works (trusted podman commands on runner) ---
 
@@ -250,7 +250,7 @@ jobs:
         run: podman push quay:8443/init/busybox:latest --tls-verify=false
 
       - name: Upgrade to test postgres to sqlite migration
-        run: ssh jonathan@control './mirror-registry upgrade -u jonathan -r /home/jonathan/quay-install -H quay -v -k ~/.ssh/id_rsa'
+        run: ssh ci-user@control './mirror-registry upgrade -u ci-user -r /home/ci-user/quay-install -H quay -v -k ~/.ssh/id_rsa'
 
       - name: Pull already pushed busybox image from quay registry
         run: podman pull quay:8443/init/busybox:latest --tls-verify=false
@@ -259,7 +259,7 @@ jobs:
         run: podman images | grep -q quay:8443/init/busybox
 
       - name: Uninstall Registry
-        run: ssh jonathan@control './mirror-registry uninstall -u jonathan -H quay --autoApprove -v -k ~/.ssh/id_rsa'
+        run: ssh ci-user@control './mirror-registry uninstall -u ci-user -H quay --autoApprove -v -k ~/.ssh/id_rsa'
 
       - name: Terraform Destroy
         run: terraform destroy --auto-approve
@@ -308,7 +308,7 @@ jobs:
           cat >>~/.ssh/config <<END
           Host quay
             HostName quay
-            User jonathan
+            User ci-user
             IdentityFile ~/.ssh/staging.key
             StrictHostKeyChecking no
           END
@@ -329,30 +329,30 @@ jobs:
           name: mirror-registry-${{ matrix.installer-type }}-installer
 
       - name: SCP tarball to VM
-        run: scp mirror-registry.tar.gz jonathan@quay:~/mirror-registry.tar.gz
+        run: scp mirror-registry.tar.gz ci-user@quay:~/mirror-registry.tar.gz
 
       - name: Add quay to /etc/hosts
-        run: ssh jonathan@quay 'echo "127.0.0.1 quay" | sudo tee -a /etc/hosts'
+        run: ssh ci-user@quay 'echo "127.0.0.1 quay" | sudo tee -a /etc/hosts'
 
       - name: Install podman
-        run: ssh jonathan@quay 'sudo subscription-manager refresh; sudo yum -y install podman'
+        run: ssh ci-user@quay 'sudo subscription-manager refresh; sudo yum -y install podman'
 
       - name: Log into podman for registry.redhat.io
-        run: ssh jonathan@quay "podman login -u \"$REGISTRY_USER\" -p \"$REGISTRY_PASS\" registry.redhat.io"
+        run: ssh ci-user@quay "podman login -u \"$REGISTRY_USER\" -p \"$REGISTRY_PASS\" registry.redhat.io"
         if: matrix.installer-type == 'online'
         env:
           REGISTRY_USER: ${{ secrets.REGISTRY_USERNAME }}
           REGISTRY_PASS: ${{ secrets.REGISTRY_PASSWORD }}
 
       - name: Pull busybox image from Docker Hub before disabling traffic
-        run: ssh jonathan@quay 'podman pull docker.io/library/busybox'
+        run: ssh ci-user@quay 'podman pull docker.io/library/busybox'
 
       - name: Disable outbound network traffic
-        run: ssh jonathan@quay 'sudo firewall-cmd --direct --add-rule ipv4 filter OUTPUT 0 -m state --state ESTABLISHED,RELATED -j ACCEPT; sudo firewall-cmd --direct --add-rule ipv4 filter OUTPUT 1 -p tcp -m tcp --dport=22 -j ACCEPT; sudo firewall-cmd --direct --add-rule ipv4 filter OUTPUT 1 -p tcp -m tcp --dport=8443 -j ACCEPT; sudo firewall-cmd --direct --add-rule ipv4 filter OUTPUT 2 -j DROP'
+        run: ssh ci-user@quay 'sudo firewall-cmd --direct --add-rule ipv4 filter OUTPUT 0 -m state --state ESTABLISHED,RELATED -j ACCEPT; sudo firewall-cmd --direct --add-rule ipv4 filter OUTPUT 1 -p tcp -m tcp --dport=22 -j ACCEPT; sudo firewall-cmd --direct --add-rule ipv4 filter OUTPUT 1 -p tcp -m tcp --dport=8443 -j ACCEPT; sudo firewall-cmd --direct --add-rule ipv4 filter OUTPUT 2 -j DROP'
         if: matrix.installer-type == 'offline'
 
       - name: Install Registry
-        run: ssh jonathan@quay 'tar -xf mirror-registry.tar.gz; ./mirror-registry install -v --quayHostname quay:8443 --initPassword password'
+        run: ssh ci-user@quay 'tar -xf mirror-registry.tar.gz; ./mirror-registry install -v --quayHostname quay:8443 --initPassword password'
 
       - name: Mirror Images
         uses: ./.github/actions/mirror
@@ -361,46 +361,46 @@ jobs:
           pull-secret: ${{ secrets.PULL_SECRET }}
 
       - name: Upgrade Quay
-        run: ssh jonathan@quay './mirror-registry upgrade -v'
+        run: ssh ci-user@quay './mirror-registry upgrade -v'
 
       - name: Uninstall Quay
-        run: ssh jonathan@quay './mirror-registry uninstall --autoApprove -v'
+        run: ssh ci-user@quay './mirror-registry uninstall --autoApprove -v'
 
       - name: Download old mirror-registry tarball that runs quay with postgres
         run: wget -O mirror-registry-postgres.tar.gz "https://github.com/quay/mirror-registry/releases/download/v1.3.10/mirror-registry-${{ matrix.installer-type }}.tar.gz"
 
       - name: SCP old tarball to VM
-        run: scp mirror-registry-postgres.tar.gz jonathan@quay:~/mirror-registry-postgres.tar.gz
+        run: scp mirror-registry-postgres.tar.gz ci-user@quay:~/mirror-registry-postgres.tar.gz
 
       - name: Create extraction directory for old mirror-registry binary
-        run: ssh jonathan@quay 'mkdir -p ./mirror-registry-postgres'
+        run: ssh ci-user@quay 'mkdir -p ./mirror-registry-postgres'
 
       - name: Extract tarball into the folder
-        run: ssh jonathan@quay 'tar -xzf mirror-registry-postgres.tar.gz -C ./mirror-registry-postgres'
+        run: ssh ci-user@quay 'tar -xzf mirror-registry-postgres.tar.gz -C ./mirror-registry-postgres'
 
       - name: Install postgres backed quay registry
-        run: ssh jonathan@quay './mirror-registry-postgres/mirror-registry install -u jonathan -r /home/jonathan/quay-install --quayHostname quay:8443 -v --initPassword password'
+        run: ssh ci-user@quay './mirror-registry-postgres/mirror-registry install -u ci-user -r /home/ci-user/quay-install --quayHostname quay:8443 -v --initPassword password'
 
       - name: Podman login to quay registry
-        run: ssh jonathan@quay 'podman login -u init -p password quay:8443 --tls-verify=false'
+        run: ssh ci-user@quay 'podman login -u init -p password quay:8443 --tls-verify=false'
 
       - name: Tag busybox image for Quay
-        run: ssh jonathan@quay 'podman tag docker.io/library/busybox quay:8443/init/busybox:latest'
+        run: ssh ci-user@quay 'podman tag docker.io/library/busybox quay:8443/init/busybox:latest'
 
       - name: Push busybox image to Quay
-        run: ssh jonathan@quay 'podman push quay:8443/init/busybox:latest --tls-verify=false'
+        run: ssh ci-user@quay 'podman push quay:8443/init/busybox:latest --tls-verify=false'
 
       - name: Use latest binary to test upgrade cmd to ensure db migration from old postgres to sqlite
-        run: ssh jonathan@quay './mirror-registry upgrade -u jonathan -r /home/jonathan/quay-install --quayHostname quay:8443 -v'
+        run: ssh ci-user@quay './mirror-registry upgrade -u ci-user -r /home/ci-user/quay-install --quayHostname quay:8443 -v'
 
       - name: Pull already pushed busybox image from quay registry
-        run: ssh jonathan@quay 'podman pull quay:8443/init/busybox:latest --tls-verify=false'
+        run: ssh ci-user@quay 'podman pull quay:8443/init/busybox:latest --tls-verify=false'
 
       - name: Verify busybox image was pulled successfully
-        run: ssh jonathan@quay 'podman images | grep -q quay:8443/init/busybox'
+        run: ssh ci-user@quay 'podman images | grep -q quay:8443/init/busybox'
 
       - name: Uninstall Quay
-        run: ssh jonathan@quay './mirror-registry uninstall --autoApprove -v'
+        run: ssh ci-user@quay './mirror-registry uninstall --autoApprove -v'
 
       - name: Terraform Destroy
         run: terraform destroy --auto-approve

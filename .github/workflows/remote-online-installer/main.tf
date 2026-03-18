@@ -44,7 +44,7 @@ resource "google_compute_instance" "control_vm_remote_online_install" {
   }
 
   metadata = {
-    ssh-keys = "jonathan:${var.SSH_PUBLIC_KEY}"
+    ssh-keys = "ci-user:${var.SSH_PUBLIC_KEY}"
   }
 
   service_account {
@@ -79,7 +79,7 @@ resource "google_compute_instance" "target_vm_remote_online_install" {
   }
 
   metadata = {
-    ssh-keys = "jonathan:${var.SSH_PUBLIC_KEY}"
+    ssh-keys = "ci-user:${var.SSH_PUBLIC_KEY}"
   }
 
   service_account {
