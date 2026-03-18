@@ -142,8 +142,6 @@ jobs:
 
       - name: Configure SSH
         run: |
-          eval $(ssh-agent -s)
-          ssh-add ~/.ssh/id_rsa
           cp ~/.ssh/id_rsa ~/.ssh/staging.key
           chmod 600 ~/.ssh/staging.key
           cat >>~/.ssh/config <<END
@@ -305,8 +303,6 @@ jobs:
 
       - name: Configure SSH
         run: |
-          eval $(ssh-agent -s)
-          ssh-add ~/.ssh/id_rsa
           cp ~/.ssh/id_rsa ~/.ssh/staging.key
           chmod 600 ~/.ssh/staging.key
           cat >>~/.ssh/config <<END
