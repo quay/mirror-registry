@@ -277,7 +277,7 @@ func getImageMetadata(app, imageName, archivePath string) string {
 		// quay.io
 		statement = `/usr/bin/podman image import \
 					--change 'ENV container=oci' \
-					--change 'ENV PATH=/app/bin/:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin' \
+					--change 'ENV PATH=/opt/app-root/bin:/opt/app-root/src/.local/bin:/opt/app-root/src/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin' \
 					--change 'ENV PYTHONUNBUFFERED=1' \
 					--change 'ENV PYTHONIOENCODING=UTF-8' \
 					--change 'ENV LC_ALL=C.UTF-8' \
