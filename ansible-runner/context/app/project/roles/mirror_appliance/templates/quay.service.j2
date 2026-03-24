@@ -23,6 +23,7 @@ ExecStart=/usr/bin/podman run \
     --replace \
     -e WORKER_COUNT_UNSUPPORTED_MINIMUM=1 \
     -e WORKER_COUNT=1 \
+    -e PYTHONUSERBASE_SITE_PACKAGE=/opt/app-root/lib/python3.12/site-packages \
     {{ quay_image }} {{ quay_cmd }}
     
 ExecStop=-/usr/bin/podman stop --ignore --cidfile %t/%n-cid -t 10
