@@ -184,8 +184,14 @@ jobs:
       - name: Install podman on target VM
         run: ssh ci-user@quay 'sudo subscription-manager refresh; sudo yum -y install podman'
 
-      - name: Log into podman for registry.redhat.io on target VM
-        run: ssh ci-user@quay "podman login -u \"$REGISTRY_USER\" -p \"$REGISTRY_PASS\" registry.redhat.io"
+      - name: Pre-pull registry.redhat.io images on target VM
+        run: |
+          QUAY_IMG=$(grep '^QUAY_IMAGE=' .env | head -1 | cut -d= -f2-)
+          REDIS_IMG=$(grep '^REDIS_IMAGE=' .env | head -1 | cut -d= -f2-)
+          ssh ci-user@quay "podman login -u \"$REGISTRY_USER\" -p \"$REGISTRY_PASS\" registry.redhat.io && \
+            podman pull \"$QUAY_IMG\" && \
+            podman pull \"$REDIS_IMG\" && \
+            podman logout registry.redhat.io"
         if: matrix.installer-type == 'online'
         env:
           REGISTRY_USER: ${{ secrets.REGISTRY_USERNAME }}
@@ -227,7 +233,7 @@ jobs:
         run: ssh ci-user@control './mirror-registry uninstall -u ci-user -H quay --autoApprove -v -k ~/.ssh/id_rsa'
 
       - name: Download old mirror-registry tarball
-        run: wget -O mirror-registry-postgres.tar.gz "https://github.com/quay/mirror-registry/releases/download/v1.3.10/mirror-registry-${{ matrix.installer-type }}.tar.gz"
+        run: wget -O mirror-registry-postgres.tar.gz "https://github.com/quay/mirror-registry/releases/download/v1.3.10/mirror-registry-offline.tar.gz"
 
       - name: SCP old tarball to control VM
         run: scp mirror-registry-postgres.tar.gz ci-user@control:~/
@@ -340,8 +346,14 @@ jobs:
       - name: Install podman
         run: ssh ci-user@quay 'sudo subscription-manager refresh; sudo yum -y install podman'
 
-      - name: Log into podman for registry.redhat.io
-        run: ssh ci-user@quay "podman login -u \"$REGISTRY_USER\" -p \"$REGISTRY_PASS\" registry.redhat.io"
+      - name: Pre-pull registry.redhat.io images on target VM
+        run: |
+          QUAY_IMG=$(grep '^QUAY_IMAGE=' .env | head -1 | cut -d= -f2-)
+          REDIS_IMG=$(grep '^REDIS_IMAGE=' .env | head -1 | cut -d= -f2-)
+          ssh ci-user@quay "podman login -u \"$REGISTRY_USER\" -p \"$REGISTRY_PASS\" registry.redhat.io && \
+            podman pull \"$QUAY_IMG\" && \
+            podman pull \"$REDIS_IMG\" && \
+            podman logout registry.redhat.io"
         if: matrix.installer-type == 'online'
         env:
           REGISTRY_USER: ${{ secrets.REGISTRY_USERNAME }}
@@ -370,7 +382,7 @@ jobs:
         run: ssh ci-user@quay './mirror-registry uninstall --autoApprove -v'
 
       - name: Download old mirror-registry tarball that runs quay with postgres
-        run: wget -O mirror-registry-postgres.tar.gz "https://github.com/quay/mirror-registry/releases/download/v1.3.10/mirror-registry-${{ matrix.installer-type }}.tar.gz"
+        run: wget -O mirror-registry-postgres.tar.gz "https://github.com/quay/mirror-registry/releases/download/v1.3.10/mirror-registry-offline.tar.gz"
 
       - name: SCP old tarball to VM
         run: scp mirror-registry-postgres.tar.gz ci-user@quay:~/mirror-registry-postgres.tar.gz
