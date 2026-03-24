@@ -170,3 +170,4 @@ tar -xzvf mirror-registry.tar.gz -C mirror-registry
 ```
 
 **NOTE** This command may take some time to complete depending on host resources. 
+
