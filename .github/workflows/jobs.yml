@@ -226,8 +226,11 @@ jobs:
       - name: Uninstall Registry
         run: ssh ci-user@control './mirror-registry uninstall -u ci-user -H quay --autoApprove -v -k ~/.ssh/id_rsa'
 
-      - name: Download old mirror-registry tarball on control VM
-        run: ssh ci-user@control 'wget -O mirror-registry-postgres.tar.gz "https://github.com/quay/mirror-registry/releases/download/v1.3.10/mirror-registry-${{ matrix.installer-type }}.tar.gz"'
+      - name: Download old mirror-registry tarball
+        run: wget -O mirror-registry-postgres.tar.gz "https://github.com/quay/mirror-registry/releases/download/v1.3.10/mirror-registry-${{ matrix.installer-type }}.tar.gz"
+
+      - name: SCP old tarball to control VM
+        run: scp mirror-registry-postgres.tar.gz ci-user@control:~/
 
       - name: Extract old tarball on control VM
         run: ssh ci-user@control 'mkdir -p ./mirror-registry-postgres && tar -xzf mirror-registry-postgres.tar.gz -C ./mirror-registry-postgres'
