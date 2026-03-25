@@ -26,6 +26,17 @@
       register: systemctl_status
       ignore_errors: yes
 
+    - name: Show journald logs for quay-app container
+      command: journalctl --no-pager -n 100 CONTAINER_NAME=quay-app
+      register: journal_logs
+      ignore_errors: yes
+      changed_when: false
+
+    - name: Display journald logs
+      when: journal_logs.rc == 0 and journal_logs.stdout != ""
+      debug:
+        msg: "{{ journal_logs.stdout_lines }}"
+
     - name:  Fail the playbook since Quay failed to startup
       fail:
         msg: "Quay did not become alive, see systemctl status output: {{ systemctl_status.stdout_lines }}"
