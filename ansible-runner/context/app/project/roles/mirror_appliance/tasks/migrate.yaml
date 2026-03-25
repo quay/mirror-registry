@@ -190,6 +190,21 @@
     name: quay-copy
     state: absent
 
+- name: Set ownership of sqlite storage for Quay container user (UID 1001)
+  shell: >-
+    podman unshare chown -R 1001:0
+    "$(podman volume inspect {{ sqlite_storage }} --format '{% raw %}{{ .Mountpoint }}{% endraw %}')"
+  args:
+    executable: /bin/bash
+  when: "not sqlite_storage.startswith('/')"
+
+- name: Set ownership of sqlite storage for Quay container user (UID 1001)
+  shell: >-
+    podman unshare chown -R 1001:0 "{{ expanded_sqlite_storage }}"
+  args:
+    executable: /bin/bash
+  when: "sqlite_storage.startswith('/')"
+
 - name: Copy Quay systemd service file to run quay without migration
   template:
     src: ../templates/quay.service.j2
