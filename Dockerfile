@@ -7,8 +7,8 @@ ARG REDIS_IMAGE=${REDIS_IMAGE}
 ARG PAUSE_IMAGE=${PAUSE_IMAGE}
 ARG SQLITE_IMAGE=${SQLITE_IMAGE}
 
-# Create Go CLI using Red Hat Go 1.25.7 Toolset
-FROM registry.access.redhat.com/ubi8/go-toolset:1.25.7 AS cli
+# Create Go CLI using Red Hat Go 1.25.8 Toolset
+FROM registry.access.redhat.com/ubi8/go-toolset:1.25.8 AS cli
 
 # Need to duplicate these, otherwise they won't be available to the stage
 ARG RELEASE_VERSION=${RELEASE_VERSION}
