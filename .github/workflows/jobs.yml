@@ -27,6 +27,9 @@ jobs:
     name: "Build Installer"
     runs-on: ubuntu-latest
     if: github.repository_owner == 'quay' && (github.event_name == 'push' || contains(github.event.pull_request.labels.*.name, 'ok-to-test') || github.event.inputs.version)
+    outputs:
+      quay-image: ${{ steps.images.outputs.quay }}
+      redis-image: ${{ steps.images.outputs.redis }}
     strategy:
       matrix:
         installer-type: ["online", "offline"]
@@ -65,6 +68,13 @@ jobs:
           registry: registry.redhat.io
           username: ${{ secrets.REGISTRY_USERNAME }}
           password: ${{ secrets.REGISTRY_PASSWORD }}
+
+      - name: Resolve image refs
+        id: images
+        run: |
+          get_env() { grep "^$1=" .env | head -1 | cut -d= -f2-; }
+          echo "quay=$(get_env QUAY_IMAGE)" >> "$GITHUB_OUTPUT"
+          echo "redis=$(get_env REDIS_IMAGE)" >> "$GITHUB_OUTPUT"
 
       - name: Build tarfile
         run: |
@@ -186,8 +196,6 @@ jobs:
 
       - name: Pre-pull registry.redhat.io images on target VM
         run: |
-          QUAY_IMG=$(grep '^QUAY_IMAGE=' .env | head -1 | cut -d= -f2-)
-          REDIS_IMG=$(grep '^REDIS_IMAGE=' .env | head -1 | cut -d= -f2-)
           ssh ci-user@quay "podman login -u \"$REGISTRY_USER\" -p \"$REGISTRY_PASS\" registry.redhat.io && \
             podman pull \"$QUAY_IMG\" && \
             podman pull \"$REDIS_IMG\" && \
@@ -196,6 +204,8 @@ jobs:
         env:
           REGISTRY_USER: ${{ secrets.REGISTRY_USERNAME }}
           REGISTRY_PASS: ${{ secrets.REGISTRY_PASSWORD }}
+          QUAY_IMG: ${{ needs.build-install-zip.outputs.quay-image }}
+          REDIS_IMG: ${{ needs.build-install-zip.outputs.redis-image }}
 
       - name: Install podman on control VM
         run: ssh ci-user@control 'sudo subscription-manager refresh; sudo yum -y install podman'
@@ -348,8 +358,6 @@ jobs:
 
       - name: Pre-pull registry.redhat.io images on target VM
         run: |
-          QUAY_IMG=$(grep '^QUAY_IMAGE=' .env | head -1 | cut -d= -f2-)
-          REDIS_IMG=$(grep '^REDIS_IMAGE=' .env | head -1 | cut -d= -f2-)
           ssh ci-user@quay "podman login -u \"$REGISTRY_USER\" -p \"$REGISTRY_PASS\" registry.redhat.io && \
             podman pull \"$QUAY_IMG\" && \
             podman pull \"$REDIS_IMG\" && \
@@ -358,6 +366,8 @@ jobs:
         env:
           REGISTRY_USER: ${{ secrets.REGISTRY_USERNAME }}
           REGISTRY_PASS: ${{ secrets.REGISTRY_PASSWORD }}
+          QUAY_IMG: ${{ needs.build-install-zip.outputs.quay-image }}
+          REDIS_IMG: ${{ needs.build-install-zip.outputs.redis-image }}
 
       - name: Pull busybox image from Docker Hub before disabling traffic
         run: ssh ci-user@quay 'podman pull docker.io/library/busybox'
