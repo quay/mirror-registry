@@ -12,7 +12,7 @@ ExecStartPre=-/bin/rm -f %t/%n-pid %t/%n-cid
 ExecStart=/usr/bin/podman run \
     --name quay-app \
     -v {{ expanded_quay_root }}/quay-config:/quay-registry/conf/stack:Z \
-    -v {{ expanded_sqlite_storage }}:/sqlite:Z \
+    -v {{ expanded_sqlite_storage }}:/sqlite:Z,U \
     -v {{ expanded_quay_storage }}:/datastorage:Z \
     --image-volume=ignore \
     --pod=quay-pod \
