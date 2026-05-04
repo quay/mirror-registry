@@ -289,3 +289,385 @@ jobs:
         shell: bash
         working-directory: ".github/workflows/extended-uninstall-installer"
         if: always()
+
+  test-custom-paths:
+    name: "Custom Storage Paths"
+    needs: [build-installer]
+    runs-on: ubuntu-latest
+    environment: ci-testing
+    timeout-minutes: 60
+    if: github.repository_owner == 'quay' && contains(github.event.pull_request.labels.*.name, 'ok-to-test')
+    env:
+      GOOGLE_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v1
+        with:
+          cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
+          terraform_wrapper: false
+
+      - name: Generate SSH key pair
+        run: |
+          ssh-keygen -t ed25519 -f ~/.ssh/id_rsa -N "" -C "ci-run-${{ github.run_id }}"
+          echo "TF_VAR_SSH_PUBLIC_KEY=$(cat ~/.ssh/id_rsa.pub)" >> "$GITHUB_ENV"
+
+      - name: Configure SSH
+        run: |
+          cp ~/.ssh/id_rsa ~/.ssh/staging.key
+          chmod 600 ~/.ssh/staging.key
+          cat >>~/.ssh/config <<END
+          Host quay
+            HostName quay
+            User ci-user
+            IdentityFile ~/.ssh/staging.key
+            StrictHostKeyChecking no
+          END
+
+      - name: Initialize VM
+        uses: ./.github/actions/setup-terraform
+        with:
+          terraform-context: ".github/workflows/extended-paths-installer"
+
+      - name: Wait for VM
+        uses: jakejarvis/wait-action@master
+        with:
+          time: "60s"
+
+      - name: Download tarfile
+        uses: actions/download-artifact@v4
+        with:
+          name: mirror-registry-extended-installer
+
+      - name: Add quay to /etc/hosts
+        run: ssh ci-user@quay 'echo "127.0.0.1 quay" | sudo tee -a /etc/hosts'
+
+      - name: Install podman
+        run: ssh ci-user@quay 'sudo subscription-manager refresh; sudo yum -y install podman'
+
+      - name: SCP tarball and test scripts to VM
+        run: |
+          scp mirror-registry.tar.gz ci-user@quay:~/
+          scp -r test/e2e ci-user@quay:~/e2e
+
+      - name: Extract tarball
+        run: ssh ci-user@quay 'tar -xf mirror-registry.tar.gz'
+
+      - name: Pull busybox for push/pull test
+        run: ssh ci-user@quay 'podman pull docker.io/library/busybox'
+
+      - name: Run custom paths test
+        run: ssh ci-user@quay 'QUAY_HOSTNAME=quay bash ~/e2e/test-custom-paths.sh ~'
+
+      - name: Terraform Destroy
+        run: terraform destroy --auto-approve
+        shell: bash
+        working-directory: ".github/workflows/extended-paths-installer"
+        if: always()
+
+  test-custom-hostname:
+    name: "Custom Hostname"
+    needs: [build-installer]
+    runs-on: ubuntu-latest
+    environment: ci-testing
+    timeout-minutes: 60
+    if: github.repository_owner == 'quay' && contains(github.event.pull_request.labels.*.name, 'ok-to-test')
+    env:
+      GOOGLE_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v1
+        with:
+          cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
+          terraform_wrapper: false
+
+      - name: Generate SSH key pair
+        run: |
+          ssh-keygen -t ed25519 -f ~/.ssh/id_rsa -N "" -C "ci-run-${{ github.run_id }}"
+          echo "TF_VAR_SSH_PUBLIC_KEY=$(cat ~/.ssh/id_rsa.pub)" >> "$GITHUB_ENV"
+
+      - name: Configure SSH
+        run: |
+          cp ~/.ssh/id_rsa ~/.ssh/staging.key
+          chmod 600 ~/.ssh/staging.key
+          cat >>~/.ssh/config <<END
+          Host quay
+            HostName quay
+            User ci-user
+            IdentityFile ~/.ssh/staging.key
+            StrictHostKeyChecking no
+          END
+
+      - name: Initialize VM
+        uses: ./.github/actions/setup-terraform
+        with:
+          terraform-context: ".github/workflows/extended-hostname-installer"
+
+      - name: Wait for VM
+        uses: jakejarvis/wait-action@master
+        with:
+          time: "60s"
+
+      - name: Download tarfile
+        uses: actions/download-artifact@v4
+        with:
+          name: mirror-registry-extended-installer
+
+      - name: Add quay to /etc/hosts
+        run: ssh ci-user@quay 'echo "127.0.0.1 quay" | sudo tee -a /etc/hosts'
+
+      - name: Install podman
+        run: ssh ci-user@quay 'sudo subscription-manager refresh; sudo yum -y install podman'
+
+      - name: SCP tarball and test scripts to VM
+        run: |
+          scp mirror-registry.tar.gz ci-user@quay:~/
+          scp -r test/e2e ci-user@quay:~/e2e
+
+      - name: Extract tarball
+        run: ssh ci-user@quay 'tar -xf mirror-registry.tar.gz'
+
+      - name: Pull busybox for push/pull test
+        run: ssh ci-user@quay 'podman pull docker.io/library/busybox'
+
+      - name: Run custom hostname test
+        run: ssh ci-user@quay 'QUAY_HOSTNAME=quay bash ~/e2e/test-custom-hostname.sh ~'
+
+      - name: Terraform Destroy
+        run: terraform destroy --auto-approve
+        shell: bash
+        working-directory: ".github/workflows/extended-hostname-installer"
+        if: always()
+
+  test-sqlite-upgrade:
+    name: "SQLite-to-SQLite Upgrade"
+    needs: [build-installer]
+    runs-on: ubuntu-latest
+    environment: ci-testing
+    timeout-minutes: 60
+    if: github.repository_owner == 'quay' && contains(github.event.pull_request.labels.*.name, 'ok-to-test')
+    env:
+      GOOGLE_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v1
+        with:
+          cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
+          terraform_wrapper: false
+
+      - name: Generate SSH key pair
+        run: |
+          ssh-keygen -t ed25519 -f ~/.ssh/id_rsa -N "" -C "ci-run-${{ github.run_id }}"
+          echo "TF_VAR_SSH_PUBLIC_KEY=$(cat ~/.ssh/id_rsa.pub)" >> "$GITHUB_ENV"
+
+      - name: Configure SSH
+        run: |
+          cp ~/.ssh/id_rsa ~/.ssh/staging.key
+          chmod 600 ~/.ssh/staging.key
+          cat >>~/.ssh/config <<END
+          Host quay
+            HostName quay
+            User ci-user
+            IdentityFile ~/.ssh/staging.key
+            StrictHostKeyChecking no
+          END
+
+      - name: Initialize VM
+        uses: ./.github/actions/setup-terraform
+        with:
+          terraform-context: ".github/workflows/extended-upgrade-installer"
+
+      - name: Wait for VM
+        uses: jakejarvis/wait-action@master
+        with:
+          time: "60s"
+
+      - name: Download tarfile
+        uses: actions/download-artifact@v4
+        with:
+          name: mirror-registry-extended-installer
+
+      - name: Add quay to /etc/hosts
+        run: ssh ci-user@quay 'echo "127.0.0.1 quay" | sudo tee -a /etc/hosts'
+
+      - name: Install podman
+        run: ssh ci-user@quay 'sudo subscription-manager refresh; sudo yum -y install podman'
+
+      - name: SCP tarball and test scripts to VM
+        run: |
+          scp mirror-registry.tar.gz ci-user@quay:~/
+          scp -r test/e2e ci-user@quay:~/e2e
+
+      - name: Extract tarball
+        run: ssh ci-user@quay 'tar -xf mirror-registry.tar.gz'
+
+      - name: Pull busybox for push/pull test
+        run: ssh ci-user@quay 'podman pull docker.io/library/busybox'
+
+      - name: Run SQLite-to-SQLite upgrade test
+        run: ssh ci-user@quay 'QUAY_HOSTNAME=quay bash ~/e2e/test-upgrade-sqlite.sh ~'
+
+      - name: Terraform Destroy
+        run: terraform destroy --auto-approve
+        shell: bash
+        working-directory: ".github/workflows/extended-upgrade-installer"
+        if: always()
+
+  test-idempotent-reinstall:
+    name: "Idempotent Reinstall"
+    needs: [build-installer]
+    runs-on: ubuntu-latest
+    environment: ci-testing
+    timeout-minutes: 60
+    if: github.repository_owner == 'quay' && contains(github.event.pull_request.labels.*.name, 'ok-to-test')
+    env:
+      GOOGLE_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v1
+        with:
+          cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
+          terraform_wrapper: false
+
+      - name: Generate SSH key pair
+        run: |
+          ssh-keygen -t ed25519 -f ~/.ssh/id_rsa -N "" -C "ci-run-${{ github.run_id }}"
+          echo "TF_VAR_SSH_PUBLIC_KEY=$(cat ~/.ssh/id_rsa.pub)" >> "$GITHUB_ENV"
+
+      - name: Configure SSH
+        run: |
+          cp ~/.ssh/id_rsa ~/.ssh/staging.key
+          chmod 600 ~/.ssh/staging.key
+          cat >>~/.ssh/config <<END
+          Host quay
+            HostName quay
+            User ci-user
+            IdentityFile ~/.ssh/staging.key
+            StrictHostKeyChecking no
+          END
+
+      - name: Initialize VM
+        uses: ./.github/actions/setup-terraform
+        with:
+          terraform-context: ".github/workflows/extended-reinstall-installer"
+
+      - name: Wait for VM
+        uses: jakejarvis/wait-action@master
+        with:
+          time: "60s"
+
+      - name: Download tarfile
+        uses: actions/download-artifact@v4
+        with:
+          name: mirror-registry-extended-installer
+
+      - name: Add quay to /etc/hosts
+        run: ssh ci-user@quay 'echo "127.0.0.1 quay" | sudo tee -a /etc/hosts'
+
+      - name: Install podman
+        run: ssh ci-user@quay 'sudo subscription-manager refresh; sudo yum -y install podman'
+
+      - name: SCP tarball and test scripts to VM
+        run: |
+          scp mirror-registry.tar.gz ci-user@quay:~/
+          scp -r test/e2e ci-user@quay:~/e2e
+
+      - name: Extract tarball
+        run: ssh ci-user@quay 'tar -xf mirror-registry.tar.gz'
+
+      - name: Pull busybox for push/pull test
+        run: ssh ci-user@quay 'podman pull docker.io/library/busybox'
+
+      - name: Run idempotent reinstall test
+        run: ssh ci-user@quay 'QUAY_HOSTNAME=quay bash ~/e2e/test-idempotent-reinstall.sh ~'
+
+      - name: Terraform Destroy
+        run: terraform destroy --auto-approve
+        shell: bash
+        working-directory: ".github/workflows/extended-reinstall-installer"
+        if: always()
+
+  test-tls-mismatch:
+    name: "TLS Hostname Mismatch"
+    needs: [build-installer]
+    runs-on: ubuntu-latest
+    environment: ci-testing
+    timeout-minutes: 60
+    if: github.repository_owner == 'quay' && contains(github.event.pull_request.labels.*.name, 'ok-to-test')
+    env:
+      GOOGLE_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v1
+        with:
+          cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
+          terraform_wrapper: false
+
+      - name: Generate SSH key pair
+        run: |
+          ssh-keygen -t ed25519 -f ~/.ssh/id_rsa -N "" -C "ci-run-${{ github.run_id }}"
+          echo "TF_VAR_SSH_PUBLIC_KEY=$(cat ~/.ssh/id_rsa.pub)" >> "$GITHUB_ENV"
+
+      - name: Configure SSH
+        run: |
+          cp ~/.ssh/id_rsa ~/.ssh/staging.key
+          chmod 600 ~/.ssh/staging.key
+          cat >>~/.ssh/config <<END
+          Host quay
+            HostName quay
+            User ci-user
+            IdentityFile ~/.ssh/staging.key
+            StrictHostKeyChecking no
+          END
+
+      - name: Initialize VM
+        uses: ./.github/actions/setup-terraform
+        with:
+          terraform-context: ".github/workflows/extended-tls-mismatch-installer"
+
+      - name: Wait for VM
+        uses: jakejarvis/wait-action@master
+        with:
+          time: "60s"
+
+      - name: Download tarfile
+        uses: actions/download-artifact@v4
+        with:
+          name: mirror-registry-extended-installer
+
+      - name: Add quay to /etc/hosts
+        run: ssh ci-user@quay 'echo "127.0.0.1 quay" | sudo tee -a /etc/hosts'
+
+      - name: Install podman
+        run: ssh ci-user@quay 'sudo subscription-manager refresh; sudo yum -y install podman'
+
+      - name: SCP tarball and test scripts to VM
+        run: |
+          scp mirror-registry.tar.gz ci-user@quay:~/
+          scp -r test/e2e ci-user@quay:~/e2e
+
+      - name: Extract tarball
+        run: ssh ci-user@quay 'tar -xf mirror-registry.tar.gz'
+
+      - name: Run TLS mismatch test
+        run: ssh ci-user@quay 'QUAY_HOSTNAME=quay bash ~/e2e/test-tls-mismatch.sh ~'
+
+      - name: Terraform Destroy
+        run: terraform destroy --auto-approve
+        shell: bash
+        working-directory: ".github/workflows/extended-tls-mismatch-installer"
+        if: always()
