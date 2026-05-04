@@ -20,12 +20,12 @@ provider "google" {
 
 }
 
-resource "google_compute_network" "vpc_network_local_online_install" {
-  name = "terraform-network-local-online-install"
+resource "google_compute_network" "vpc_network_extended_tls" {
+  name = "terraform-network-extended-tls"
 }
 
-resource "google_compute_instance" "vm_instance_local_online_install" {
-  name         = "mirror-ci-rhel-local-online-install"
+resource "google_compute_instance" "vm_instance_extended_tls" {
+  name         = "mirror-ci-rhel-extended-tls"
   machine_type = "e2-standard-4"
 
   boot_disk {
@@ -35,10 +35,10 @@ resource "google_compute_instance" "vm_instance_local_online_install" {
     }
   }
 
-  tags = ["mirror-ci-rhel-local-online-install"]
+  tags = ["mirror-ci-rhel-extended-tls"]
 
   network_interface {
-    network = google_compute_network.vpc_network_local_online_install.name
+    network = google_compute_network.vpc_network_extended_tls.name
     access_config {
     }
   }
@@ -59,20 +59,20 @@ resource "google_compute_instance" "vm_instance_local_online_install" {
   }
 }
 
-resource "google_compute_firewall" "ssh-rule-local-online-install" {
-  name    = "vm-ssh-local-online-install"
-  network = google_compute_network.vpc_network_local_online_install.name
+resource "google_compute_firewall" "ssh-rule-extended-tls" {
+  name    = "vm-ssh-extended-tls"
+  network = google_compute_network.vpc_network_extended_tls.name
   allow {
     protocol = "tcp"
-    ports    = ["22", "80", "8080", "443", "8443"]
+    ports    = ["22", "80", "8080", "443", "8443", "9443"]
   }
   allow {
     protocol = "icmp"
   }
-  target_tags   = ["mirror-ci-rhel-local-online-install"]
+  target_tags   = ["mirror-ci-rhel-extended-tls"]
   source_ranges = ["0.0.0.0/0"]
 }
 
 output "ip" {
-  value = google_compute_instance.vm_instance_local_online_install.network_interface.0.access_config.0.nat_ip
+  value = google_compute_instance.vm_instance_extended_tls.network_interface.0.access_config.0.nat_ip
 }
