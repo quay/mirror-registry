@@ -26,7 +26,7 @@ resource "google_compute_network" "vpc_network_remote_online_install" {
 
 resource "google_compute_instance" "control_vm_remote_online_install" {
   name         = "mirror-ci-control-remote-online-install"
-  machine_type = "e2-standard-16"
+  machine_type = "e2-standard-4"
 
   boot_disk {
     initialize_params {
@@ -61,7 +61,7 @@ resource "google_compute_instance" "control_vm_remote_online_install" {
 
 resource "google_compute_instance" "target_vm_remote_online_install" {
   name         = "mirror-ci-target-remote-online-install"
-  machine_type = "e2-standard-16"
+  machine_type = "e2-standard-4"
 
   boot_disk {
     initialize_params {
