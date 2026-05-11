@@ -230,6 +230,18 @@ jobs:
       - name: Install Registry
         run: ssh ci-user@control './mirror-registry install -u ci-user -r /home/ci-user/quay-install -H quay -v --initPassword password -k ~/.ssh/id_rsa'
 
+      - name: Verify health endpoint
+        run: |
+          ssh ci-user@quay 'curl -sk https://quay:8443/health/instance | python3 -c "
+          import sys, json
+          data = json.load(sys.stdin)
+          services = data.get(\"data\", {}).get(\"services\", {})
+          assert services, \"No services in health response\"
+          for svc, status in services.items():
+              assert status, f\"Service {svc} is not healthy\"
+          print(\"PASS: All services healthy\")
+          "'
+
       - name: Mirror Images
         uses: ./.github/actions/mirror
         with:
@@ -241,6 +253,16 @@ jobs:
 
       - name: Uninstall Registry
         run: ssh ci-user@control './mirror-registry uninstall -u ci-user -H quay --autoApprove -v -k ~/.ssh/id_rsa'
+
+      - name: Verify uninstall completeness
+        run: |
+          ssh ci-user@quay 'bash -e -c "
+            test -z \"\$(podman ps -q -f name=quay 2>/dev/null)\" || { echo FAIL: quay containers still running; exit 1; }
+            ! systemctl --user is-enabled quay-app.service 2>/dev/null || { echo FAIL: quay-app still enabled; exit 1; }
+            ! systemctl --user is-enabled quay-pod.service 2>/dev/null || { echo FAIL: quay-pod still enabled; exit 1; }
+            test ! -d ~/quay-install || { echo FAIL: quay-install dir still exists; exit 1; }
+            echo PASS: uninstall cleanup verified
+          "'
 
       - name: Download old mirror-registry tarball
         run: wget -O mirror-registry-postgres.tar.gz "https://github.com/quay/mirror-registry/releases/download/v1.3.10/mirror-registry-offline.tar.gz"
@@ -379,6 +401,18 @@ jobs:
       - name: Install Registry
         run: ssh ci-user@quay 'tar -xf mirror-registry.tar.gz; ./mirror-registry install -v --quayHostname quay:8443 --initPassword password'
 
+      - name: Verify health endpoint
+        run: |
+          ssh ci-user@quay 'curl -sk https://quay:8443/health/instance | python3 -c "
+          import sys, json
+          data = json.load(sys.stdin)
+          services = data.get(\"data\", {}).get(\"services\", {})
+          assert services, \"No services in health response\"
+          for svc, status in services.items():
+              assert status, f\"Service {svc} is not healthy\"
+          print(\"PASS: All services healthy\")
+          "'
+
       - name: Mirror Images
         uses: ./.github/actions/mirror
         with:
@@ -390,6 +424,16 @@ jobs:
 
       - name: Uninstall Quay
         run: ssh ci-user@quay './mirror-registry uninstall --autoApprove -v'
+
+      - name: Verify uninstall completeness
+        run: |
+          ssh ci-user@quay 'bash -e -c "
+            test -z \"\$(podman ps -q -f name=quay 2>/dev/null)\" || { echo FAIL: quay containers still running; exit 1; }
+            ! systemctl --user is-enabled quay-app.service 2>/dev/null || { echo FAIL: quay-app still enabled; exit 1; }
+            ! systemctl --user is-enabled quay-pod.service 2>/dev/null || { echo FAIL: quay-pod still enabled; exit 1; }
+            test ! -d ~/quay-install || { echo FAIL: quay-install dir still exists; exit 1; }
+            echo PASS: uninstall cleanup verified
+          "'
 
       - name: Download old mirror-registry tarball that runs quay with postgres
         run: wget -O mirror-registry-postgres.tar.gz "https://github.com/quay/mirror-registry/releases/download/v1.3.10/mirror-registry-offline.tar.gz"
@@ -425,6 +469,23 @@ jobs:
         run: ssh ci-user@quay 'podman images | grep -q quay:8443/init/busybox'
 
       - name: Uninstall Quay
+        run: ssh ci-user@quay './mirror-registry uninstall --autoApprove -v'
+
+      - name: Install with custom credentials
+        run: ssh ci-user@quay './mirror-registry install -v --quayHostname quay:8443 --initUser myadmin --initPassword "MyStr0ngP4ss"'
+
+      - name: Verify custom credentials login
+        run: ssh ci-user@quay 'podman login -u myadmin -p "MyStr0ngP4ss" quay:8443 --tls-verify=false'
+
+      - name: Verify default credentials rejected
+        run: |
+          if ssh ci-user@quay 'podman login -u init -p password quay:8443 --tls-verify=false' 2>/dev/null; then
+            echo "FAIL: default credentials should not work"
+            exit 1
+          fi
+          echo "PASS: default credentials correctly rejected"
+
+      - name: Uninstall after custom credentials test
         run: ssh ci-user@quay './mirror-registry uninstall --autoApprove -v'
 
       - name: Terraform Destroy
