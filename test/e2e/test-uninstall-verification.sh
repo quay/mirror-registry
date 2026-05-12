@@ -36,28 +36,28 @@ assert_clean_uninstall
 pods=$(podman pod ls --format "{{.Name}}" 2>/dev/null | grep -i quay || true)
 if [[ -z "${pods}" ]]; then
     log_info "PASS: No quay podman pods exist"
-    ((PASS_COUNT++))
+    (( ++PASS_COUNT ))
 else
     log_error "FAIL: Quay pods still exist: ${pods}"
-    ((FAIL_COUNT++))
+    (( ++FAIL_COUNT ))
 fi
 
 # Verify port 8443 is no longer in use
 if ! ss -tlnp 2>/dev/null | grep -q ":8443 "; then
     log_info "PASS: Port 8443 is free"
-    ((PASS_COUNT++))
+    (( ++PASS_COUNT ))
 else
     log_error "FAIL: Port 8443 is still in use"
-    ((FAIL_COUNT++))
+    (( ++FAIL_COUNT ))
 fi
 
 # Verify the health endpoint is no longer accessible
 if ! curl -sk --connect-timeout 5 "https://${QUAY_ENDPOINT}/health/instance" &>/dev/null; then
     log_info "PASS: Health endpoint is no longer accessible"
-    ((PASS_COUNT++))
+    (( ++PASS_COUNT ))
 else
     log_error "FAIL: Health endpoint still accessible after uninstall"
-    ((FAIL_COUNT++))
+    (( ++FAIL_COUNT ))
 fi
 
 print_summary

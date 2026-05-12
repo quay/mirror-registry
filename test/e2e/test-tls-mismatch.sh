@@ -28,12 +28,12 @@ if ${MIRROR_REGISTRY} install -v \
     --sslCert "${CERT_DIR}/server.cert" \
     --sslKey "${CERT_DIR}/server.key" 2>&1; then
     log_error "FAIL: Install should have rejected mismatched certificate"
-    ((FAIL_COUNT++))
+    (( ++FAIL_COUNT ))
     # Clean up if it somehow installed
     ${MIRROR_REGISTRY} uninstall --autoApprove -v 2>/dev/null || true
 else
     log_info "PASS: Install correctly rejected mismatched certificate"
-    ((PASS_COUNT++))
+    (( ++PASS_COUNT ))
 fi
 
 # Now install with --sslCheckSkip — should succeed
@@ -48,7 +48,7 @@ ${MIRROR_REGISTRY} install -v \
 wait_for_quay "${QUAY_ENDPOINT}"
 assert_quay_healthy "${QUAY_ENDPOINT}"
 log_info "PASS: Install succeeded with --sslCheckSkip"
-((PASS_COUNT++))
+(( ++PASS_COUNT ))
 
 # Verify we can still login (using tls-verify=false since cert is for wrong host)
 assert_success "Login works with --sslCheckSkip install" \

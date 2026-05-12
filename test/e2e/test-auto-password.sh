@@ -22,7 +22,7 @@ wait_for_quay "${QUAY_ENDPOINT}"
 # Format: "Quay is available at https://host:8443 with credentials (init, <password>)"
 if echo "${install_output}" | grep -q "credentials (init,"; then
     log_info "PASS: Install output contains generated credentials"
-    ((PASS_COUNT++))
+    (( ++PASS_COUNT ))
 
     # Extract the password from output
     generated_password=$(echo "${install_output}" | grep "credentials (init," | sed 's/.*credentials (init, \(.*\))/\1/' | tr -d ')')
@@ -30,24 +30,24 @@ if echo "${install_output}" | grep -q "credentials (init,"; then
 
     if [[ ${#generated_password} -gt 8 ]]; then
         log_info "PASS: Generated password has sufficient length"
-        ((PASS_COUNT++))
+        (( ++PASS_COUNT ))
     else
         log_error "FAIL: Generated password too short: ${#generated_password} chars"
-        ((FAIL_COUNT++))
+        (( ++FAIL_COUNT ))
     fi
 
     # Verify we can login with the generated password
     if podman login -u init -p "${generated_password}" "${QUAY_ENDPOINT}" --tls-verify=false 2>/dev/null; then
         log_info "PASS: Login succeeded with generated password"
-        ((PASS_COUNT++))
+        (( ++PASS_COUNT ))
     else
         log_error "FAIL: Login failed with generated password"
-        ((FAIL_COUNT++))
+        (( ++FAIL_COUNT ))
     fi
 else
     log_error "FAIL: Install output does not contain generated credentials"
     log_error "  Output: ${install_output}"
-    ((FAIL_COUNT++))
+    (( ++FAIL_COUNT ))
 fi
 
 # Cleanup

@@ -27,10 +27,10 @@ assert_quay_healthy "${QUAY_ENDPOINT}"
 for svc in quay-pod quay-app quay-redis; do
     if [[ -f "/etc/systemd/system/${svc}.service" ]]; then
         log_info "PASS: ${svc}.service in /etc/systemd/system/ (system scope)"
-        ((PASS_COUNT++))
+        (( ++PASS_COUNT ))
     else
         log_error "FAIL: ${svc}.service not found in /etc/systemd/system/"
-        ((FAIL_COUNT++))
+        (( ++FAIL_COUNT ))
     fi
 done
 

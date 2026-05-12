@@ -37,7 +37,7 @@ reinstall_output=$( ${MIRROR_REGISTRY} install -v \
 
 if [[ ${reinstall_rc} -eq 0 ]]; then
     log_info "PASS: Reinstall succeeded (idempotent behavior)"
-    ((PASS_COUNT++))
+    (( ++PASS_COUNT ))
 
     wait_for_quay "${QUAY_ENDPOINT}"
     assert_quay_healthy "${QUAY_ENDPOINT}"
@@ -46,11 +46,11 @@ else
     log_warn "Reinstall failed with exit code ${reinstall_rc}"
     if echo "${reinstall_output}" | grep -qi "already\|exist\|running\|conflict"; then
         log_info "PASS: Reinstall failed with descriptive error message"
-        ((PASS_COUNT++))
+        (( ++PASS_COUNT ))
     else
         log_error "FAIL: Reinstall failed without a clear error message"
         log_error "  Output: ${reinstall_output}"
-        ((FAIL_COUNT++))
+        (( ++FAIL_COUNT ))
     fi
 fi
 

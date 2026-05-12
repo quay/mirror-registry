@@ -62,10 +62,10 @@ assert_file_not_exists "quayRoot removed after uninstall" "${CUSTOM_ROOT}"
 local_containers=$(podman ps -q -f name=quay 2>/dev/null || true)
 if [[ -z "${local_containers}" ]]; then
     log_info "PASS: No quay containers running after uninstall"
-    ((PASS_COUNT++))
+    (( ++PASS_COUNT ))
 else
     log_error "FAIL: Quay containers still running"
-    ((FAIL_COUNT++))
+    (( ++FAIL_COUNT ))
 fi
 
 print_summary

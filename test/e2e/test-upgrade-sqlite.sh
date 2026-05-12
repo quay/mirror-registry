@@ -63,10 +63,10 @@ assert_success "Pull image pushed before upgrade" \
 
 if podman images | grep -q "upgrade-test"; then
     log_info "PASS: Image data preserved through SQLite-to-SQLite upgrade"
-    ((PASS_COUNT++))
+    (( ++PASS_COUNT ))
 else
     log_error "FAIL: Image data lost during upgrade"
-    ((FAIL_COUNT++))
+    (( ++FAIL_COUNT ))
 fi
 
 # Verify login still works

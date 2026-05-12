@@ -26,10 +26,10 @@ install_output=$( ${MIRROR_REGISTRY} install -v \
 
 if [[ ${install_rc} -ne 0 ]]; then
     log_info "PASS: Install rejected malformed certificate"
-    ((PASS_COUNT++))
+    (( ++PASS_COUNT ))
 else
     log_error "FAIL: Install accepted malformed certificate"
-    ((FAIL_COUNT++))
+    (( ++FAIL_COUNT ))
     ${MIRROR_REGISTRY} uninstall --autoApprove -v 2>/dev/null || true
 fi
 
@@ -43,10 +43,10 @@ install_output=$( ${MIRROR_REGISTRY} install -v \
 
 if [[ ${install_rc} -ne 0 ]]; then
     log_info "PASS: Install rejected nonexistent certificate files"
-    ((PASS_COUNT++))
+    (( ++PASS_COUNT ))
 else
     log_error "FAIL: Install accepted nonexistent certificate files"
-    ((FAIL_COUNT++))
+    (( ++FAIL_COUNT ))
     ${MIRROR_REGISTRY} uninstall --autoApprove -v 2>/dev/null || true
 fi
 

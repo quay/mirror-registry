@@ -193,6 +193,17 @@ jobs:
       - name: Install podman
         run: ssh ci-user@quay 'sudo subscription-manager refresh; sudo yum -y install podman'
 
+      - name: Configure root SSH access
+        run: |
+          ssh ci-user@quay 'sudo bash -c "
+            ssh-keygen -t ed25519 -f /root/.ssh/id_rsa -N \"\" -q
+            cat /root/.ssh/id_rsa.pub >> /root/.ssh/authorized_keys
+            chmod 700 /root/.ssh
+            chmod 600 /root/.ssh/authorized_keys /root/.ssh/id_rsa
+            echo -e \"Host *\n  StrictHostKeyChecking no\" > /root/.ssh/config
+            chmod 600 /root/.ssh/config
+          "'
+
       - name: SCP tarball and test scripts to VM
         run: |
           scp mirror-registry.tar.gz ci-user@quay:~/
@@ -205,7 +216,7 @@ jobs:
         run: ssh ci-user@quay 'podman pull docker.io/library/busybox'
 
       - name: Run root install test
-        run: ssh ci-user@quay 'QUAY_HOSTNAME=quay bash ~/e2e/test-root-install.sh ~'
+        run: ssh ci-user@quay 'QUAY_HOSTNAME=quay sudo bash ~/e2e/test-root-install.sh ~'
 
       - name: Terraform Destroy
         run: terraform destroy --auto-approve
