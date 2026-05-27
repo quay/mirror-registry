@@ -155,7 +155,6 @@ jobs:
           IMAGE_NAME="mirror-registry-${INSTALLER_TYPE}:${RELEASE_VERSION}"
 
           docker build \
-            --network=none \
             -t "$IMAGE_NAME" \
             --build-arg "RELEASE_VERSION=${RELEASE_VERSION}" \
             --build-arg "QUAY_IMAGE=${{ needs.pull-images.outputs.quay-image }}" \

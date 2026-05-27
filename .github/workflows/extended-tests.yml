@@ -102,7 +102,6 @@ jobs:
       - name: Build offline tarfile
         run: |
           docker build \
-            --network=none \
             -t "mirror-registry-offline:ci" \
             --build-arg "RELEASE_VERSION=${RELEASE_VERSION}" \
             --build-arg "QUAY_IMAGE=${{ needs.pull-images.outputs.quay-image }}" \
