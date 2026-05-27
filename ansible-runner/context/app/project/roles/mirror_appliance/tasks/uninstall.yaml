@@ -80,3 +80,8 @@
   ansible.builtin.systemd:
     daemon_reload: yes
     scope: "{{ systemd_scope }}"
+
+- name: Disable lingering for systemd user processes
+  command: "loginctl disable-linger"
+  when: ansible_user_uid != 0
+  ignore_errors: yes

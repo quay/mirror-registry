@@ -2,7 +2,7 @@ terraform {
   required_providers {
     google = {
       source  = "hashicorp/google"
-      version = "3.5.0"
+      version = "6.18.1"
     }
   }
 }
@@ -44,7 +44,18 @@ resource "google_compute_instance" "vm_instance_local_online_install" {
   }
 
   metadata = {
-    ssh-keys = "jonathan:${var.SSH_PUBLIC_KEY}"
+    ssh-keys = "ci-user:${var.SSH_PUBLIC_KEY}"
+  }
+
+  service_account {
+    scopes = []
+  }
+
+  scheduling {
+    max_run_duration {
+      seconds = 7200
+    }
+    instance_termination_action = "DELETE"
   }
 }
 
