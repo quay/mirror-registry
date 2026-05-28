@@ -30,10 +30,10 @@ install_output=$( ${MIRROR_REGISTRY} install -v \
 
 if [[ ${install_rc} -ne 0 ]]; then
     log_info "PASS: Install failed as expected (exit code ${install_rc})"
-    ((PASS_COUNT++))
+    (( ++PASS_COUNT ))
 else
     log_error "FAIL: Install succeeded without podman"
-    ((FAIL_COUNT++))
+    (( ++FAIL_COUNT ))
 fi
 
 # Reinstall podman for subsequent tests

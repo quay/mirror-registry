@@ -23,16 +23,16 @@ assert_quay_healthy "${QUAY_ENDPOINT}"
 # Verify the port is actually listening on the custom port
 if ss -tlnp 2>/dev/null | grep -q ":${CUSTOM_PORT} "; then
     log_info "PASS: Port ${CUSTOM_PORT} is listening"
-    ((PASS_COUNT++))
+    (( ++PASS_COUNT ))
 else
     log_error "FAIL: Port ${CUSTOM_PORT} is not listening"
-    ((FAIL_COUNT++))
+    (( ++FAIL_COUNT ))
 fi
 
 # Verify default port 8443 is NOT listening
 if ! ss -tlnp 2>/dev/null | grep -q ":8443 "; then
     log_info "PASS: Default port 8443 is not listening"
-    ((PASS_COUNT++))
+    (( ++PASS_COUNT ))
 else
     log_warn "Port 8443 is also listening (may be expected if pod publishes both)"
 fi

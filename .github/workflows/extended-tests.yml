@@ -14,13 +14,76 @@ concurrency:
   group: extended-tests
 
 jobs:
+  pull-images:
+    name: "Pull Images"
+    runs-on: ubuntu-latest
+    if: github.repository_owner == 'quay' && contains(github.event.pull_request.labels.*.name, 'ok-to-test')
+    outputs:
+      quay-image: ${{ steps.images.outputs.quay }}
+      redis-image: ${{ steps.images.outputs.redis }}
+      ee-image: ${{ steps.images.outputs.ee }}
+      ee-base-image: ${{ steps.images.outputs.ee_base }}
+      ee-builder-image: ${{ steps.images.outputs.ee_builder }}
+      pause-image: ${{ steps.images.outputs.pause }}
+      sqlite-image: ${{ steps.images.outputs.sqlite }}
+    steps:
+      - name: Checkout base branch
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
+
+      - name: Log into registry.redhat.io
+        uses: docker/login-action@465a07811f14bebb1938fbed4728c6a1ff8901fc # v2
+        with:
+          registry: registry.redhat.io
+          username: ${{ secrets.REGISTRY_USERNAME }}
+          password: ${{ secrets.REGISTRY_PASSWORD }}
+
+      - name: Resolve and pull images
+        id: images
+        run: |
+          get_env() { grep "^$1=" .env | head -1 | cut -d= -f2-; }
+          for var in QUAY_IMAGE REDIS_IMAGE EE_IMAGE EE_BASE_IMAGE EE_BUILDER_IMAGE PAUSE_IMAGE SQLITE_IMAGE; do
+            ref=$(get_env "$var")
+            echo "Pulling $var=$ref"
+            docker pull "$ref"
+          done
+          echo "quay=$(get_env QUAY_IMAGE)" >> "$GITHUB_OUTPUT"
+          echo "redis=$(get_env REDIS_IMAGE)" >> "$GITHUB_OUTPUT"
+          echo "ee=$(get_env EE_IMAGE)" >> "$GITHUB_OUTPUT"
+          echo "ee_base=$(get_env EE_BASE_IMAGE)" >> "$GITHUB_OUTPUT"
+          echo "ee_builder=$(get_env EE_BUILDER_IMAGE)" >> "$GITHUB_OUTPUT"
+          echo "pause=$(get_env PAUSE_IMAGE)" >> "$GITHUB_OUTPUT"
+          echo "sqlite=$(get_env SQLITE_IMAGE)" >> "$GITHUB_OUTPUT"
+
+      - name: Save images to tar
+        run: |
+          get_env() { grep "^$1=" .env | head -1 | cut -d= -f2-; }
+          docker save \
+            $(get_env QUAY_IMAGE) \
+            $(get_env REDIS_IMAGE) \
+            $(get_env EE_IMAGE) \
+            $(get_env EE_BASE_IMAGE) \
+            $(get_env EE_BUILDER_IMAGE) \
+            $(get_env PAUSE_IMAGE) \
+            $(get_env SQLITE_IMAGE) \
+            -o ci-images.tar
+
+      - name: Upload images
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: ci-images
+          path: ci-images.tar
+          retention-days: 1
+
   build-installer:
     name: "Build Offline Installer"
+    needs: [pull-images]
     runs-on: ubuntu-latest
     if: github.repository_owner == 'quay' && contains(github.event.pull_request.labels.*.name, 'ok-to-test')
     steps:
       - name: Checkout PR
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           persist-credentials: false
@@ -28,27 +91,26 @@ jobs:
       - name: Set version
         run: echo "RELEASE_VERSION=$GITHUB_REF_NAME" >>"$GITHUB_ENV"
 
-      - name: Log into registry.redhat.io
-        uses: docker/login-action@v2
+      - name: Download images
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
-          registry: registry.redhat.io
-          username: ${{ secrets.REGISTRY_USERNAME }}
-          password: ${{ secrets.REGISTRY_PASSWORD }}
+          name: ci-images
+
+      - name: Load images
+        run: docker load -i ci-images.tar
 
       - name: Build offline tarfile
         run: |
-          get_env() { grep "^$1=" .env | head -1 | cut -d= -f2-; }
-
           docker build \
             -t "mirror-registry-offline:ci" \
             --build-arg "RELEASE_VERSION=${RELEASE_VERSION}" \
-            --build-arg "QUAY_IMAGE=$(get_env QUAY_IMAGE)" \
-            --build-arg "EE_IMAGE=$(get_env EE_IMAGE)" \
-            --build-arg "EE_BASE_IMAGE=$(get_env EE_BASE_IMAGE)" \
-            --build-arg "EE_BUILDER_IMAGE=$(get_env EE_BUILDER_IMAGE)" \
-            --build-arg "REDIS_IMAGE=$(get_env REDIS_IMAGE)" \
-            --build-arg "PAUSE_IMAGE=$(get_env PAUSE_IMAGE)" \
-            --build-arg "SQLITE_IMAGE=$(get_env SQLITE_IMAGE)" \
+            --build-arg "QUAY_IMAGE=${{ needs.pull-images.outputs.quay-image }}" \
+            --build-arg "EE_IMAGE=${{ needs.pull-images.outputs.ee-image }}" \
+            --build-arg "EE_BASE_IMAGE=${{ needs.pull-images.outputs.ee-base-image }}" \
+            --build-arg "EE_BUILDER_IMAGE=${{ needs.pull-images.outputs.ee-builder-image }}" \
+            --build-arg "REDIS_IMAGE=${{ needs.pull-images.outputs.redis-image }}" \
+            --build-arg "PAUSE_IMAGE=${{ needs.pull-images.outputs.pause-image }}" \
+            --build-arg "SQLITE_IMAGE=${{ needs.pull-images.outputs.sqlite-image }}" \
             --file Dockerfile .
 
           docker run --name mirror-registry-offline-ci "mirror-registry-offline:ci"
@@ -56,7 +118,7 @@ jobs:
           docker rm mirror-registry-offline-ci
 
       - name: Upload tarfile
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: mirror-registry-extended-installer
           path: mirror-registry.tar.gz
@@ -73,10 +135,12 @@ jobs:
       GOOGLE_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
 
       - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v1
+        uses: hashicorp/setup-terraform@ed3a0531877aca392eb870f440d9ae7aba83a6bd # v1
         with:
           cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
           terraform_wrapper: false
@@ -104,12 +168,10 @@ jobs:
           terraform-context: ".github/workflows/extended-tls-installer"
 
       - name: Wait for VM
-        uses: jakejarvis/wait-action@master
-        with:
-          time: "60s"
+        run: sleep 60
 
       - name: Download tarfile
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: mirror-registry-extended-installer
 
@@ -119,13 +181,14 @@ jobs:
       - name: Install podman
         run: ssh ci-user@quay 'sudo subscription-manager refresh; sudo yum -y install podman'
 
-      - name: SCP tarball and test scripts to VM
-        run: |
-          scp mirror-registry.tar.gz ci-user@quay:~/
-          scp -r test/e2e ci-user@quay:~/e2e
+      - name: SCP tarball to VM
+        run: scp mirror-registry.tar.gz ci-user@quay:~/
 
       - name: Extract tarball
         run: ssh ci-user@quay 'tar -xf mirror-registry.tar.gz'
+
+      - name: SCP test scripts to VM
+        run: scp -r test/e2e ci-user@quay:~/e2e
 
       - name: Run custom TLS test
         run: ssh ci-user@quay 'QUAY_HOSTNAME=quay bash ~/e2e/test-custom-tls.sh ~'
@@ -147,10 +210,12 @@ jobs:
       GOOGLE_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
 
       - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v1
+        uses: hashicorp/setup-terraform@ed3a0531877aca392eb870f440d9ae7aba83a6bd # v1
         with:
           cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
           terraform_wrapper: false
@@ -178,12 +243,10 @@ jobs:
           terraform-context: ".github/workflows/extended-root-installer"
 
       - name: Wait for VM
-        uses: jakejarvis/wait-action@master
-        with:
-          time: "60s"
+        run: sleep 60
 
       - name: Download tarfile
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: mirror-registry-extended-installer
 
@@ -193,19 +256,31 @@ jobs:
       - name: Install podman
         run: ssh ci-user@quay 'sudo subscription-manager refresh; sudo yum -y install podman'
 
-      - name: SCP tarball and test scripts to VM
+      - name: Configure root SSH access
         run: |
-          scp mirror-registry.tar.gz ci-user@quay:~/
-          scp -r test/e2e ci-user@quay:~/e2e
+          ssh ci-user@quay 'sudo bash -euo pipefail -c "
+            install -d -m 700 /root/.ssh
+            ssh-keygen -t ed25519 -f /root/.ssh/id_rsa -N \"\" -q
+            cat /root/.ssh/id_rsa.pub >> /root/.ssh/authorized_keys
+            chmod 600 /root/.ssh/authorized_keys /root/.ssh/id_rsa
+            echo -e \"Host *\n  StrictHostKeyChecking no\" > /root/.ssh/config
+            chmod 600 /root/.ssh/config
+          "'
+
+      - name: SCP tarball to VM
+        run: scp mirror-registry.tar.gz ci-user@quay:~/
 
       - name: Extract tarball
         run: ssh ci-user@quay 'tar -xf mirror-registry.tar.gz'
+
+      - name: SCP test scripts to VM
+        run: scp -r test/e2e ci-user@quay:~/e2e
 
       - name: Pull busybox for push/pull test
         run: ssh ci-user@quay 'podman pull docker.io/library/busybox'
 
       - name: Run root install test
-        run: ssh ci-user@quay 'QUAY_HOSTNAME=quay bash ~/e2e/test-root-install.sh ~'
+        run: ssh ci-user@quay 'QUAY_HOSTNAME=quay sudo bash ~/e2e/test-root-install.sh ~'
 
       - name: Terraform Destroy
         run: terraform destroy --auto-approve
@@ -224,10 +299,12 @@ jobs:
       GOOGLE_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
 
       - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v1
+        uses: hashicorp/setup-terraform@ed3a0531877aca392eb870f440d9ae7aba83a6bd # v1
         with:
           cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
           terraform_wrapper: false
@@ -255,12 +332,10 @@ jobs:
           terraform-context: ".github/workflows/extended-uninstall-installer"
 
       - name: Wait for VM
-        uses: jakejarvis/wait-action@master
-        with:
-          time: "60s"
+        run: sleep 60
 
       - name: Download tarfile
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: mirror-registry-extended-installer
 
@@ -270,13 +345,14 @@ jobs:
       - name: Install podman
         run: ssh ci-user@quay 'sudo subscription-manager refresh; sudo yum -y install podman'
 
-      - name: SCP tarball and test scripts to VM
-        run: |
-          scp mirror-registry.tar.gz ci-user@quay:~/
-          scp -r test/e2e ci-user@quay:~/e2e
+      - name: SCP tarball to VM
+        run: scp mirror-registry.tar.gz ci-user@quay:~/
 
       - name: Extract tarball
         run: ssh ci-user@quay 'tar -xf mirror-registry.tar.gz'
+
+      - name: SCP test scripts to VM
+        run: scp -r test/e2e ci-user@quay:~/e2e
 
       - name: Pull busybox for push/pull test
         run: ssh ci-user@quay 'podman pull docker.io/library/busybox'
@@ -301,10 +377,12 @@ jobs:
       GOOGLE_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
 
       - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v1
+        uses: hashicorp/setup-terraform@ed3a0531877aca392eb870f440d9ae7aba83a6bd # v1
         with:
           cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
           terraform_wrapper: false
@@ -332,12 +410,10 @@ jobs:
           terraform-context: ".github/workflows/extended-paths-installer"
 
       - name: Wait for VM
-        uses: jakejarvis/wait-action@master
-        with:
-          time: "60s"
+        run: sleep 60
 
       - name: Download tarfile
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: mirror-registry-extended-installer
 
@@ -347,13 +423,14 @@ jobs:
       - name: Install podman
         run: ssh ci-user@quay 'sudo subscription-manager refresh; sudo yum -y install podman'
 
-      - name: SCP tarball and test scripts to VM
-        run: |
-          scp mirror-registry.tar.gz ci-user@quay:~/
-          scp -r test/e2e ci-user@quay:~/e2e
+      - name: SCP tarball to VM
+        run: scp mirror-registry.tar.gz ci-user@quay:~/
 
       - name: Extract tarball
         run: ssh ci-user@quay 'tar -xf mirror-registry.tar.gz'
+
+      - name: SCP test scripts to VM
+        run: scp -r test/e2e ci-user@quay:~/e2e
 
       - name: Pull busybox for push/pull test
         run: ssh ci-user@quay 'podman pull docker.io/library/busybox'
@@ -378,10 +455,12 @@ jobs:
       GOOGLE_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
 
       - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v1
+        uses: hashicorp/setup-terraform@ed3a0531877aca392eb870f440d9ae7aba83a6bd # v1
         with:
           cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
           terraform_wrapper: false
@@ -409,12 +488,10 @@ jobs:
           terraform-context: ".github/workflows/extended-hostname-installer"
 
       - name: Wait for VM
-        uses: jakejarvis/wait-action@master
-        with:
-          time: "60s"
+        run: sleep 60
 
       - name: Download tarfile
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: mirror-registry-extended-installer
 
@@ -424,13 +501,14 @@ jobs:
       - name: Install podman
         run: ssh ci-user@quay 'sudo subscription-manager refresh; sudo yum -y install podman'
 
-      - name: SCP tarball and test scripts to VM
-        run: |
-          scp mirror-registry.tar.gz ci-user@quay:~/
-          scp -r test/e2e ci-user@quay:~/e2e
+      - name: SCP tarball to VM
+        run: scp mirror-registry.tar.gz ci-user@quay:~/
 
       - name: Extract tarball
         run: ssh ci-user@quay 'tar -xf mirror-registry.tar.gz'
+
+      - name: SCP test scripts to VM
+        run: scp -r test/e2e ci-user@quay:~/e2e
 
       - name: Pull busybox for push/pull test
         run: ssh ci-user@quay 'podman pull docker.io/library/busybox'
@@ -455,10 +533,12 @@ jobs:
       GOOGLE_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
 
       - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v1
+        uses: hashicorp/setup-terraform@ed3a0531877aca392eb870f440d9ae7aba83a6bd # v1
         with:
           cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
           terraform_wrapper: false
@@ -486,12 +566,10 @@ jobs:
           terraform-context: ".github/workflows/extended-upgrade-installer"
 
       - name: Wait for VM
-        uses: jakejarvis/wait-action@master
-        with:
-          time: "60s"
+        run: sleep 60
 
       - name: Download tarfile
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: mirror-registry-extended-installer
 
@@ -501,13 +579,14 @@ jobs:
       - name: Install podman
         run: ssh ci-user@quay 'sudo subscription-manager refresh; sudo yum -y install podman'
 
-      - name: SCP tarball and test scripts to VM
-        run: |
-          scp mirror-registry.tar.gz ci-user@quay:~/
-          scp -r test/e2e ci-user@quay:~/e2e
+      - name: SCP tarball to VM
+        run: scp mirror-registry.tar.gz ci-user@quay:~/
 
       - name: Extract tarball
         run: ssh ci-user@quay 'tar -xf mirror-registry.tar.gz'
+
+      - name: SCP test scripts to VM
+        run: scp -r test/e2e ci-user@quay:~/e2e
 
       - name: Pull busybox for push/pull test
         run: ssh ci-user@quay 'podman pull docker.io/library/busybox'
@@ -532,10 +611,12 @@ jobs:
       GOOGLE_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
 
       - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v1
+        uses: hashicorp/setup-terraform@ed3a0531877aca392eb870f440d9ae7aba83a6bd # v1
         with:
           cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
           terraform_wrapper: false
@@ -563,12 +644,10 @@ jobs:
           terraform-context: ".github/workflows/extended-reinstall-installer"
 
       - name: Wait for VM
-        uses: jakejarvis/wait-action@master
-        with:
-          time: "60s"
+        run: sleep 60
 
       - name: Download tarfile
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: mirror-registry-extended-installer
 
@@ -578,13 +657,14 @@ jobs:
       - name: Install podman
         run: ssh ci-user@quay 'sudo subscription-manager refresh; sudo yum -y install podman'
 
-      - name: SCP tarball and test scripts to VM
-        run: |
-          scp mirror-registry.tar.gz ci-user@quay:~/
-          scp -r test/e2e ci-user@quay:~/e2e
+      - name: SCP tarball to VM
+        run: scp mirror-registry.tar.gz ci-user@quay:~/
 
       - name: Extract tarball
         run: ssh ci-user@quay 'tar -xf mirror-registry.tar.gz'
+
+      - name: SCP test scripts to VM
+        run: scp -r test/e2e ci-user@quay:~/e2e
 
       - name: Pull busybox for push/pull test
         run: ssh ci-user@quay 'podman pull docker.io/library/busybox'
@@ -609,10 +689,12 @@ jobs:
       GOOGLE_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
 
       - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v1
+        uses: hashicorp/setup-terraform@ed3a0531877aca392eb870f440d9ae7aba83a6bd # v1
         with:
           cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
           terraform_wrapper: false
@@ -640,12 +722,10 @@ jobs:
           terraform-context: ".github/workflows/extended-tls-mismatch-installer"
 
       - name: Wait for VM
-        uses: jakejarvis/wait-action@master
-        with:
-          time: "60s"
+        run: sleep 60
 
       - name: Download tarfile
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: mirror-registry-extended-installer
 
@@ -655,13 +735,14 @@ jobs:
       - name: Install podman
         run: ssh ci-user@quay 'sudo subscription-manager refresh; sudo yum -y install podman'
 
-      - name: SCP tarball and test scripts to VM
-        run: |
-          scp mirror-registry.tar.gz ci-user@quay:~/
-          scp -r test/e2e ci-user@quay:~/e2e
+      - name: SCP tarball to VM
+        run: scp mirror-registry.tar.gz ci-user@quay:~/
 
       - name: Extract tarball
         run: ssh ci-user@quay 'tar -xf mirror-registry.tar.gz'
+
+      - name: SCP test scripts to VM
+        run: scp -r test/e2e ci-user@quay:~/e2e
 
       - name: Run TLS mismatch test
         run: ssh ci-user@quay 'QUAY_HOSTNAME=quay bash ~/e2e/test-tls-mismatch.sh ~'
@@ -683,10 +764,12 @@ jobs:
       GOOGLE_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
 
       - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v1
+        uses: hashicorp/setup-terraform@ed3a0531877aca392eb870f440d9ae7aba83a6bd # v1
         with:
           cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
           terraform_wrapper: false
@@ -714,12 +797,10 @@ jobs:
           terraform-context: ".github/workflows/extended-errors-installer"
 
       - name: Wait for VM
-        uses: jakejarvis/wait-action@master
-        with:
-          time: "60s"
+        run: sleep 60
 
       - name: Download tarfile
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: mirror-registry-extended-installer
 
@@ -729,13 +810,14 @@ jobs:
       - name: Install podman
         run: ssh ci-user@quay 'sudo subscription-manager refresh; sudo yum -y install podman'
 
-      - name: SCP tarball and test scripts to VM
-        run: |
-          scp mirror-registry.tar.gz ci-user@quay:~/
-          scp -r test/e2e ci-user@quay:~/e2e
+      - name: SCP tarball to VM
+        run: scp mirror-registry.tar.gz ci-user@quay:~/
 
       - name: Extract tarball
         run: ssh ci-user@quay 'tar -xf mirror-registry.tar.gz'
+
+      - name: SCP test scripts to VM
+        run: scp -r test/e2e ci-user@quay:~/e2e
 
       - name: Run invalid cert error test
         run: ssh ci-user@quay 'QUAY_HOSTNAME=quay bash ~/e2e/test-error-invalid-cert.sh ~'
@@ -763,10 +845,12 @@ jobs:
       GOOGLE_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
 
       - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v1
+        uses: hashicorp/setup-terraform@ed3a0531877aca392eb870f440d9ae7aba83a6bd # v1
         with:
           cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
           terraform_wrapper: false
@@ -794,12 +878,10 @@ jobs:
           terraform-context: ".github/workflows/extended-port-installer"
 
       - name: Wait for VM
-        uses: jakejarvis/wait-action@master
-        with:
-          time: "60s"
+        run: sleep 60
 
       - name: Download tarfile
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: mirror-registry-extended-installer
 
@@ -809,13 +891,14 @@ jobs:
       - name: Install podman
         run: ssh ci-user@quay 'sudo subscription-manager refresh; sudo yum -y install podman'
 
-      - name: SCP tarball and test scripts to VM
-        run: |
-          scp mirror-registry.tar.gz ci-user@quay:~/
-          scp -r test/e2e ci-user@quay:~/e2e
+      - name: SCP tarball to VM
+        run: scp mirror-registry.tar.gz ci-user@quay:~/
 
       - name: Extract tarball
         run: ssh ci-user@quay 'tar -xf mirror-registry.tar.gz'
+
+      - name: SCP test scripts to VM
+        run: scp -r test/e2e ci-user@quay:~/e2e
 
       - name: Pull busybox for push/pull test
         run: ssh ci-user@quay 'podman pull docker.io/library/busybox'
@@ -840,10 +923,12 @@ jobs:
       GOOGLE_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
 
       - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v1
+        uses: hashicorp/setup-terraform@ed3a0531877aca392eb870f440d9ae7aba83a6bd # v1
         with:
           cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
           terraform_wrapper: false
@@ -871,12 +956,10 @@ jobs:
           terraform-context: ".github/workflows/extended-health-installer"
 
       - name: Wait for VM
-        uses: jakejarvis/wait-action@master
-        with:
-          time: "60s"
+        run: sleep 60
 
       - name: Download tarfile
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: mirror-registry-extended-installer
 
@@ -886,13 +969,14 @@ jobs:
       - name: Install podman
         run: ssh ci-user@quay 'sudo subscription-manager refresh; sudo yum -y install podman'
 
-      - name: SCP tarball and test scripts to VM
-        run: |
-          scp mirror-registry.tar.gz ci-user@quay:~/
-          scp -r test/e2e ci-user@quay:~/e2e
+      - name: SCP tarball to VM
+        run: scp mirror-registry.tar.gz ci-user@quay:~/
 
       - name: Extract tarball
         run: ssh ci-user@quay 'tar -xf mirror-registry.tar.gz'
+
+      - name: SCP test scripts to VM
+        run: scp -r test/e2e ci-user@quay:~/e2e
 
       - name: Run health endpoint test
         run: ssh ci-user@quay 'QUAY_HOSTNAME=quay bash ~/e2e/test-health-endpoint.sh ~'

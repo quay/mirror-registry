@@ -23,10 +23,10 @@ response=$(curl -sk "https://${QUAY_ENDPOINT}/health/instance" 2>/dev/null)
 
 if [[ -z "${response}" ]]; then
     log_error "FAIL: Health endpoint returned empty response"
-    ((FAIL_COUNT++))
+    (( ++FAIL_COUNT ))
 else
     log_info "PASS: Health endpoint returned response"
-    ((PASS_COUNT++))
+    (( ++PASS_COUNT ))
 fi
 
 # Validate JSON structure
@@ -59,20 +59,20 @@ else:
     sys.exit(1)
 " && {
     log_info "PASS: All health services report healthy"
-    ((PASS_COUNT++))
+    (( ++PASS_COUNT ))
 } || {
     log_error "FAIL: Health endpoint validation failed"
-    ((FAIL_COUNT++))
+    (( ++FAIL_COUNT ))
 }
 
 # Verify response has expected content type behavior
 http_code=$(curl -sk -o /dev/null -w "%{http_code}" "https://${QUAY_ENDPOINT}/health/instance" 2>/dev/null)
 if [[ "${http_code}" == "200" ]]; then
     log_info "PASS: Health endpoint returns HTTP 200"
-    ((PASS_COUNT++))
+    (( ++PASS_COUNT ))
 else
     log_error "FAIL: Health endpoint returned HTTP ${http_code}"
-    ((FAIL_COUNT++))
+    (( ++FAIL_COUNT ))
 fi
 
 # Cleanup

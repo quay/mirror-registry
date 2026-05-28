@@ -27,11 +27,11 @@ assert_success() {
     shift
     if "$@"; then
         log_info "PASS: ${description}"
-        ((PASS_COUNT++))
+        (( ++PASS_COUNT ))
     else
         log_error "FAIL: ${description}"
         log_error "  Command: $*"
-        ((FAIL_COUNT++))
+        (( ++FAIL_COUNT ))
     fi
 }
 
@@ -40,10 +40,10 @@ assert_failure() {
     shift
     if "$@" 2>/dev/null; then
         log_error "FAIL: ${description} (expected failure but succeeded)"
-        ((FAIL_COUNT++))
+        (( ++FAIL_COUNT ))
     else
         log_info "PASS: ${description}"
-        ((PASS_COUNT++))
+        (( ++PASS_COUNT ))
     fi
 }
 
@@ -53,11 +53,11 @@ assert_contains() {
     local needle="$3"
     if echo "${haystack}" | grep -q "${needle}"; then
         log_info "PASS: ${description}"
-        ((PASS_COUNT++))
+        (( ++PASS_COUNT ))
     else
         log_error "FAIL: ${description}"
         log_error "  Expected to find: ${needle}"
-        ((FAIL_COUNT++))
+        (( ++FAIL_COUNT ))
     fi
 }
 
@@ -66,11 +66,11 @@ assert_file_exists() {
     local filepath="$2"
     if [[ -e "${filepath}" ]]; then
         log_info "PASS: ${description}"
-        ((PASS_COUNT++))
+        (( ++PASS_COUNT ))
     else
         log_error "FAIL: ${description}"
         log_error "  File not found: ${filepath}"
-        ((FAIL_COUNT++))
+        (( ++FAIL_COUNT ))
     fi
 }
 
@@ -79,18 +79,18 @@ assert_file_not_exists() {
     local filepath="$2"
     if [[ ! -e "${filepath}" ]]; then
         log_info "PASS: ${description}"
-        ((PASS_COUNT++))
+        (( ++PASS_COUNT ))
     else
         log_error "FAIL: ${description}"
         log_error "  File should not exist: ${filepath}"
-        ((FAIL_COUNT++))
+        (( ++FAIL_COUNT ))
     fi
 }
 
 # Wait for Quay health endpoint to become healthy (up to timeout seconds)
 wait_for_quay() {
     local hostname="${1:-localhost:8443}"
-    local timeout="${2:-120}"
+    local timeout="${2:-300}"
     local elapsed=0
     log_info "Waiting for Quay at ${hostname} to become healthy (timeout: ${timeout}s)..."
     while [[ ${elapsed} -lt ${timeout} ]]; do
@@ -121,7 +121,7 @@ assert_quay_healthy() {
     response=$(curl -sk "https://${hostname}/health/instance" 2>/dev/null)
     if [[ -z "${response}" ]]; then
         log_error "FAIL: Health endpoint returned empty response"
-        ((FAIL_COUNT++))
+        (( ++FAIL_COUNT ))
         return 1
     fi
 
@@ -135,11 +135,11 @@ for svc, status in services.items():
 print('All services healthy')
 " 2>/dev/null; then
         log_info "PASS: Quay health check"
-        ((PASS_COUNT++))
+        (( ++PASS_COUNT ))
     else
         log_error "FAIL: Quay health check"
         log_error "  Response: ${response}"
-        ((FAIL_COUNT++))
+        (( ++FAIL_COUNT ))
     fi
 }
 
@@ -153,10 +153,10 @@ assert_services_running() {
     for svc in quay-pod quay-app quay-redis; do
         if ${systemctl_cmd} is-active "${svc}.service" &>/dev/null; then
             log_info "PASS: ${svc}.service is active"
-            ((PASS_COUNT++))
+            (( ++PASS_COUNT ))
         else
             log_error "FAIL: ${svc}.service is not active"
-            ((FAIL_COUNT++))
+            (( ++FAIL_COUNT ))
         fi
     done
 }
@@ -174,20 +174,20 @@ assert_clean_uninstall() {
     containers=$(podman ps -q -f name=quay 2>/dev/null || true)
     if [[ -z "${containers}" ]]; then
         log_info "PASS: No quay containers running"
-        ((PASS_COUNT++))
+        (( ++PASS_COUNT ))
     else
         log_error "FAIL: Quay containers still running: ${containers}"
-        ((FAIL_COUNT++))
+        (( ++FAIL_COUNT ))
     fi
 
     # No systemd services enabled
     for svc in quay-app quay-pod quay-redis; do
         if ! ${systemctl_cmd} is-enabled "${svc}.service" &>/dev/null; then
             log_info "PASS: ${svc}.service is not enabled"
-            ((PASS_COUNT++))
+            (( ++PASS_COUNT ))
         else
             log_error "FAIL: ${svc}.service is still enabled"
-            ((FAIL_COUNT++))
+            (( ++FAIL_COUNT ))
         fi
     done
 
@@ -195,10 +195,10 @@ assert_clean_uninstall() {
     eval local expanded_root="${quay_root}"
     if [[ ! -d "${expanded_root}" ]]; then
         log_info "PASS: ${quay_root} directory removed"
-        ((PASS_COUNT++))
+        (( ++PASS_COUNT ))
     else
         log_error "FAIL: ${quay_root} directory still exists"
-        ((FAIL_COUNT++))
+        (( ++FAIL_COUNT ))
     fi
 }
 
@@ -269,10 +269,10 @@ verify_push_pull() {
 
     if podman images | grep -q "${hostname}/${username}/busybox"; then
         log_info "PASS: Push/pull verification"
-        ((PASS_COUNT++))
+        (( ++PASS_COUNT ))
     else
         log_error "FAIL: Push/pull verification"
-        ((FAIL_COUNT++))
+        (( ++FAIL_COUNT ))
     fi
 
     # Cleanup

@@ -36,12 +36,12 @@ provided_serial=$(openssl x509 -in "${CERT_DIR}/server.cert" -noout -serial 2>/d
 
 if [[ "${server_serial}" == "${provided_serial}" ]]; then
     log_info "PASS: Server is using the provided certificate"
-    ((PASS_COUNT++))
+    (( ++PASS_COUNT ))
 else
     log_error "FAIL: Server certificate does not match provided cert"
     log_error "  Server serial:   ${server_serial}"
     log_error "  Provided serial: ${provided_serial}"
-    ((FAIL_COUNT++))
+    (( ++FAIL_COUNT ))
 fi
 
 # Verify we can login using the CA to trust the cert
