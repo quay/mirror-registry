@@ -1,0 +1,57 @@
+- name: Check if new SSL Cert was provided via --sslCert
+  stat:
+    path: /runner/certs/quay.cert
+  delegate_to: localhost
+  register: new_ssl_cert
+
+- name: Check if new SSL Key was provided via --sslKey
+  stat:
+    path: /runner/certs/quay.key
+  delegate_to: localhost
+  register: new_ssl_key
+
+- name: Copy new SSL certificates to target host
+  block:
+    - name: Copy new SSL certificate
+      copy:
+        src: /runner/certs/quay.cert
+        dest: "{{ quay_root }}/quay-config/ssl.cert"
+        mode: u=rw,g=r,o=r
+
+    - name: Copy new SSL key
+      copy:
+        src: /runner/certs/quay.key
+        dest: "{{ quay_root }}/quay-config/ssl.key"
+        mode: u=rw,g=r,o=r
+  when: new_ssl_cert.stat.exists and new_ssl_key.stat.exists
+
+- name: Validate existing SSL certificates on target host
+  block:
+    - name: Check if ssl.cert exists on target
+      stat:
+        path: "{{ expanded_quay_root }}/quay-config/ssl.cert"
+      register: existing_ssl_cert
+
+    - name: Check if ssl.key exists on target
+      stat:
+        path: "{{ expanded_quay_root }}/quay-config/ssl.key"
+      register: existing_ssl_key
+
+    - name: Fail if SSL certificate is missing
+      fail:
+        msg: >-
+          SSL certificate not found at {{ expanded_quay_root }}/quay-config/ssl.cert.
+          Quay requires SSL certificates to start. Please re-run the upgrade command
+          with --sslCert and --sslKey flags to provide new certificates, for example:
+          mirror-registry upgrade --sslCert /path/to/ssl.cert --sslKey /path/to/ssl.key
+      when: not existing_ssl_cert.stat.exists
+
+    - name: Fail if SSL key is missing
+      fail:
+        msg: >-
+          SSL key not found at {{ expanded_quay_root }}/quay-config/ssl.key.
+          Quay requires SSL certificates to start. Please re-run the upgrade command
+          with --sslCert and --sslKey flags to provide new certificates, for example:
+          mirror-registry upgrade --sslCert /path/to/ssl.cert --sslKey /path/to/ssl.key
+      when: not existing_ssl_key.stat.exists
+  when: not (new_ssl_cert.stat.exists and new_ssl_key.stat.exists)
