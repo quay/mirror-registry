@@ -331,6 +331,17 @@ jobs:
           ssh ci-user@quay 'curl -sk https://quay:8443/health/instance | grep -q HEALTHY || \
             curl -sk https://localhost:8443/health/instance | grep -q HEALTHY'
 
+      - name: Test remote upgrade fails with clear error when certs are missing
+        run: |
+          ssh ci-user@quay 'cp ~/quay-install/quay-config/ssl.cert ~/quay-install/quay-config/ssl.cert.bak'
+          ssh ci-user@quay 'rm ~/quay-install/quay-config/ssl.cert'
+          if ssh ci-user@control './mirror-registry upgrade -u ci-user -r /home/ci-user/quay-install -H quay -v -k ~/.ssh/id_rsa' 2>&1; then
+            echo "FAIL: upgrade should have failed with missing ssl.cert"
+            exit 1
+          fi
+          echo "PASS: remote upgrade correctly failed when ssl.cert is missing"
+          ssh ci-user@quay 'mv ~/quay-install/quay-config/ssl.cert.bak ~/quay-install/quay-config/ssl.cert'
+
       - name: Uninstall Registry
         run: ssh ci-user@control './mirror-registry uninstall -u ci-user -H quay --autoApprove -v -k ~/.ssh/id_rsa'
 
@@ -510,6 +521,17 @@ jobs:
           ssh ci-user@quay './mirror-registry upgrade --sslCert /tmp/new-ssl.cert --sslKey /tmp/new-ssl.key -v'
           ssh ci-user@quay 'curl -sk https://quay:8443/health/instance | grep -q HEALTHY || \
             curl -sk https://localhost:8443/health/instance | grep -q HEALTHY'
+
+      - name: Test upgrade fails with clear error when certs are missing
+        run: |
+          ssh ci-user@quay 'cp ~/quay-install/quay-config/ssl.cert ~/quay-install/quay-config/ssl.cert.bak'
+          ssh ci-user@quay 'rm ~/quay-install/quay-config/ssl.cert'
+          if ssh ci-user@quay './mirror-registry upgrade -v' 2>&1; then
+            echo "FAIL: upgrade should have failed with missing ssl.cert"
+            exit 1
+          fi
+          echo "PASS: upgrade correctly failed when ssl.cert is missing"
+          ssh ci-user@quay 'mv ~/quay-install/quay-config/ssl.cert.bak ~/quay-install/quay-config/ssl.cert'
 
       - name: Uninstall Quay
         run: ssh ci-user@quay './mirror-registry uninstall --autoApprove -v'
