@@ -43,7 +43,8 @@ jobs:
         id: images
         run: |
           get_env() { grep "^$1=" .env | head -1 | cut -d= -f2-; }
-          for var in QUAY_IMAGE REDIS_IMAGE EE_IMAGE EE_BASE_IMAGE EE_BUILDER_IMAGE PAUSE_IMAGE SQLITE_IMAGE; do
+          # Only pull images used as Dockerfile FROM stages
+          for var in QUAY_IMAGE REDIS_IMAGE EE_BASE_IMAGE EE_BUILDER_IMAGE PAUSE_IMAGE; do
             ref=$(get_env "$var")
             echo "Pulling $var=$ref"
             docker pull "$ref"
@@ -62,11 +63,9 @@ jobs:
           docker save \
             $(get_env QUAY_IMAGE) \
             $(get_env REDIS_IMAGE) \
-            $(get_env EE_IMAGE) \
             $(get_env EE_BASE_IMAGE) \
             $(get_env EE_BUILDER_IMAGE) \
             $(get_env PAUSE_IMAGE) \
-            $(get_env SQLITE_IMAGE) \
             -o ci-images.tar
 
       - name: Upload images
