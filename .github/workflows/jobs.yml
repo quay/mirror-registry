@@ -60,12 +60,16 @@ jobs:
         id: images
         run: |
           get_env() { grep "^$1=" .env | head -1 | cut -d= -f2-; }
-          # Only pull images used as Dockerfile FROM stages
+          # Pull images used as Dockerfile FROM stages (from .env)
           for var in QUAY_IMAGE REDIS_IMAGE EE_BASE_IMAGE EE_BUILDER_IMAGE PAUSE_IMAGE; do
             ref=$(get_env "$var")
             echo "Pulling $var=$ref"
             docker pull "$ref"
           done
+          # Pull hardcoded Dockerfile FROM base images
+          docker pull registry.redhat.io/ubi8:latest
+          docker pull registry.access.redhat.com/ubi8:latest
+          docker pull registry.access.redhat.com/ubi8-minimal:latest
           echo "quay=$(get_env QUAY_IMAGE)" >> "$GITHUB_OUTPUT"
           echo "redis=$(get_env REDIS_IMAGE)" >> "$GITHUB_OUTPUT"
           echo "ee=$(get_env EE_IMAGE)" >> "$GITHUB_OUTPUT"
@@ -83,6 +87,9 @@ jobs:
             $(get_env EE_BASE_IMAGE) \
             $(get_env EE_BUILDER_IMAGE) \
             $(get_env PAUSE_IMAGE) \
+            registry.redhat.io/ubi8:latest \
+            registry.access.redhat.com/ubi8:latest \
+            registry.access.redhat.com/ubi8-minimal:latest \
             -o ci-images.tar
 
       - name: Upload images
@@ -154,6 +161,7 @@ jobs:
           IMAGE_NAME="mirror-registry-${INSTALLER_TYPE}:${RELEASE_VERSION}"
 
           docker build \
+            --network=none \
             -t "$IMAGE_NAME" \
             --build-arg "RELEASE_VERSION=${RELEASE_VERSION}" \
             --build-arg "QUAY_IMAGE=${{ needs.pull-images.outputs.quay-image }}" \
