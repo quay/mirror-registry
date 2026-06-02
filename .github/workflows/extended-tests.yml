@@ -164,6 +164,8 @@ jobs:
             User ci-user
             IdentityFile ~/.ssh/staging.key
             StrictHostKeyChecking no
+            ServerAliveInterval 30
+            ServerAliveCountMax 10
           END
 
       - name: Initialize VM
