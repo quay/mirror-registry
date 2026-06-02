@@ -23,5 +23,9 @@
 
 - name: Set facts for existing postgres secrets only if they are a string and not a jinja2 variable in the config.yaml.
   ansible.builtin.set_fact:
-    PGDB_PASSWORD : "{{ quay_config_file['DB_URI'].split('@')[0].split(':')[2] }}"
-  when: postgres_container_status.stdout != "" and quay_config_file['DATABASE_SECRET_KEY'] is string and quay_config_file['DB_URI'] is string
+    PGDB_PASSWORD: "{{ quay_config_file['DB_URI'] | urlsplit('password') }}"
+  when: >
+    postgres_container_status.stdout != "" and
+    quay_config_file['DATABASE_SECRET_KEY'] is string and
+    quay_config_file['DB_URI'] is string and
+    (quay_config_file['DB_URI'] | urlsplit('scheme')) == 'postgresql'
