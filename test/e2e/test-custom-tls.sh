@@ -46,7 +46,7 @@ fi
 
 # Verify we can login using the CA to trust the cert
 log_info "Verifying podman login with CA trust..."
-mkdir -p "/etc/containers/certs.d/${QUAY_ENDPOINT}"
+sudo mkdir -p "/etc/containers/certs.d/${QUAY_ENDPOINT}"
 cp "${CERT_DIR}/ca.pem" "/etc/containers/certs.d/${QUAY_ENDPOINT}/ca.crt" 2>/dev/null || \
     sudo cp "${CERT_DIR}/ca.pem" "/etc/containers/certs.d/${QUAY_ENDPOINT}/ca.crt"
 
