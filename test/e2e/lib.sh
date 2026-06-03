@@ -101,8 +101,8 @@ try:
     services = data.get('data', {}).get('services', {})
     if services and all(services.values()):
         sys.exit(0)
-except:
-    pass
+except Exception as e:
+    print(f'Health check error: {e}', file=sys.stderr)
 sys.exit(1)
 " 2>/dev/null; then
             log_info "Quay is healthy after ${elapsed}s"
