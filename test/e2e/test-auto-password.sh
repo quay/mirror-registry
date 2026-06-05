@@ -25,7 +25,7 @@ if echo "${install_output}" | grep -q "credentials (init,"; then
     (( ++PASS_COUNT ))
 
     # Extract the password from output
-    generated_password=$(echo "${install_output}" | grep "credentials (init," | sed 's/.*credentials (init, \(.*\))/\1/' | tr -d ')')
+    generated_password=$(echo "${install_output}" | grep "credentials (init," | sed 's/.*credentials (init, \([^)]*\)).*/\1/')
     log_info "Generated password length: ${#generated_password}"
 
     if [[ ${#generated_password} -gt 8 ]]; then
