@@ -6,4 +6,10 @@
     return_content: yes
     body_format: json
     body: '{ "username": "{{ init_user }}", "password": "{{ init_password }}", "email": "init@quay.io", "access_token": "true" }'
+    status_code: [200, 400]
   register: result
+
+- name: Report init user status
+  debug:
+    msg: "Init user already exists, skipping creation"
+  when: result.status == 400
