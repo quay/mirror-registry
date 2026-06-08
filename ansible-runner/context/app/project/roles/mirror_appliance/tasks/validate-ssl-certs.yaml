@@ -15,13 +15,13 @@
     - name: Copy new SSL certificate
       copy:
         src: /runner/certs/quay.cert
-        dest: "{{ quay_root }}/quay-config/ssl.cert"
+        dest: "{{ expanded_quay_root }}/quay-config/ssl.cert"
         mode: u=rw,g=r,o=r
 
     - name: Copy new SSL key
       copy:
         src: /runner/certs/quay.key
-        dest: "{{ quay_root }}/quay-config/ssl.key"
+        dest: "{{ expanded_quay_root }}/quay-config/ssl.key"
         mode: u=rw,g=r,o=r
   when: new_ssl_cert.stat.exists and new_ssl_key.stat.exists
 
