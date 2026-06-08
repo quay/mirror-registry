@@ -23,32 +23,110 @@ concurrency:
   group: limit-to-one
 
 jobs:
-  build-install-zip:
-    name: "Build Installer"
+  pull-images:
+    name: "Pull Images"
     runs-on: ubuntu-latest
     if: github.repository_owner == 'quay' && (github.event_name == 'push' || contains(github.event.pull_request.labels.*.name, 'ok-to-test') || github.event.inputs.version)
     outputs:
       quay-image: ${{ steps.images.outputs.quay }}
       redis-image: ${{ steps.images.outputs.redis }}
+      ee-image: ${{ steps.images.outputs.ee }}
+      ee-base-image: ${{ steps.images.outputs.ee_base }}
+      ee-builder-image: ${{ steps.images.outputs.ee_builder }}
+      pause-image: ${{ steps.images.outputs.pause }}
+      sqlite-image: ${{ steps.images.outputs.sqlite }}
+    steps:
+      - name: Checkout base branch
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        if: "!github.event.inputs.version"
+        with:
+          persist-credentials: false
+
+      - name: Checkout release tag
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        if: github.event.inputs.version
+        with:
+          ref: refs/tags/${{ github.event.inputs.version }}
+          persist-credentials: false
+
+      - name: Log into docker for registry.redhat.io
+        uses: docker/login-action@465a07811f14bebb1938fbed4728c6a1ff8901fc # v2
+        with:
+          registry: registry.redhat.io
+          username: ${{ secrets.REGISTRY_USERNAME }}
+          password: ${{ secrets.REGISTRY_PASSWORD }}
+
+      - name: Resolve and pull images
+        id: images
+        run: |
+          get_env() { grep "^$1=" .env | head -1 | cut -d= -f2-; }
+          # Pull images used as Dockerfile FROM stages (from .env)
+          for var in QUAY_IMAGE REDIS_IMAGE EE_BASE_IMAGE EE_BUILDER_IMAGE PAUSE_IMAGE; do
+            ref=$(get_env "$var")
+            echo "Pulling $var=$ref"
+            docker pull "$ref"
+          done
+          # Pull hardcoded Dockerfile FROM base images
+          docker pull registry.redhat.io/ubi8:latest
+          docker pull registry.access.redhat.com/ubi8:latest
+          docker pull registry.access.redhat.com/ubi8-minimal:latest
+          echo "quay=$(get_env QUAY_IMAGE)" >> "$GITHUB_OUTPUT"
+          echo "redis=$(get_env REDIS_IMAGE)" >> "$GITHUB_OUTPUT"
+          echo "ee=$(get_env EE_IMAGE)" >> "$GITHUB_OUTPUT"
+          echo "ee_base=$(get_env EE_BASE_IMAGE)" >> "$GITHUB_OUTPUT"
+          echo "ee_builder=$(get_env EE_BUILDER_IMAGE)" >> "$GITHUB_OUTPUT"
+          echo "pause=$(get_env PAUSE_IMAGE)" >> "$GITHUB_OUTPUT"
+          echo "sqlite=$(get_env SQLITE_IMAGE)" >> "$GITHUB_OUTPUT"
+
+      - name: Save images to tar
+        run: |
+          get_env() { grep "^$1=" .env | head -1 | cut -d= -f2-; }
+          docker save \
+            $(get_env QUAY_IMAGE) \
+            $(get_env REDIS_IMAGE) \
+            $(get_env EE_BASE_IMAGE) \
+            $(get_env EE_BUILDER_IMAGE) \
+            $(get_env PAUSE_IMAGE) \
+            registry.redhat.io/ubi8:latest \
+            registry.access.redhat.com/ubi8:latest \
+            registry.access.redhat.com/ubi8-minimal:latest \
+            -o ci-images.tar
+
+      - name: Upload images
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: ci-images
+          path: ci-images.tar
+          retention-days: 1
+
+  build-install-zip:
+    name: "Build Installer"
+    needs: [pull-images]
+    runs-on: ubuntu-latest
+    if: github.repository_owner == 'quay' && (github.event_name == 'push' || contains(github.event.pull_request.labels.*.name, 'ok-to-test') || github.event.inputs.version)
     strategy:
       matrix:
         installer-type: ["online", "offline"]
     steps:
-      # Checkout source branch for testing
       - name: Checkout PR
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         if: contains(github.event.pull_request.labels.*.name, 'ok-to-test')
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           persist-credentials: false
 
-      # Checkout target branch for release build
-      - name: Checkout
-        uses: actions/checkout@v4
+      - name: Checkout base branch
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        if: github.event_name == 'push'
+        with:
+          persist-credentials: false
+
+      - name: Checkout release tag
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        if: github.event.inputs.version
         with:
           ref: refs/tags/${{ github.event.inputs.version }}
           persist-credentials: false
-        if: github.event.inputs.version
 
       - name: Set version from tag/branch
         run: |
@@ -62,24 +140,16 @@ jobs:
         env:
           INPUT_VERSION: ${{ github.event.inputs.version }}
 
-      - name: Log into docker for registry.redhat.io
-        uses: docker/login-action@v2
+      - name: Download images
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
-          registry: registry.redhat.io
-          username: ${{ secrets.REGISTRY_USERNAME }}
-          password: ${{ secrets.REGISTRY_PASSWORD }}
+          name: ci-images
 
-      - name: Resolve image refs
-        id: images
-        run: |
-          get_env() { grep "^$1=" .env | head -1 | cut -d= -f2-; }
-          echo "quay=$(get_env QUAY_IMAGE)" >> "$GITHUB_OUTPUT"
-          echo "redis=$(get_env REDIS_IMAGE)" >> "$GITHUB_OUTPUT"
+      - name: Load images
+        run: docker load -i ci-images.tar
 
       - name: Build tarfile
         run: |
-          get_env() { grep "^$1=" .env | head -1 | cut -d= -f2-; }
-
           INSTALLER_TYPE="${{ matrix.installer-type }}"
           if [ "$INSTALLER_TYPE" = "offline" ]; then
             DOCKERFILE="Dockerfile"
@@ -93,13 +163,13 @@ jobs:
           docker build \
             -t "$IMAGE_NAME" \
             --build-arg "RELEASE_VERSION=${RELEASE_VERSION}" \
-            --build-arg "QUAY_IMAGE=$(get_env QUAY_IMAGE)" \
-            --build-arg "EE_IMAGE=$(get_env EE_IMAGE)" \
-            --build-arg "EE_BASE_IMAGE=$(get_env EE_BASE_IMAGE)" \
-            --build-arg "EE_BUILDER_IMAGE=$(get_env EE_BUILDER_IMAGE)" \
-            --build-arg "REDIS_IMAGE=$(get_env REDIS_IMAGE)" \
-            --build-arg "PAUSE_IMAGE=$(get_env PAUSE_IMAGE)" \
-            --build-arg "SQLITE_IMAGE=$(get_env SQLITE_IMAGE)" \
+            --build-arg "QUAY_IMAGE=${{ needs.pull-images.outputs.quay-image }}" \
+            --build-arg "EE_IMAGE=${{ needs.pull-images.outputs.ee-image }}" \
+            --build-arg "EE_BASE_IMAGE=${{ needs.pull-images.outputs.ee-base-image }}" \
+            --build-arg "EE_BUILDER_IMAGE=${{ needs.pull-images.outputs.ee-builder-image }}" \
+            --build-arg "REDIS_IMAGE=${{ needs.pull-images.outputs.redis-image }}" \
+            --build-arg "PAUSE_IMAGE=${{ needs.pull-images.outputs.pause-image }}" \
+            --build-arg "SQLITE_IMAGE=${{ needs.pull-images.outputs.sqlite-image }}" \
             --file "$DOCKERFILE" .
 
           docker run --name "$CONTAINER_NAME" "$IMAGE_NAME"
@@ -107,7 +177,7 @@ jobs:
           docker rm "$CONTAINER_NAME"
 
       - name: Upload tarfile
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: mirror-registry-${{ matrix.installer-type }}-installer
           path: mirror-registry.tar.gz
@@ -118,7 +188,7 @@ jobs:
     # receives the deployment, matching the real-world remote install topology
     # where an operator machine deploys to a separate target host.
     name: "Remote Install"
-    needs: ["build-install-zip"]
+    needs: ["build-install-zip", "pull-images"]
     runs-on: ubuntu-latest
     environment: ci-testing
     timeout-minutes: 60
@@ -131,15 +201,17 @@ jobs:
       GOOGLE_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
 
       - name: Install oc
-        uses: redhat-actions/oc-installer@v1
+        uses: redhat-actions/oc-installer@35b60c3f9757ae4301521556e1b75ff6f59f8d7c # v1
         with:
           oc_version: "4.6"
 
       - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v1
+        uses: hashicorp/setup-terraform@ed3a0531877aca392eb870f440d9ae7aba83a6bd # v1
         with:
           # terraform_version: 0.13.0:
           cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
@@ -179,12 +251,10 @@ jobs:
         working-directory: ".github/workflows/remote-${{ matrix.installer-type }}-installer"
 
       - name: Wait for VMs
-        uses: jakejarvis/wait-action@master
-        with:
-          time: "60s"
+        run: sleep 60
 
       - name: Download tarfile
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: mirror-registry-${{ matrix.installer-type }}-installer
 
@@ -204,8 +274,8 @@ jobs:
         env:
           REGISTRY_USER: ${{ secrets.REGISTRY_USERNAME }}
           REGISTRY_PASS: ${{ secrets.REGISTRY_PASSWORD }}
-          QUAY_IMG: ${{ needs.build-install-zip.outputs.quay-image }}
-          REDIS_IMG: ${{ needs.build-install-zip.outputs.redis-image }}
+          QUAY_IMG: ${{ needs.pull-images.outputs.quay-image }}
+          REDIS_IMG: ${{ needs.pull-images.outputs.redis-image }}
 
       - name: Install podman on control VM
         run: ssh ci-user@control 'sudo subscription-manager refresh; sudo yum -y install podman'
@@ -310,7 +380,7 @@ jobs:
 
   test-local-install:
     name: "Local Install"
-    needs: ["build-install-zip"]
+    needs: ["build-install-zip", "pull-images"]
     runs-on: ubuntu-latest
     environment: ci-testing
     timeout-minutes: 60
@@ -323,15 +393,17 @@ jobs:
       GOOGLE_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
 
       - name: Install oc
-        uses: redhat-actions/oc-installer@v1
+        uses: redhat-actions/oc-installer@35b60c3f9757ae4301521556e1b75ff6f59f8d7c # v1
         with:
           oc_version: "4.6"
 
       - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v1
+        uses: hashicorp/setup-terraform@ed3a0531877aca392eb870f440d9ae7aba83a6bd # v1
         with:
           # terraform_version: 0.13.0:
           cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
@@ -360,12 +432,10 @@ jobs:
           terraform-context: ".github/workflows/local-${{ matrix.installer-type }}-installer"
 
       - name: Wait for VM
-        uses: jakejarvis/wait-action@master
-        with:
-          time: "60s"
+        run: sleep 60
 
       - name: Download tarfile
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: mirror-registry-${{ matrix.installer-type }}-installer
 
@@ -388,8 +458,8 @@ jobs:
         env:
           REGISTRY_USER: ${{ secrets.REGISTRY_USERNAME }}
           REGISTRY_PASS: ${{ secrets.REGISTRY_PASSWORD }}
-          QUAY_IMG: ${{ needs.build-install-zip.outputs.quay-image }}
-          REDIS_IMG: ${{ needs.build-install-zip.outputs.redis-image }}
+          QUAY_IMG: ${{ needs.pull-images.outputs.quay-image }}
+          REDIS_IMG: ${{ needs.pull-images.outputs.redis-image }}
 
       - name: Pull busybox image from Docker Hub before disabling traffic
         run: ssh ci-user@quay 'podman pull docker.io/library/busybox'
@@ -503,24 +573,26 @@ jobs:
     if: github.repository_owner == 'quay' && (github.event_name == 'push' || github.event.inputs.version)
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
 
       - name: Download offline tarfile
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: mirror-registry-offline-installer
       - name: Rename offline tarfile
         run: mv mirror-registry.tar.gz mirror-registry-offline.tar.gz
 
       - name: Download online tarfile
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: mirror-registry-online-installer
 
       - name: Rename online tarfile
         run: mv mirror-registry.tar.gz mirror-registry-online.tar.gz
 
-      - uses: ncipollo/release-action@v1
+      - uses: ncipollo/release-action@339a81892b84b4eeb0f6e744e4574d79d0d9b8dd # v1
         with:
           artifacts: "*.tar.gz,README.md"
           allowUpdates: true
@@ -528,7 +600,7 @@ jobs:
           tag: ${{ github.ref_name }}
         if: github.event_name == 'push'
 
-      - uses: ncipollo/release-action@v1
+      - uses: ncipollo/release-action@339a81892b84b4eeb0f6e744e4574d79d0d9b8dd # v1
         with:
           artifacts: "*.tar.gz,README.md"
           allowUpdates: true
