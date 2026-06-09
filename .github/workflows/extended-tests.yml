@@ -938,6 +938,86 @@ jobs:
         working-directory: ".github/workflows/extended-port-installer"
         if: always()
 
+  test-upgrade-preserves-config:
+    name: "Upgrade Preserves Config"
+    needs: [build-installer]
+    runs-on: ubuntu-latest
+    environment: ci-testing
+    timeout-minutes: 60
+    if: github.repository_owner == 'quay' && contains(github.event.pull_request.labels.*.name, 'ok-to-test')
+    env:
+      GOOGLE_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@ed3a0531877aca392eb870f440d9ae7aba83a6bd # v1
+        with:
+          cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
+          terraform_wrapper: false
+
+      - name: Generate SSH key pair
+        run: |
+          ssh-keygen -t ed25519 -f ~/.ssh/id_rsa -N "" -C "ci-run-${{ github.run_id }}"
+          echo "TF_VAR_SSH_PUBLIC_KEY=$(cat ~/.ssh/id_rsa.pub)" >> "$GITHUB_ENV"
+
+      - name: Configure SSH
+        run: |
+          cp ~/.ssh/id_rsa ~/.ssh/staging.key
+          chmod 600 ~/.ssh/staging.key
+          cat >>~/.ssh/config <<END
+          Host quay
+            HostName quay
+            User ci-user
+            IdentityFile ~/.ssh/staging.key
+            StrictHostKeyChecking no
+            ServerAliveInterval 30
+            ServerAliveCountMax 10
+          END
+
+      - name: Initialize VM
+        uses: ./.github/actions/setup-terraform
+        with:
+          terraform-context: ".github/workflows/extended-port-installer"
+
+      - name: Wait for VM
+        run: sleep 60
+
+      - name: Download tarfile
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: mirror-registry-extended-installer
+
+      - name: Add quay to /etc/hosts
+        run: ssh ci-user@quay 'echo "127.0.0.1 quay" | sudo tee -a /etc/hosts'
+
+      - name: Install podman
+        run: ssh ci-user@quay 'sudo subscription-manager refresh; sudo yum -y install podman'
+
+      - name: SCP tarball to VM
+        run: scp mirror-registry.tar.gz ci-user@quay:~/
+
+      - name: Extract tarball
+        run: ssh ci-user@quay 'tar -xf mirror-registry.tar.gz'
+
+      - name: SCP test scripts to VM
+        run: scp -r test/e2e ci-user@quay:~/e2e
+
+      - name: Pull busybox for push/pull test
+        run: ssh ci-user@quay 'podman pull docker.io/library/busybox'
+
+      - name: Run upgrade config preservation test
+        run: ssh ci-user@quay 'QUAY_HOSTNAME=quay bash ~/e2e/test-upgrade-preserves-config.sh ~'
+
+      - name: Terraform Destroy
+        run: terraform destroy --auto-approve
+        shell: bash
+        working-directory: ".github/workflows/extended-port-installer"
+        if: always()
+
   test-health-endpoint:
     name: "Health Endpoint Validation"
     needs: [build-installer]
