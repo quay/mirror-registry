@@ -49,8 +49,7 @@ podman push "${QUAY_ENDPOINT}/init/upgrade-test:v1" --tls-verify=false
 
 # Upgrade to current build
 log_info "Upgrading to current build..."
-${MIRROR_REGISTRY_DIR}/mirror-registry upgrade -v \
-    --quayHostname "${QUAY_ENDPOINT}"
+${MIRROR_REGISTRY_DIR}/mirror-registry upgrade -v
 
 wait_for_quay "${QUAY_ENDPOINT}"
 assert_quay_healthy "${QUAY_ENDPOINT}"
@@ -61,7 +60,7 @@ podman rmi "${QUAY_ENDPOINT}/init/upgrade-test:v1" 2>/dev/null || true
 assert_success "Pull image pushed before upgrade" \
     podman pull "${QUAY_ENDPOINT}/init/upgrade-test:v1" --tls-verify=false
 
-if podman images | grep -q "upgrade-test"; then
+if podman images --no-trunc --format '{{.Repository}}:{{.Tag}}' | grep -q "upgrade-test"; then
     log_info "PASS: Image data preserved through SQLite-to-SQLite upgrade"
     ((PASS_COUNT++))
 else
