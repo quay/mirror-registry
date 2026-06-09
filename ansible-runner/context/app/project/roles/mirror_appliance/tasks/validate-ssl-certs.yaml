@@ -46,21 +46,17 @@
         path: "{{ expanded_quay_root }}/quay-config/ssl.key"
       register: existing_ssl_key
 
-    - name: Fail if SSL certificate is missing
-      fail:
+    - name: Warn if SSL certificate is missing
+      debug:
         msg: >-
-          SSL certificate not found at {{ expanded_quay_root }}/quay-config/ssl.cert.
-          Quay requires SSL certificates to start. Please re-run the upgrade command
-          with --sslCert and --sslKey flags to provide new certificates, for example:
-          mirror-registry upgrade --sslCert /path/to/ssl.cert --sslKey /path/to/ssl.key
+          WARNING - SSL certificate not found at {{ expanded_quay_root }}/quay-config/ssl.cert.
+          Quay may fail to start. Provide certificates with --sslCert and --sslKey flags.
       when: not existing_ssl_cert.stat.exists
 
-    - name: Fail if SSL key is missing
-      fail:
+    - name: Warn if SSL key is missing
+      debug:
         msg: >-
-          SSL key not found at {{ expanded_quay_root }}/quay-config/ssl.key.
-          Quay requires SSL certificates to start. Please re-run the upgrade command
-          with --sslCert and --sslKey flags to provide new certificates, for example:
-          mirror-registry upgrade --sslCert /path/to/ssl.cert --sslKey /path/to/ssl.key
+          WARNING - SSL key not found at {{ expanded_quay_root }}/quay-config/ssl.key.
+          Quay may fail to start. Provide certificates with --sslCert and --sslKey flags.
       when: not existing_ssl_key.stat.exists
   when: not (new_ssl_cert.stat.exists and new_ssl_key.stat.exists)
