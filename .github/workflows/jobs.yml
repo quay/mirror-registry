@@ -328,8 +328,7 @@ jobs:
             -addext "subjectAltName=DNS:quay"'
           ssh ci-user@control './mirror-registry upgrade -u ci-user -r /home/ci-user/quay-install -H quay \
             --sslCert /tmp/new-ssl.cert --sslKey /tmp/new-ssl.key -v -k ~/.ssh/id_rsa'
-          ssh ci-user@quay 'curl -sk https://quay:8443/health/instance | grep -q HEALTHY || \
-            curl -sk https://localhost:8443/health/instance | grep -q HEALTHY'
+          ssh ci-user@quay 'curl -sk https://quay:8443/health/instance | grep -q "\"status_code\":200"'
 
       - name: Uninstall Registry
         run: ssh ci-user@control './mirror-registry uninstall -u ci-user -H quay --autoApprove -v -k ~/.ssh/id_rsa'
@@ -507,9 +506,8 @@ jobs:
           ssh ci-user@quay 'openssl req -x509 -newkey rsa:2048 -keyout /tmp/new-ssl.key \
             -out /tmp/new-ssl.cert -days 365 -nodes -subj "/CN=quay" \
             -addext "subjectAltName=DNS:quay"'
-          ssh ci-user@quay './mirror-registry upgrade --sslCert /tmp/new-ssl.cert --sslKey /tmp/new-ssl.key -v'
-          ssh ci-user@quay 'curl -sk https://quay:8443/health/instance | grep -q HEALTHY || \
-            curl -sk https://localhost:8443/health/instance | grep -q HEALTHY'
+          ssh ci-user@quay './mirror-registry upgrade --sslCert /tmp/new-ssl.cert --sslKey /tmp/new-ssl.key --quayHostname quay:8443 -v'
+          ssh ci-user@quay 'curl -sk https://quay:8443/health/instance | grep -q "\"status_code\":200"'
 
       - name: Uninstall Quay
         run: ssh ci-user@quay './mirror-registry uninstall --autoApprove -v'
