@@ -1,3 +1,22 @@
+- name: Verify SSL certificates exist before migration
+  block:
+    - name: Check ssl.cert exists before migration begins
+      stat:
+        path: "{{ expanded_quay_root }}/quay-config/ssl.cert"
+      register: migrate_ssl_cert
+
+    - name: Check ssl.key exists before migration begins
+      stat:
+        path: "{{ expanded_quay_root }}/quay-config/ssl.key"
+      register: migrate_ssl_key
+
+    - name: Abort migration if SSL certificates are missing
+      fail:
+        msg: >-
+          SSL certificates missing from {{ expanded_quay_root }}/quay-config/.
+          Cannot proceed with migration. Re-run with --sslCert and --sslKey.
+      when: not (migrate_ssl_cert.stat.exists and migrate_ssl_key.stat.exists)
+
 - name: Check if sqlite cli image is loaded
   command: podman inspect --type=image {{ sqlite_image }}
   register: sqlite_cli
