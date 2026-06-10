@@ -16,6 +16,16 @@
 - name: Re-expand variables after config overrides
   include_tasks: expand-vars.yaml
 
+- name: Override expanded quay_storage with resolved value from existing install
+  ansible.builtin.set_fact:
+    expanded_quay_storage: "{{ resolved_quay_storage }}"
+  when: resolved_quay_storage is defined
+
+- name: Override expanded sqlite_storage with resolved value from existing install
+  ansible.builtin.set_fact:
+    expanded_sqlite_storage: "{{ resolved_sqlite_storage }}"
+  when: resolved_sqlite_storage is defined
+
 - name: Validate SSL Certificates
   include_tasks: validate-ssl-certs.yaml
 

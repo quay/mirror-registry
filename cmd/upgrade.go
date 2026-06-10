@@ -189,6 +189,18 @@ func upgrade(cobraCmd *cobra.Command) {
 		sslCertKeyFlag = fmt.Sprintf(" -v %s:/runner/certs/quay.cert:Z -v %s:/runner/certs/quay.key:Z", sslCertAbs, sslKeyAbs)
 	}
 
+	// When quayHostname was explicitly passed, include it as quay_hostname in
+	// Ansible extra vars (highest precedence, overrides everything). When not
+	// explicit, omit quay_hostname from extra vars entirely so Ansible can
+	// read the existing SERVER_HOSTNAME from config.yaml via set_fact. Pass
+	// quay_hostname_default as a fallback for fresh installs with no config.
+	var quayHostnameExtraVar string
+	if quayHostnameExplicit {
+		quayHostnameExtraVar = fmt.Sprintf("quay_hostname=%s ", quayHostname)
+	} else {
+		quayHostnameExtraVar = fmt.Sprintf("quay_hostname_default=%s ", quayHostname)
+	}
+
 	// Run playbook
 	log.Printf("Running upgrade playbook. This may take some time. To see playbook output run the installer with -v (verbose) flag.")
 	quayVersion := strings.Split(quayImage, ":")[1]
@@ -208,8 +220,8 @@ func upgrade(cobraCmd *cobra.Command) {
 		`--quiet `+
 		`--name ansible_runner_instance `+
 		fmt.Sprintf("%s ", eeImage)+
-		`ansible-playbook -i %s@%s, --private-key /runner/env/ssh_key -e "quay_image=%s quay_version=%s redis_image=%s sqlite_image=%s pause_image=%s quay_hostname=%s quay_hostname_explicit=%s local_install=%s quay_root=%s quay_storage=%s quay_storage_explicit=%s sqlite_storage=%s sqlite_storage_explicit=%s" upgrade_mirror_appliance.yml %s %s`,
-		sshKey, targetUsername, targetHostname, quayImage, quayVersion, redisImage, sqliteImage, pauseImage, quayHostname, strconv.FormatBool(quayHostnameExplicit), strconv.FormatBool(isLocalInstall()), quayRoot, quayStorage, strconv.FormatBool(quayStorageExplicit), sqliteStorage, strconv.FormatBool(sqliteStorageExplicit), askBecomePassFlag, additionalArgs)
+		`ansible-playbook -i %s@%s, --private-key /runner/env/ssh_key -e "quay_image=%s quay_version=%s redis_image=%s sqlite_image=%s pause_image=%s %slocal_install=%s quay_root=%s quay_storage=%s quay_storage_explicit=%s sqlite_storage=%s sqlite_storage_explicit=%s" upgrade_mirror_appliance.yml %s %s`,
+		sshKey, targetUsername, targetHostname, quayImage, quayVersion, redisImage, sqliteImage, pauseImage, quayHostnameExtraVar, strconv.FormatBool(isLocalInstall()), quayRoot, quayStorage, strconv.FormatBool(quayStorageExplicit), sqliteStorage, strconv.FormatBool(sqliteStorageExplicit), askBecomePassFlag, additionalArgs)
 
 	log.Debug("Running command: " + podmanCmd)
 	cmd := exec.Command("bash", "-c", podmanCmd)
