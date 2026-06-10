@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -17,8 +18,8 @@ import (
 var upgradeCmd = &cobra.Command{
 	Use:   "upgrade",
 	Short: "Upgrade all mirror registry images.",
-	Run: func(cmd *cobra.Command, args []string) {
-		upgrade()
+	Run: func(cobraCmd *cobra.Command, args []string) {
+		upgrade(cobraCmd)
 	},
 }
 
@@ -40,9 +41,13 @@ func init() {
 	upgradeCmd.Flags().StringVarP(&sqliteStorage, "sqliteStorage", "", "sqlite-storage", "The folder where quay sqlite data is saved. This defaults to a Podman named volume 'sqlite-storage'. Root is required to uninstall.")
 	upgradeCmd.Flags().StringVarP(&additionalArgs, "additionalArgs", "", "", "Additional arguments you would like to append to the ansible-playbook call. Used mostly for development.")
 
+	upgradeCmd.Flags().StringVarP(&sslCert, "sslCert", "", "", "The path to the SSL certificate Quay should use")
+	upgradeCmd.Flags().StringVarP(&sslKey, "sslKey", "", "", "The path to the SSL key Quay should use")
+	upgradeCmd.Flags().BoolVarP(&sslCheckSkip, "sslCheckSkip", "", false, "Whether or not to check the certificate hostname against the SERVER_HOSTNAME in config.yaml.")
+
 }
 
-func upgrade() {
+func upgrade(cobraCmd *cobra.Command) {
 
 	var err error
 	log.Printf("Upgrade has begun")
@@ -52,6 +57,11 @@ func upgrade() {
 	log.Debug("Quay Image: " + quayImage)
 	log.Debug("Redis Image: " + redisImage)
 
+	// Detect which flags the user explicitly passed
+	quayHostnameExplicit := cobraCmd.Flags().Changed("quayHostname")
+	quayStorageExplicit := cobraCmd.Flags().Changed("quayStorage")
+	sqliteStorageExplicit := cobraCmd.Flags().Changed("sqliteStorage")
+
 	// Load execution environment
 	err = loadExecutionEnvironment()
 	check(err)
@@ -59,6 +69,17 @@ func upgrade() {
 	// Set quayHostname if not already set
 	if quayHostname == "" {
 		quayHostname = targetHostname + ":8443"
+	}
+	if !strings.Contains(quayHostname, ":") {
+		quayHostname = quayHostname + ":8443"
+	}
+
+	// Load the SSL certificate and the key
+	err = loadCerts(sslCert, sslKey, strings.Split(quayHostname, ":")[0], sslCheckSkip)
+	check(err)
+
+	if (sslCert != "" && sslKey == "") || (sslCert == "" && sslKey != "") {
+		log.Warn("Both --sslCert and --sslKey must be provided together. Only one was specified, so no certificate will be used.")
 	}
 
 	// Check that SSH key is present, and generate if not
@@ -148,20 +169,24 @@ func upgrade() {
 		}
 	}
 
-	// Set quayHostname if not already set
-	if quayHostname == "" {
-		quayHostname = targetHostname + ":8443"
-	}
-
-	// Add port if not present
-	if !strings.Contains(quayHostname, ":") {
-		quayHostname = quayHostname + ":8443"
-	}
-
 	// Set askBecomePass flag if true
 	var askBecomePassFlag string
 	if askBecomePass {
 		askBecomePassFlag = "-K"
+	}
+
+	// Set the SSL flag if cert and key are defined
+	var sslCertKeyFlag string
+	if sslCert != "" && sslKey != "" {
+		sslCertAbs, err := filepath.Abs(sslCert)
+		if err != nil {
+			check(errors.New("Unable to get absolute path of " + sslCert))
+		}
+		sslKeyAbs, err := filepath.Abs(sslKey)
+		if err != nil {
+			check(errors.New("Unable to get absolute path of " + sslKey))
+		}
+		sslCertKeyFlag = fmt.Sprintf(" -v %s:/runner/certs/quay.cert:Z -v %s:/runner/certs/quay.key:Z", sslCertAbs, sslKeyAbs)
 	}
 
 	// Run playbook
@@ -173,6 +198,7 @@ func upgrade() {
 		`--net host `+
 		imageArchiveMountFlag+ // optional image archive flag
 		sqliteArchiveMountFlag+
+		sslCertKeyFlag+ // optional ssl cert/key flag
 		` -v %s:/runner/env/ssh_key `+
 		`-e RUNNER_OMIT_EVENTS=False `+
 		`-e RUNNER_ONLY_FAILED_EVENTS=False `+
@@ -182,8 +208,8 @@ func upgrade() {
 		`--quiet `+
 		`--name ansible_runner_instance `+
 		fmt.Sprintf("%s ", eeImage)+
-		`ansible-playbook -i %s@%s, --private-key /runner/env/ssh_key -e "quay_image=%s quay_version=%s redis_image=%s sqlite_image=%s pause_image=%s quay_hostname=%s local_install=%s quay_root=%s quay_storage=%s sqlite_storage=%s" upgrade_mirror_appliance.yml %s %s`,
-		sshKey, targetUsername, targetHostname, quayImage, quayVersion, redisImage, sqliteImage, pauseImage, quayHostname, strconv.FormatBool(isLocalInstall()), quayRoot, quayStorage, sqliteStorage, askBecomePassFlag, additionalArgs)
+		`ansible-playbook -i %s@%s, --private-key /runner/env/ssh_key -e "quay_image=%s quay_version=%s redis_image=%s sqlite_image=%s pause_image=%s quay_hostname=%s quay_hostname_explicit=%s local_install=%s quay_root=%s quay_storage=%s quay_storage_explicit=%s sqlite_storage=%s sqlite_storage_explicit=%s" upgrade_mirror_appliance.yml %s %s`,
+		sshKey, targetUsername, targetHostname, quayImage, quayVersion, redisImage, sqliteImage, pauseImage, quayHostname, strconv.FormatBool(quayHostnameExplicit), strconv.FormatBool(isLocalInstall()), quayRoot, quayStorage, strconv.FormatBool(quayStorageExplicit), sqliteStorage, strconv.FormatBool(sqliteStorageExplicit), askBecomePassFlag, additionalArgs)
 
 	log.Debug("Running command: " + podmanCmd)
 	cmd := exec.Command("bash", "-c", podmanCmd)

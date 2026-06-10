@@ -13,6 +13,12 @@
 - name: Autodetect existing Secrets in config.yaml
   include_tasks: upgrade-config-vars.yaml
 
+- name: Re-expand variables after config overrides
+  include_tasks: expand-vars.yaml
+
+- name: Validate SSL Certificates
+  include_tasks: validate-ssl-certs.yaml
+
 - name: Upgrade Quay Pod Service
   include_tasks: upgrade-pod-service.yaml
 

@@ -30,7 +30,7 @@ wait_for_quay "${CUSTOM_ENDPOINT}"
 assert_quay_healthy "${CUSTOM_ENDPOINT}"
 
 # Verify config.yaml has the custom hostname
-config_hostname=$(grep "SERVER_HOSTNAME" ~/quay-install/quay-config/config.yaml 2>/dev/null | head -1 || echo "")
+config_hostname=$(grep "^SERVER_HOSTNAME:" ~/quay-install/quay-config/config.yaml 2>/dev/null | head -1 || echo "")
 assert_contains "SERVER_HOSTNAME set to custom hostname" "${config_hostname}" "${CUSTOM_ENDPOINT}"
 
 # Verify Quay is accessible at custom hostname

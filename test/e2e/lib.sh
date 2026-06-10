@@ -101,8 +101,8 @@ try:
     services = data.get('data', {}).get('services', {})
     if services and all(services.values()):
         sys.exit(0)
-except:
-    pass
+except Exception as e:
+    print(f'Health check error: {e}', file=sys.stderr)
 sys.exit(1)
 " 2>/dev/null; then
             log_info "Quay is healthy after ${elapsed}s"
@@ -267,7 +267,7 @@ verify_push_pull() {
     podman rmi "${hostname}/${username}/busybox:test" 2>/dev/null || true
     podman pull "${hostname}/${username}/busybox:test" ${tls_verify}
 
-    if podman images | grep -q "${hostname}/${username}/busybox"; then
+    if podman images --no-trunc --format '{{.Repository}}:{{.Tag}}' | grep -q "${hostname}/${username}/busybox"; then
         log_info "PASS: Push/pull verification"
         (( ++PASS_COUNT ))
     else
