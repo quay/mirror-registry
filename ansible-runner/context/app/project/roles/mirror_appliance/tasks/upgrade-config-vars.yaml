@@ -29,3 +29,31 @@
     quay_config_file['DATABASE_SECRET_KEY'] is string and
     quay_config_file['DB_URI'] is string and
     (quay_config_file['DB_URI'] | urlsplit('scheme')) == 'postgresql'
+
+- name: Use existing SERVER_HOSTNAME if --quayHostname was not explicitly set
+  ansible.builtin.set_fact:
+    quay_hostname: "{{ quay_config_file['SERVER_HOSTNAME'] }}"
+  when: >
+    quay_hostname_explicit | default('true') | lower != 'true' and
+    'SERVER_HOSTNAME' in quay_config_file and
+    quay_config_file['SERVER_HOSTNAME'] is string
+
+- name: Read existing quay-app.service for storage paths
+  ansible.builtin.slurp:
+    src: "{{ systemd_unit_dir }}/quay-app.service"
+  register: existing_quay_service_file
+  ignore_errors: yes
+
+- name: Use existing quay_storage if --quayStorage was not explicitly set
+  ansible.builtin.set_fact:
+    quay_storage: "{{ (existing_quay_service_file.content | b64decode) | regex_search('-v\\s+(\\S+):/datastorage', '\\1') | default([quay_storage], true) | first }}"
+  when: >
+    quay_storage_explicit | default('true') | lower != 'true' and
+    existing_quay_service_file is succeeded
+
+- name: Use existing sqlite_storage if --sqliteStorage was not explicitly set
+  ansible.builtin.set_fact:
+    sqlite_storage: "{{ (existing_quay_service_file.content | b64decode) | regex_search('-v\\s+(\\S+):/sqlite', '\\1') | default([sqlite_storage], true) | first }}"
+  when: >
+    sqlite_storage_explicit | default('true') | lower != 'true' and
+    existing_quay_service_file is succeeded

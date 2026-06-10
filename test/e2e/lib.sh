@@ -267,7 +267,7 @@ verify_push_pull() {
     podman rmi "${hostname}/${username}/busybox:test" 2>/dev/null || true
     podman pull "${hostname}/${username}/busybox:test" ${tls_verify}
 
-    if podman images | grep -q "${hostname}/${username}/busybox"; then
+    if podman images --no-trunc --format '{{.Repository}}:{{.Tag}}' | grep -q "${hostname}/${username}/busybox"; then
         log_info "PASS: Push/pull verification"
         ((PASS_COUNT++))
     else
