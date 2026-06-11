@@ -191,7 +191,7 @@ jobs:
     needs: ["build-install-zip", "pull-images"]
     runs-on: ubuntu-latest
     environment: ci-testing
-    timeout-minutes: 60
+    timeout-minutes: 90
     if: github.repository_owner == 'quay' && contains(github.event.pull_request.labels.*.name, 'ok-to-test') # Skip on release
     strategy:
       fail-fast: false
@@ -392,7 +392,7 @@ jobs:
     needs: ["build-install-zip", "pull-images"]
     runs-on: ubuntu-latest
     environment: ci-testing
-    timeout-minutes: 60
+    timeout-minutes: 90
     if: github.repository_owner == 'quay' && contains(github.event.pull_request.labels.*.name, 'ok-to-test') # Skip on release
     strategy:
       fail-fast: false
