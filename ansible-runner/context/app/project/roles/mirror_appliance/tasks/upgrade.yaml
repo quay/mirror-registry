@@ -1,3 +1,21 @@
+- name: Discover quay_root from existing install if not explicitly set
+  block:
+    - name: Read existing quay-app.service to discover quay_root
+      ansible.builtin.slurp:
+        src: "{{ systemd_unit_dir }}/quay-app.service"
+      register: existing_service_for_root
+
+    - name: Extract quay_root from service file volume mount
+      ansible.builtin.set_fact:
+        quay_root: "{{ (existing_service_for_root.content | b64decode) | regex_search('-v\\s+(\\S+)/quay-config:/quay-registry/conf/stack', '\\1') | first }}"
+  when: quay_root is not defined
+  ignore_errors: yes
+
+- name: Fall back to default quay_root if not discovered
+  ansible.builtin.set_fact:
+    quay_root: "{{ quay_root_default | default('~/quay-install') }}"
+  when: quay_root is not defined
+
 - name: Expand variables
   include_tasks: expand-vars.yaml
 
