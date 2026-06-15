@@ -59,6 +59,7 @@ func upgrade(cobraCmd *cobra.Command) {
 
 	// Detect which flags the user explicitly passed
 	quayHostnameExplicit := cobraCmd.Flags().Changed("quayHostname")
+	quayRootExplicit := cobraCmd.Flags().Changed("quayRoot")
 	quayStorageExplicit := cobraCmd.Flags().Changed("quayStorage")
 	sqliteStorageExplicit := cobraCmd.Flags().Changed("sqliteStorage")
 
@@ -189,16 +190,22 @@ func upgrade(cobraCmd *cobra.Command) {
 		sslCertKeyFlag = fmt.Sprintf(" -v %s:/runner/certs/quay.cert:Z -v %s:/runner/certs/quay.key:Z", sslCertAbs, sslKeyAbs)
 	}
 
-	// When quayHostname was explicitly passed, include it as quay_hostname in
-	// Ansible extra vars (highest precedence, overrides everything). When not
-	// explicit, omit quay_hostname from extra vars entirely so Ansible can
-	// read the existing SERVER_HOSTNAME from config.yaml via set_fact. Pass
-	// quay_hostname_default as a fallback for fresh installs with no config.
+	// When a flag was explicitly passed, include it in Ansible extra vars
+	// (highest precedence). When not explicit, omit it so Ansible can read
+	// the existing value from the target host via set_fact. Pass a _default
+	// fallback for edge cases where no existing install is found.
 	var quayHostnameExtraVar string
 	if quayHostnameExplicit {
 		quayHostnameExtraVar = fmt.Sprintf("quay_hostname=%s ", quayHostname)
 	} else {
 		quayHostnameExtraVar = fmt.Sprintf("quay_hostname_default=%s ", quayHostname)
+	}
+
+	var quayRootExtraVar string
+	if quayRootExplicit {
+		quayRootExtraVar = fmt.Sprintf("quay_root=%s ", quayRoot)
+	} else {
+		quayRootExtraVar = fmt.Sprintf("quay_root_default=%s ", quayRoot)
 	}
 
 	// Run playbook
@@ -220,8 +227,8 @@ func upgrade(cobraCmd *cobra.Command) {
 		`--quiet `+
 		`--name ansible_runner_instance `+
 		fmt.Sprintf("%s ", eeImage)+
-		`ansible-playbook -i %s@%s, --private-key /runner/env/ssh_key -e "quay_image=%s quay_version=%s redis_image=%s sqlite_image=%s pause_image=%s %slocal_install=%s quay_root=%s quay_storage=%s quay_storage_explicit=%s sqlite_storage=%s sqlite_storage_explicit=%s" upgrade_mirror_appliance.yml %s %s`,
-		sshKey, targetUsername, targetHostname, quayImage, quayVersion, redisImage, sqliteImage, pauseImage, quayHostnameExtraVar, strconv.FormatBool(isLocalInstall()), quayRoot, quayStorage, strconv.FormatBool(quayStorageExplicit), sqliteStorage, strconv.FormatBool(sqliteStorageExplicit), askBecomePassFlag, additionalArgs)
+		`ansible-playbook -i %s@%s, --private-key /runner/env/ssh_key -e "quay_image=%s quay_version=%s redis_image=%s sqlite_image=%s pause_image=%s %s%slocal_install=%s quay_storage=%s quay_storage_explicit=%s sqlite_storage=%s sqlite_storage_explicit=%s" upgrade_mirror_appliance.yml %s %s`,
+		sshKey, targetUsername, targetHostname, quayImage, quayVersion, redisImage, sqliteImage, pauseImage, quayHostnameExtraVar, quayRootExtraVar, strconv.FormatBool(isLocalInstall()), quayStorage, strconv.FormatBool(quayStorageExplicit), sqliteStorage, strconv.FormatBool(sqliteStorageExplicit), askBecomePassFlag, additionalArgs)
 
 	log.Debug("Running command: " + podmanCmd)
 	cmd := exec.Command("bash", "-c", podmanCmd)
