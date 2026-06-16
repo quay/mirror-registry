@@ -86,7 +86,47 @@ else
     (( ++FAIL_COUNT ))
 fi
 
-# Cleanup
+# Cleanup test 1+2
 "${MIRROR_REGISTRY}" uninstall --autoApprove -v
+
+# --- Test 3: Custom quayRoot preserved on upgrade ---
+CUSTOM_ROOT="/tmp/omr-test-root-$$"
+mkdir -p "${CUSTOM_ROOT}"
+log_info "Installing with custom quayRoot ${CUSTOM_ROOT}..."
+"${MIRROR_REGISTRY}" install -v \
+    --quayHostname "${HOSTNAME}:8443" \
+    --initPassword password \
+    --quayRoot "${CUSTOM_ROOT}"
+
+wait_for_quay "${HOSTNAME}:8443"
+
+# Verify config.yaml is at the custom path
+if [[ -f "${CUSTOM_ROOT}/quay-config/config.yaml" ]]; then
+    log_info "PASS: config.yaml exists at custom quayRoot"
+    (( ++PASS_COUNT ))
+else
+    log_error "FAIL: config.yaml not found at ${CUSTOM_ROOT}/quay-config/config.yaml"
+    (( ++FAIL_COUNT ))
+fi
+
+# Upgrade without --quayRoot
+log_info "Upgrading without --quayRoot flag..."
+"${MIRROR_REGISTRY}" upgrade -v
+
+wait_for_quay "${HOSTNAME}:8443"
+assert_quay_healthy "${HOSTNAME}:8443"
+
+# Verify config.yaml still at custom path (not default ~/quay-install)
+if [[ -f "${CUSTOM_ROOT}/quay-config/config.yaml" ]]; then
+    log_info "PASS: Custom quayRoot preserved after upgrade (${CUSTOM_ROOT})"
+    (( ++PASS_COUNT ))
+else
+    log_error "FAIL: Custom quayRoot lost — config.yaml not at ${CUSTOM_ROOT}"
+    (( ++FAIL_COUNT ))
+fi
+
+# Cleanup test 3
+"${MIRROR_REGISTRY}" uninstall --autoApprove -v --quayRoot "${CUSTOM_ROOT}"
+rm -rf "${CUSTOM_ROOT}"
 
 print_summary
