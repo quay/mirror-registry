@@ -80,7 +80,7 @@ func upgrade(cobraCmd *cobra.Command) {
 	check(err)
 
 	if (sslCert != "" && sslKey == "") || (sslCert == "" && sslKey != "") {
-		log.Warn("Both --sslCert and --sslKey must be provided together. Only one was specified, so no certificate will be used.")
+		check(errors.New("Both --sslCert and --sslKey must be provided together. Only one was specified."))
 	}
 
 	// Check that SSH key is present, and generate if not
