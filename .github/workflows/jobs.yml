@@ -330,6 +330,14 @@ jobs:
             --sslCert /tmp/new-ssl.cert --sslKey /tmp/new-ssl.key -v -k ~/.ssh/id_rsa'
           ssh ci-user@quay 'curl -sk https://quay:8443/health/instance | grep -q "\"status_code\":200"'
 
+      - name: Test remote upgrade fails when only --sslCert is provided
+        run: |
+          if ssh ci-user@control './mirror-registry upgrade -u ci-user -r /home/ci-user/quay-install -H quay --sslCert /tmp/new-ssl.cert -v -k ~/.ssh/id_rsa' 2>&1; then
+            echo "FAIL: upgrade should have failed with only --sslCert"
+            exit 1
+          fi
+          echo "PASS: upgrade correctly rejected partial SSL flag input"
+
       - name: Uninstall Registry
         run: ssh ci-user@control './mirror-registry uninstall -u ci-user -H quay --autoApprove -v -k ~/.ssh/id_rsa'
 
@@ -508,6 +516,14 @@ jobs:
             -addext "subjectAltName=DNS:quay"'
           ssh ci-user@quay './mirror-registry upgrade --sslCert /tmp/new-ssl.cert --sslKey /tmp/new-ssl.key --quayHostname quay:8443 -v'
           ssh ci-user@quay 'curl -sk https://quay:8443/health/instance | grep -q "\"status_code\":200"'
+
+      - name: Test upgrade fails when only --sslCert is provided
+        run: |
+          if ssh ci-user@quay './mirror-registry upgrade --sslCert /tmp/new-ssl.cert -v' 2>&1; then
+            echo "FAIL: upgrade should have failed with only --sslCert"
+            exit 1
+          fi
+          echo "PASS: upgrade correctly rejected partial SSL flag input"
 
       - name: Uninstall Quay
         run: ssh ci-user@quay './mirror-registry uninstall --autoApprove -v'
