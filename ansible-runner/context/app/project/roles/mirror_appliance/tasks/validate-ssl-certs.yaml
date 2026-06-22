@@ -10,15 +10,6 @@
   delegate_to: localhost
   register: new_ssl_key
 
-- name: Fail if only one SSL file is provided
-  fail:
-    msg: >-
-      Both --sslCert and --sslKey must be provided together.
-      Re-run upgrade with both flags.
-  when: >
-    (new_ssl_cert.stat.exists and not new_ssl_key.stat.exists) or
-    (new_ssl_key.stat.exists and not new_ssl_cert.stat.exists)
-
 - name: Copy new SSL certificates to target host
   block:
     - name: Copy new SSL certificate
