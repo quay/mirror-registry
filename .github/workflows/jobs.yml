@@ -332,8 +332,13 @@ jobs:
 
       - name: Test remote upgrade fails when only --sslCert is provided
         run: |
-          if ssh ci-user@control './mirror-registry upgrade -u ci-user -r /home/ci-user/quay-install -H quay --sslCert /tmp/new-ssl.cert -v -k ~/.ssh/id_rsa' 2>&1; then
+          output=$(ssh ci-user@control './mirror-registry upgrade -u ci-user -r /home/ci-user/quay-install -H quay --sslCert /tmp/new-ssl.cert -v -k ~/.ssh/id_rsa' 2>&1) && {
             echo "FAIL: upgrade should have failed with only --sslCert"
+            exit 1
+          }
+          if ! grep -Fq "Both --sslCert and --sslKey must be provided together" <<<"$output"; then
+            echo "FAIL: upgrade failed, but not for partial SSL flag validation"
+            echo "$output"
             exit 1
           fi
           echo "PASS: upgrade correctly rejected partial SSL flag input"
@@ -519,8 +524,13 @@ jobs:
 
       - name: Test upgrade fails when only --sslCert is provided
         run: |
-          if ssh ci-user@quay './mirror-registry upgrade --sslCert /tmp/new-ssl.cert -v' 2>&1; then
+          output=$(ssh ci-user@quay './mirror-registry upgrade --sslCert /tmp/new-ssl.cert -v' 2>&1) && {
             echo "FAIL: upgrade should have failed with only --sslCert"
+            exit 1
+          }
+          if ! grep -Fq "Both --sslCert and --sslKey must be provided together" <<<"$output"; then
+            echo "FAIL: upgrade failed, but not for partial SSL flag validation"
+            echo "$output"
             exit 1
           fi
           echo "PASS: upgrade correctly rejected partial SSL flag input"
