@@ -60,3 +60,16 @@ Read the specific documentation below when your task involves these keywords:
 - **Ansible**: Follow existing role structure in `mirror_appliance`
 - **Testing**: PRs require `ok-to-test` label for CI integration tests
 - **Safety**: Never commit credentials or secrets
+
+## Contextification Addendum
+
+Low-token routing:
+
+- CLI commands: `cmd/*.go`
+- Embedded installer: `ansible-runner/context/`
+- E2E tests: `test/e2e/`
+- Build/package targets: `Makefile`
+
+Commands: `make build-golang-executable`, `make build-online-zip`, `make build-offline-zip`.
+
+Guardrail: installer validation should use a clean host or VM because it creates systemd units, storage, and persistent config.

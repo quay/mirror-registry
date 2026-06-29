@@ -170,3 +170,23 @@ tar -xzvf mirror-registry.tar.gz -C mirror-registry
 ```
 
 **NOTE** This command may take some time to complete depending on host resources. 
+
+## Contextification Addendum
+
+```mermaid
+flowchart TB
+    admin[Administrator]
+    cli[mirror-registry CLI]
+    ansible[embedded Ansible]
+    systemd[user systemd services]
+    services[Quay, Redis, storage]
+
+    admin --> cli
+    cli --> ansible
+    ansible --> systemd
+    systemd --> services
+```
+
+Key paths: `cmd/`, `ansible-runner/context/`, `test/e2e/`, and `Makefile`. Build with `make build-golang-executable`, `make build-online-zip`, and `make build-offline-zip`.
+
+Installer tests change host state; validate install, upgrade, and uninstall on a clean RHEL/Fedora host or VM.
