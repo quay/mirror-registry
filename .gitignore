@@ -7,6 +7,7 @@ terraform.tfstate*
 ansible/context
 image-archive.tar
 execution-environment.tar
+sqlite3.tar
 quay-aioi
 mirror-registry*
 local-testing
