@@ -2,5 +2,14 @@
 Dockerfile
 Dockerfile.online
 Makefile
-README.md
-test
+*.md
+**/*.md
+agent_docs/
+codecov.yml
+*_test.go
+**/*_test.go
+test/
+ansible-runner/context/Containerfile
+ansible-runner/execution-environment.yml
+ansible-runner/requirements.yml
+ansible-runner/setup.cfg

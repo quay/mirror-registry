@@ -8,7 +8,7 @@ ARG PAUSE_IMAGE=${PAUSE_IMAGE}
 ARG SQLITE_IMAGE=${SQLITE_IMAGE}
 
 # Create Go CLI
-FROM registry.access.redhat.com/ubi8:latest AS cli
+FROM registry.access.redhat.com/ubi8/go-toolset:1.25 AS cli
 
 # Need to duplicate these, otherwise they won't be available to the stage
 ARG RELEASE_VERSION=${RELEASE_VERSION}
@@ -18,15 +18,8 @@ ARG REDIS_IMAGE=${REDIS_IMAGE}
 ARG PAUSE_IMAGE=${PAUSE_IMAGE}
 ARG SQLITE_IMAGE=${SQLITE_IMAGE}
 
-ENV GOROOT=/usr/local/go
-ENV PATH=$GOPATH/bin:$GOROOT/bin:$PATH 
 
-# Get Go binary
-RUN curl -o go1.25.10.linux-amd64.tar.gz https://dl.google.com/go/go1.25.10.linux-amd64.tar.gz
-RUN tar -xzf go1.25.10.linux-amd64.tar.gz  &&\
-    mv go /usr/local
-
-COPY . /cli
+COPY --chown=1001:0 . /cli
 WORKDIR /cli
 
 # Create CLI
