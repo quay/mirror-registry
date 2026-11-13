@@ -594,8 +594,8 @@ jobs:
       - name: Add quay to /etc/hosts
         run: ssh ci-user@quay 'echo "127.0.0.1 quay" | sudo tee -a /etc/hosts'
 
-      - name: Install podman
-        run: ssh ci-user@quay 'sudo subscription-manager refresh; sudo yum -y install podman'
+      - name: Install podman and curl
+        run: ssh ci-user@quay 'sudo subscription-manager refresh; sudo yum -y install podman curl'
 
       - name: SCP tarball to VM
         run: scp mirror-registry.tar.gz ci-user@quay:~/
@@ -610,7 +610,7 @@ jobs:
         run: ssh ci-user@quay 'podman pull docker.io/library/busybox'
 
       - name: Run SQLite-to-SQLite upgrade test
-        run: ssh ci-user@quay 'QUAY_HOSTNAME=quay bash ~/e2e/test-upgrade-sqlite.sh ~'
+        run: ssh ci-user@quay 'OLD_VERSION=2.0.12 QUAY_HOSTNAME=quay bash ~/e2e/test-upgrade-sqlite.sh ~'
 
       - name: Terraform Destroy
         run: terraform destroy --auto-approve
