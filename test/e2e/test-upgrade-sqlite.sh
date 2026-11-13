@@ -12,23 +12,29 @@ MIRROR_REGISTRY_DIR="${1:-.}"
 HOSTNAME="${QUAY_HOSTNAME:-$(hostname -f)}"
 QUAY_ENDPOINT="${HOSTNAME}:8443"
 
-# Version to upgrade from — should be a recent SQLite-based release
-OLD_VERSION="${OLD_VERSION:-2.0.2}"
+# Version to upgrade from — should be the previous OMR release
+OLD_VERSION="${OLD_VERSION:-2.0.12}"
 OLD_TARBALL="mirror-registry-old.tar.gz"
 OLD_DIR="mirror-registry-old"
 
 log_info "=== Test: SQLite-to-SQLite Upgrade ==="
 log_info "Upgrading from v${OLD_VERSION} to current build"
 
-# Download old version
-log_info "Downloading v${OLD_VERSION}..."
-wget -q -O "${OLD_TARBALL}" \
-    "https://github.com/quay/mirror-registry/releases/download/v${OLD_VERSION}/mirror-registry-offline.tar.gz" || {
-    log_warn "Could not download v${OLD_VERSION}, skipping upgrade test"
-    echo "SKIP: Old version not available for download"
-    exit 0
-}
+# Download old version. A missing dependency or release asset must fail the
+# upgrade test rather than produce a false-positive successful skip.
+if ! command -v curl >/dev/null 2>&1; then
+    log_error "curl is required to download OMR v${OLD_VERSION}"
+    exit 1
+fi
 
+log_info "Downloading v${OLD_VERSION}..."
+curl --fail --location \
+    --retry 5 \
+    --connect-timeout 30 \
+    --output "${OLD_TARBALL}" \
+    "https://github.com/quay/mirror-registry/releases/download/v${OLD_VERSION}/mirror-registry-offline.tar.gz"
+
+tar -tzf "${OLD_TARBALL}" >/dev/null
 mkdir -p "${OLD_DIR}"
 tar -xzf "${OLD_TARBALL}" -C "${OLD_DIR}"
 
