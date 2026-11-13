@@ -103,6 +103,14 @@ func TestGetImageMetadata(t *testing.T) {
 		})
 	}
 
+	t.Run("quay preserves Python dependency paths", func(t *testing.T) {
+		result := getImageMetadata("quay", "registry.redhat.io/quay/quay-rhel8:v3.12.24", "/tmp/quay.tar")
+		want := "ENV PYTHONPATH=/opt/app-root/lib64/python3.12/site-packages:/opt/app-root/lib/python3.12/site-packages:/quay-registry"
+		if !strings.Contains(result, want) {
+			t.Errorf("getImageMetadata(\"quay\", ...) missing %q", want)
+		}
+	})
+
 	t.Run("unknown app returns empty", func(t *testing.T) {
 		result := getImageMetadata("unknown", "img:latest", "/tmp/archive.tar")
 		if result != "" {
