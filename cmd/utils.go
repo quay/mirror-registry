@@ -287,7 +287,7 @@ func getImageMetadata(app, imageName, archivePath string) string {
 					--change 'ENV QUAYRUN=/quay-registry/conf' \
 					--change 'ENV QUAYPATH=/quay-registry' \
 					--change 'ENV PYTHONUSERBASE=/app' \
-					--change 'ENV PYTHONPATH=/quay-registry' \
+					--change 'ENV PYTHONPATH=/opt/app-root/lib64/python3.12/site-packages:/opt/app-root/lib/python3.12/site-packages:/quay-registry' \
 					--change 'ENV TZ=UTC' \
 					--change 'ENV RED_HAT_QUAY=true' \
 					--change 'ENTRYPOINT=["dumb-init","--","/quay-registry/quay-entrypoint.sh"]' \
