@@ -107,6 +107,5 @@ RUN tar -cvf image-archive.tar quay.tar redis.tar pause.tar
 # Bundle mirror registry archive
 RUN tar -czvf mirror-registry.tar.gz image-archive.tar execution-environment.tar mirror-registry sqlite3.tar
 
-# Extract bundle to final release image
-FROM registry.access.redhat.com/ubi8:latest AS release
-COPY --from=build mirror-registry.tar.gz mirror-registry.tar.gz
+# Test the exact OMR 2.0.13 Konflux release candidate without rebuilding it.
+FROM quay.io/redhat-user-workloads/quay-eng-tenant/mirror-registry-v2-0@sha256:bf6ddbc849559e5912623d4b21c78994b30122b1fa07332d2546171ef5a91b76 AS release
